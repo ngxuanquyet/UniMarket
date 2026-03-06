@@ -23,13 +23,17 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
 import com.example.unimarket.presentation.theme.PrimaryYellowDark
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(navController: NavController) {
+fun ProfileScreen(
+    onBack: () -> Unit = {},
+    onLogoutClick: () -> Unit,
+    viewModel: ProfileViewModel = hiltViewModel(),
+) {
     val scrollState = rememberScrollState()
 
     Scaffold(
@@ -37,7 +41,7 @@ fun ProfileScreen(navController: NavController) {
             TopAppBar(
                 title = { Text("Profile", fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally)) },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = {  }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -66,7 +70,7 @@ fun ProfileScreen(navController: NavController) {
             ProfileActionsList()
             
             Spacer(modifier = Modifier.height(32.dp))
-            LogoutButton()
+            LogoutButton(onClick = onLogoutClick)
             
             Spacer(modifier = Modifier.height(80.dp)) // Bottom nav padding
         }

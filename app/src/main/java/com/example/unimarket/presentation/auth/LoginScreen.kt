@@ -62,11 +62,21 @@ import com.example.unimarket.presentation.theme.LightBlueBg
 import com.example.unimarket.presentation.theme.PrimaryBlue
 import com.example.unimarket.presentation.theme.TextDark
 import com.example.unimarket.presentation.theme.TextGray
+import androidx.credentials.CredentialManager
+import androidx.credentials.CustomCredential
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialException
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import com.example.unimarket.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     onLoginClick: (String, String) -> Unit,
+    onGoogleLoginClick: (String) -> Unit,
     onNavigateToSignUp: () -> Unit,
     isLoading: Boolean = false,
     errorMessage: String? = null
@@ -75,6 +85,8 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val credentialManager = remember { CredentialManager.create(context) }
 
     LaunchedEffect(errorMessage) {
         if (errorMessage != null) {
@@ -243,7 +255,38 @@ fun LoginScreen(
         Spacer(modifier = Modifier.height(32.dp))
 
         OutlinedButton(
-            onClick = { /* Handle Google Login */ },
+            onClick = {
+                coroutineScope.launch {
+                    try {
+                        val googleIdOption = GetGoogleIdOption.Builder()
+                            .setFilterByAuthorizedAccounts(false)
+                            .setServerClientId(context.getString(R.string.default_web_client_id))
+                            .setAutoSelectEnabled(true)
+                            .build()
+
+                        val request = GetCredentialRequest.Builder()
+                            .addCredentialOption(googleIdOption)
+                            .build()
+
+                        val result = credentialManager.getCredential(request = request, context = context)
+                        val credential = result.credential
+                        
+                        if (credential is CustomCredential &&
+                            credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+                        ) {
+                            val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                            // Đẩy token này sang ViewModel xử lý, KHÔNG gọi Firebase trực tiếp ở đây
+                            onGoogleLoginClick(googleIdTokenCredential.idToken)
+                        } else {
+                            Toast.makeText(context, "Unexpected credential type", Toast.LENGTH_SHORT).show()
+                        }
+                    } catch (e: GetCredentialException) {
+                        Toast.makeText(context, "Google Sign-In failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "An error occurred: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),

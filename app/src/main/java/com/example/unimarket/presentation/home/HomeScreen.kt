@@ -24,7 +24,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavController
 import com.example.unimarket.domain.model.Category
 import com.example.unimarket.domain.model.Product
 import com.example.unimarket.presentation.components.ProductCard
@@ -35,7 +34,7 @@ import com.example.unimarket.presentation.theme.SecondaryBlue
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    navController: NavController,
+    onCartClick: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -44,7 +43,7 @@ fun HomeScreen(
     Scaffold(
         topBar = {
             HomeTopBar(
-                onCartClick = { navController.navigate(Screen.Cart.route) }
+                onCartClick = onCartClick
             )
         },
         containerColor = Color(0xFFF7F8FA)

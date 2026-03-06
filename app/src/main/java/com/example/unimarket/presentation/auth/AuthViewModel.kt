@@ -1,21 +1,16 @@
 package com.example.unimarket.presentation.auth
 
+import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.unimarket.domain.repository.AuthRepository
+import com.example.unimarket.presentation.auth.state.AuthState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-
-sealed class AuthState {
-    object Idle : AuthState()
-    object Loading : AuthState()
-    object Success : AuthState()
-    data class Error(val message: String) : AuthState()
-}
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
@@ -24,6 +19,16 @@ class AuthViewModel @Inject constructor(
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
+
+    init {
+        checkUserLoggedIn()
+    }
+
+    private fun checkUserLoggedIn() {
+        if (authRepository.getCurrentUser() != null) {
+            _authState.value = AuthState.Success
+        }
+    }
 
     fun login(email: String, password: String) {
         if (email.isBlank() || password.isBlank()) {
@@ -43,8 +48,8 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun signUp(name: String, email: String, studentId: String, password: String) {
-        if (name.isBlank() || email.isBlank() || studentId.isBlank() || password.isBlank()) {
+    fun signUp(name: String, email: String, password: String) {
+        if (name.isBlank() || email.isBlank() || password.isBlank()) {
             _authState.value = AuthState.Error("All fields must be filled")
             return
         }
@@ -54,15 +59,14 @@ class AuthViewModel @Inject constructor(
             return
         }
 
-        // Basic domain validation example
-        if (!email.endsWith(".edu") && !email.endsWith(".edu.vn")) {
-            _authState.value = AuthState.Error("Only .edu or university domains are accepted")
+        if(!Patterns.EMAIL_ADDRESS.matcher(email).matches()){
+            _authState.value = AuthState.Error("Invalid email format")
             return
         }
 
         _authState.value = AuthState.Loading
         viewModelScope.launch {
-            authRepository.signUp(name, email, studentId, password)
+            authRepository.signUp(name, email, "", password)
                 .onSuccess {
                     _authState.value = AuthState.Success
                 }
@@ -72,7 +76,30 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    fun loginWithGoogle(idToken: String) {
+        if (idToken.isBlank()) {
+            _authState.value = AuthState.Error("Invalid Google ID Token")
+            return
+        }
+
+        _authState.value = AuthState.Loading
+        viewModelScope.launch {
+            authRepository.signInWithGoogle(idToken)
+                .onSuccess {
+                    _authState.value = AuthState.Success
+                }
+                .onFailure { error ->
+                    _authState.value = AuthState.Error(error.message ?: "Google Login failed")
+                }
+        }
+    }
+
     fun resetState() {
+        _authState.value = AuthState.Idle
+    }
+
+    fun logout() {
+        authRepository.logout()
         _authState.value = AuthState.Idle
     }
 }

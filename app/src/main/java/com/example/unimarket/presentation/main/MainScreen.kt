@@ -20,30 +20,16 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.unimarket.presentation.auth.AuthState
-import com.example.unimarket.presentation.auth.AuthViewModel
-import com.example.unimarket.presentation.auth.LoginScreen
-import com.example.unimarket.presentation.auth.SignUpScreen
-import com.example.unimarket.presentation.cart.CartScreen
-import com.example.unimarket.presentation.explore.ExploreScreen
-import com.example.unimarket.presentation.home.HomeScreen
-import com.example.unimarket.presentation.messages.MessagesScreen
+import com.example.unimarket.presentation.navigation.MainNavGraph
 import com.example.unimarket.presentation.navigation.Screen
-import com.example.unimarket.presentation.profile.ProfileScreen
-import com.example.unimarket.presentation.sell.SellScreen
 import com.example.unimarket.presentation.theme.PrimaryYellowDark
 
 @Composable
@@ -86,61 +72,6 @@ fun MainScreen() {
     }
 }
 
-@Composable
-fun MainNavGraph(navController: NavHostController) {
-    NavHost(
-        navController = navController,
-        startDestination = Screen.Login.route
-    ) {
-        composable(Screen.Login.route) { 
-            val viewModel: AuthViewModel = hiltViewModel()
-            val authState by viewModel.authState.collectAsState()
-
-            LaunchedEffect(authState) {
-                if (authState is AuthState.Success) {
-                    navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.Login.route) { inclusive = true }
-                    }
-                    viewModel.resetState()
-                }
-            }
-
-            LoginScreen(
-                onLoginClick = { email, password -> viewModel.login(email, password) },
-                onNavigateToSignUp = { navController.navigate(Screen.SignUp.route) },
-                isLoading = authState is AuthState.Loading,
-                errorMessage = (authState as? AuthState.Error)?.message
-            ) 
-        }
-        composable(Screen.SignUp.route) { 
-            val viewModel: AuthViewModel = hiltViewModel()
-            val authState by viewModel.authState.collectAsState()
-
-            LaunchedEffect(authState) {
-                if (authState is AuthState.Success) {
-                    navController.popBackStack()
-                    viewModel.resetState()
-                }
-            }
-
-            SignUpScreen(
-                onSignUpClick = { name, email, studentId, password ->
-                    viewModel.signUp(name, email, studentId, password)
-                },
-                onNavigateBack = { navController.navigateUp() },
-                onNavigateToLogin = { navController.popBackStack() },
-                isLoading = authState is AuthState.Loading,
-                errorMessage = (authState as? AuthState.Error)?.message
-            ) 
-        }
-        composable(Screen.Home.route) { HomeScreen(navController) }
-        composable(Screen.Explore.route) { ExploreScreen() }
-        composable(Screen.Sell.route) { SellScreen() }
-        composable(Screen.Messages.route) { MessagesScreen() }
-        composable(Screen.Profile.route) { ProfileScreen(navController) }
-        composable(Screen.Cart.route) { CartScreen(navController) }
-    }
-}
 
 @Composable
 fun BottomNavigationBar(navController: NavHostController) {

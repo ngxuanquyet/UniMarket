@@ -69,7 +69,7 @@ import com.example.unimarket.presentation.theme.TextGray
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SignUpScreen(
-    onSignUpClick: (String, String, String, String) -> Unit,
+    onSignUpClick: (String, String, String) -> Unit,
     onNavigateBack: () -> Unit,
     onNavigateToLogin: () -> Unit,
     isLoading: Boolean = false,
@@ -77,9 +77,10 @@ fun SignUpScreen(
 ) {
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
-    var studentId by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
+    var confirmPasswordVisible by remember { mutableStateOf(false) }
     var termsAccepted by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
@@ -195,54 +196,9 @@ fun SignUpScreen(
                 value = email,
                 onValueChange = { email = it },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("e.g., alex@university.edu", color = Color.Gray) },
+                placeholder = { Text("e.g., alex@gmail.com", color = Color.Gray) },
                 leadingIcon = {
                     Icon(imageVector = Icons.Default.School, contentDescription = "Email", tint = Color.Gray)
-                },
-                shape = RoundedCornerShape(24.dp),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = DividerColor,
-                    focusedBorderColor = PrimaryBlue,
-                    unfocusedContainerColor = Color.White,
-                    focusedContainerColor = Color.White
-                )
-            )
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(top = 8.dp, start = 4.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Info, 
-                    contentDescription = "Info", 
-                    tint = PrimaryBlue,
-                    modifier = Modifier.size(14.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "Only .edu or university domains are accepted",
-                    fontSize = 12.sp,
-                    color = TextGray
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Student ID section
-            Text(
-                text = "Student ID Number",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = TextDark
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedTextField(
-                value = studentId,
-                onValueChange = { studentId = it },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Enter your student ID", color = Color.Gray) },
-                leadingIcon = {
-                    Icon(imageVector = Icons.Default.Badge, contentDescription = "Student ID", tint = Color.Gray)
                 },
                 shape = RoundedCornerShape(24.dp),
                 singleLine = true,
@@ -282,6 +238,45 @@ fun SignUpScreen(
                     }
                 },
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                shape = RoundedCornerShape(24.dp),
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = DividerColor,
+                    focusedBorderColor = PrimaryBlue,
+                    unfocusedContainerColor = Color.White,
+                    focusedContainerColor = Color.White
+                )
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Re-enter Password section
+            Text(
+                text = "Re-enter Password",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = TextDark
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = confirmPassword,
+                onValueChange = { confirmPassword = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Re-enter your password", color = Color.Gray) },
+                leadingIcon = {
+                    Icon(imageVector = Icons.Default.Lock, contentDescription = "Confirm Password", tint = Color.Gray)
+                },
+                trailingIcon = {
+                    IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
+                        Icon(
+                            imageVector = Icons.Default.VisibilityOff,
+                            contentDescription = "Toggle Confirm Password Visibility",
+                            tint = Color.Gray
+                        )
+                    }
+                },
+                visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 shape = RoundedCornerShape(24.dp),
                 singleLine = true,
@@ -333,11 +328,15 @@ fun SignUpScreen(
             // Create Account button
             Button(
                 onClick = { 
-                    if (termsAccepted) {
-                        onSignUpClick(fullName.trim(), email.trim(), studentId.trim(), password)
-                    } else {
+                    if (!termsAccepted) {
                         Toast.makeText(context, "Please accept the Terms of Service to continue", Toast.LENGTH_SHORT).show()
+                        return@Button
                     }
+                    if (password != confirmPassword) {
+                        Toast.makeText(context, "Passwords do not match", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+                    onSignUpClick(fullName.trim(), email.trim(), password)
                 },
                 modifier = Modifier
                     .fillMaxWidth()
