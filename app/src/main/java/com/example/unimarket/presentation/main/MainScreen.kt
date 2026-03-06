@@ -33,14 +33,14 @@ import com.example.unimarket.presentation.navigation.Screen
 import com.example.unimarket.presentation.theme.PrimaryYellowDark
 
 @Composable
-fun MainScreen() {
-    val navController = rememberNavController()
+fun MainScreen(rootNavController: NavHostController) {
+    val tabNavController = rememberNavController()
 
     Scaffold(
-        bottomBar = { BottomNavigationBar(navController = navController) },
+        bottomBar = { BottomNavigationBar(navController = tabNavController) },
         floatingActionButtonPosition = FabPosition.Center,
         floatingActionButton = {
-            val navBackStackEntry by navController.currentBackStackEntryAsState()
+            val navBackStackEntry by tabNavController.currentBackStackEntryAsState()
             val currentRoute = navBackStackEntry?.destination?.route
             val showBottomBar = currentRoute in listOf(
                 Screen.Home.route,
@@ -51,7 +51,7 @@ fun MainScreen() {
             
             if (showBottomBar) {
                 FloatingActionButton(
-                    onClick = { navController.navigate(Screen.Sell.route) },
+                    onClick = { tabNavController.navigate(Screen.Sell.route) },
                     shape = CircleShape,
                     containerColor = PrimaryYellowDark,
                     contentColor = Color.White,
@@ -67,7 +67,7 @@ fun MainScreen() {
         }
     ) { innerPadding ->
         Box(modifier = Modifier.padding(innerPadding)) {
-            MainNavGraph(navController = navController)
+            MainNavGraph(navController = tabNavController, rootNavController = rootNavController)
         }
     }
 }

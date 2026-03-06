@@ -4,7 +4,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.example.unimarket.presentation.main.MainScreen
+import androidx.navigation.compose.rememberNavController
+import com.example.unimarket.presentation.navigation.RootNavGraph
 import com.example.unimarket.presentation.theme.UniMarketTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -15,7 +16,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             UniMarketTheme {
-                MainScreen()
+                val rootNavController = rememberNavController()
+                RootNavGraph(navController = rootNavController)
             }
         }
     }
