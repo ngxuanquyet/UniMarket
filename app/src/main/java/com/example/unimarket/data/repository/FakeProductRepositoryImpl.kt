@@ -32,7 +32,10 @@ class FakeProductRepositoryImpl @Inject constructor() : ProductRepository {
                     sellerName = "Senior",
                     rating = 4.8,
                     location = "Campus North",
-                    timeAgo = "2h ago"
+                    timeAgo = "1 hour ago",
+                    isFavorite = true,
+                    isNegotiable = false,
+                    userId = "fakeUser1"
                 ),
                 Product(
                     id = "2",
@@ -44,7 +47,10 @@ class FakeProductRepositoryImpl @Inject constructor() : ProductRepository {
                     sellerName = "Junior",
                     rating = 4.9,
                     location = "Library",
-                    timeAgo = "5h ago"
+                    timeAgo = "5 hours ago",
+                    isFavorite = false,
+                    isNegotiable = true,
+                    userId = "fakeUser2"
                 ),
                 Product(
                     id = "3",
@@ -56,7 +62,10 @@ class FakeProductRepositoryImpl @Inject constructor() : ProductRepository {
                     sellerName = "Sophomore",
                     rating = 5.0,
                     location = "Dorm A",
-                    timeAgo = "1d ago"
+                    timeAgo = "1 day ago",
+                    isFavorite = true,
+                    isNegotiable = false,
+                    userId = "fakeUser3"
                 ),
                 Product(
                     id = "4",
@@ -68,7 +77,10 @@ class FakeProductRepositoryImpl @Inject constructor() : ProductRepository {
                     sellerName = "Freshman",
                     rating = 4.2,
                     location = "Student Center",
-                    timeAgo = "2d ago"
+                    timeAgo = "2d ago",
+                    isFavorite = false,
+                    isNegotiable = true,
+                    userId = "fakeUser4"
                 )
             )
         )

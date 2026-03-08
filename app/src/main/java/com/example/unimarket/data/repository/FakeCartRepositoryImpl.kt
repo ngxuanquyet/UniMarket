@@ -26,7 +26,10 @@ class FakeCartRepositoryImpl @Inject constructor() : CartRepository {
                     sellerName = "Senior",
                     rating = 4.5,
                     location = "Library",
-                    timeAgo = "1d ago"
+                    timeAgo = "1 week ago",
+                    isFavorite = false,
+                    isNegotiable = true,
+                    userId = "fakeUser6"
                 ),
                 quantity = 1
             ),
@@ -42,7 +45,10 @@ class FakeCartRepositoryImpl @Inject constructor() : CartRepository {
                     sellerName = "Sophomore",
                     rating = 4.8,
                     location = "Dorm A",
-                    timeAgo = "2d ago"
+                    timeAgo = "2 days ago",
+                    isFavorite = true,
+                    isNegotiable = false,
+                    userId = "fakeUser5"
                 ),
                 quantity = 2
             )

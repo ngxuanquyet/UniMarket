@@ -58,6 +58,7 @@ class SellViewModel @Inject constructor(
 
         val currentUser = getCurrentUserUseCase() as? FirebaseUser
         val sellerName = currentUser?.displayName ?: "Anonymous"
+        val userId = currentUser?.uid ?: ""
 
         _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null, successMessage = null)
 
@@ -97,7 +98,8 @@ class SellViewModel @Inject constructor(
                 location = "Unknown", // Add location picking feature later
                 timeAgo = "Just now",
                 isFavorite = false,
-                isNegotiable = isNegotiable
+                isNegotiable = isNegotiable,
+                userId = userId
             )
 
             val saveResult = addProductUseCase(product)

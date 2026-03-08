@@ -41,5 +41,10 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
         composable(Screen.Cart.route) {
             CartScreen(onBackClick = { navController.popBackStack() })
         }
+        composable(Screen.MyListings.route) {
+            com.example.unimarket.presentation.mylistings.MyListingsScreen(
+                navController = navController
+            )
+        }
     }
 }

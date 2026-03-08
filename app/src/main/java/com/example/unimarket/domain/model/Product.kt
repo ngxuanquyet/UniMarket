@@ -12,5 +12,6 @@ data class Product(
     val location: String,
     val timeAgo: String,
     val isFavorite: Boolean = false,
-    val isNegotiable: Boolean = false
+    val isNegotiable: Boolean = false,
+    val userId: String
 )

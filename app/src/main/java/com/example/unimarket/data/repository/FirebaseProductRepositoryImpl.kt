@@ -51,7 +51,8 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                                 location = doc.getString("location") ?: "",
                                 timeAgo = doc.getString("timeAgo") ?: "",
                                 isFavorite = doc.getBoolean("isFavorite") ?: false,
-                                isNegotiable = doc.getBoolean("isNegotiable") ?: false
+                                isNegotiable = doc.getBoolean("isNegotiable") ?: false,
+                                userId = doc.getString("userId") ?: ""
                             )
                         } catch (e: Exception) {
                             null
@@ -77,7 +78,8 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                 "location" to product.location,
                 "timeAgo" to product.timeAgo,
                 "isFavorite" to product.isFavorite,
-                "isNegotiable" to product.isNegotiable
+                "isNegotiable" to product.isNegotiable,
+                "userId" to product.userId
             )
             firestore.collection("products").add(productMap).await()
             Result.success(Unit)
