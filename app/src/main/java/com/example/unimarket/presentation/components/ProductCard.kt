@@ -52,7 +52,7 @@ fun ProductCard(
         Column {
             Box {
                 Image(
-                    painter = rememberAsyncImagePainter(model = product.imageUrl),
+                    painter = rememberAsyncImagePainter(model = product.imageUrls.firstOrNull()),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier

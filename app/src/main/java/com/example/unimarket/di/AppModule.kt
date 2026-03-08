@@ -1,6 +1,7 @@
 package com.example.unimarket.di
 
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings
 import dagger.Module
@@ -29,5 +30,11 @@ object AppModule {
         remoteConfig.setConfigSettingsAsync(configSettings)
         remoteConfig.setDefaultsAsync(mapOf("KEY_UPLOAD_IMAGE" to ""))
         return remoteConfig
+    }
+
+    @Provides
+    @Singleton
+    fun provideFireStore(): FirebaseFirestore {
+        return FirebaseFirestore.getInstance()
     }
 }

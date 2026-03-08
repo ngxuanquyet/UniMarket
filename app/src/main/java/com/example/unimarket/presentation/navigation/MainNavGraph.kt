@@ -17,12 +17,9 @@ import com.example.unimarket.presentation.sell.SellScreen
 fun MainNavGraph(navController: NavHostController, rootNavController: NavHostController) {
     NavHost(
         navController = navController,
-        startDestination = Screen.Home.route,
+        startDestination = Screen.Explore.route,
         route = "main_tabs_graph"
     ) {
-        composable(Screen.Home.route) { 
-            HomeScreen(onCartClick = { navController.navigate(Screen.Cart.route) }) 
-        }
         composable(Screen.Explore.route) { ExploreScreen() }
         composable(Screen.Sell.route) { SellScreen() }
         composable(Screen.Messages.route) { MessagesScreen() }

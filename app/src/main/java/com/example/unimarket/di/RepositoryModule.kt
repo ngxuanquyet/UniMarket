@@ -1,7 +1,6 @@
 package com.example.unimarket.di
 
 import com.example.unimarket.data.repository.FakeCartRepositoryImpl
-import com.example.unimarket.data.repository.FakeProductRepositoryImpl
 import com.example.unimarket.domain.repository.AuthRepository
 import com.example.unimarket.domain.repository.CartRepository
 import com.example.unimarket.domain.repository.ImageRepository
@@ -12,6 +11,8 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
+import com.example.unimarket.data.repository.FirebaseProductRepositoryImpl
+
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class RepositoryModule {
@@ -19,7 +20,7 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindProductRepository(
-        fakeProductRepositoryImpl: FakeProductRepositoryImpl
+        firebaseProductRepositoryImpl: FirebaseProductRepositoryImpl
     ): ProductRepository
 
     @Binds

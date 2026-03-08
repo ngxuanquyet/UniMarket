@@ -3,7 +3,11 @@ package com.example.unimarket.presentation.auth
 import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.unimarket.domain.repository.AuthRepository
+import com.example.unimarket.domain.usecase.auth.LoginUseCase
+import com.example.unimarket.domain.usecase.auth.SignUpUseCase
+import com.example.unimarket.domain.usecase.auth.SignInWithGoogleUseCase
+import com.example.unimarket.domain.usecase.auth.GetCurrentUserUseCase
+import com.example.unimarket.domain.usecase.auth.LogoutUseCase
 import com.example.unimarket.presentation.auth.state.AuthState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,7 +18,11 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val loginUseCase: LoginUseCase,
+    private val signUpUseCase: SignUpUseCase,
+    private val signInWithGoogleUseCase: SignInWithGoogleUseCase,
+    private val getCurrentUserUseCase: GetCurrentUserUseCase,
+    private val logoutUseCase: LogoutUseCase
 ) : ViewModel() {
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
@@ -25,7 +33,7 @@ class AuthViewModel @Inject constructor(
     }
 
     private fun checkUserLoggedIn() {
-        if (authRepository.getCurrentUser() != null) {
+        if (getCurrentUserUseCase() != null) {
             _authState.value = AuthState.Success
         }
     }
@@ -38,7 +46,7 @@ class AuthViewModel @Inject constructor(
 
         _authState.value = AuthState.Loading
         viewModelScope.launch {
-            authRepository.login(email, password)
+            loginUseCase(email, password)
                 .onSuccess {
                     _authState.value = AuthState.Success
                 }
@@ -66,7 +74,7 @@ class AuthViewModel @Inject constructor(
 
         _authState.value = AuthState.Loading
         viewModelScope.launch {
-            authRepository.signUp(name, email, "", password)
+            signUpUseCase(name, email, "", password)
                 .onSuccess {
                     _authState.value = AuthState.Success
                 }
@@ -84,7 +92,7 @@ class AuthViewModel @Inject constructor(
 
         _authState.value = AuthState.Loading
         viewModelScope.launch {
-            authRepository.signInWithGoogle(idToken)
+            signInWithGoogleUseCase(idToken)
                 .onSuccess {
                     _authState.value = AuthState.Success
                 }
@@ -99,7 +107,7 @@ class AuthViewModel @Inject constructor(
     }
 
     fun logout() {
-        authRepository.logout()
+        logoutUseCase()
         _authState.value = AuthState.Idle
     }
 }

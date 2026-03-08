@@ -224,7 +224,7 @@ fun CartItemRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Image(
-                painter = rememberAsyncImagePainter(model = item.product.imageUrl),
+                painter = rememberAsyncImagePainter(model = item.product.imageUrls.firstOrNull()),
                 contentDescription = item.product.name,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier

@@ -26,7 +26,7 @@ class FakeProductRepositoryImpl @Inject constructor() : ProductRepository {
                     id = "1",
                     name = "Apple Watch Series 5 - Space Gray",
                     price = 120.00,
-                    imageUrl = "https://picsum.photos/seed/watch/200/200",
+                    imageUrls = listOf("https://picsum.photos/seed/watch/200/200"),
                     categoryId = "2",
                     condition = "Used",
                     sellerName = "Senior",
@@ -38,7 +38,7 @@ class FakeProductRepositoryImpl @Inject constructor() : ProductRepository {
                     id = "2",
                     name = "Calculus: Early Transcendentals 8th Edition",
                     price = 45.00,
-                    imageUrl = "https://picsum.photos/seed/book/200/200",
+                    imageUrls = listOf("https://picsum.photos/seed/book/200/200"),
                     categoryId = "3",
                     condition = "Used",
                     sellerName = "Junior",
@@ -50,7 +50,7 @@ class FakeProductRepositoryImpl @Inject constructor() : ProductRepository {
                     id = "3",
                     name = "Minimalist LED Desk Lamp",
                     price = 15.00,
-                    imageUrl = "https://picsum.photos/seed/lamp2/200/200",
+                    imageUrls = listOf("https://picsum.photos/seed/lamp2/200/200"),
                     categoryId = "4",
                     condition = "Used",
                     sellerName = "Sophomore",
@@ -62,7 +62,7 @@ class FakeProductRepositoryImpl @Inject constructor() : ProductRepository {
                     id = "4",
                     name = "Sony Noise Cancelling Headphones",
                     price = 80.00,
-                    imageUrl = "https://picsum.photos/seed/headphones/200/200",
+                    imageUrls = listOf("https://picsum.photos/seed/headphones/200/200"),
                     categoryId = "2",
                     condition = "Used",
                     sellerName = "Freshman",
@@ -72,5 +72,9 @@ class FakeProductRepositoryImpl @Inject constructor() : ProductRepository {
                 )
             )
         )
+    }
+
+    override suspend fun addProduct(product: Product): Result<Unit> {
+        return Result.success(Unit)
     }
 }

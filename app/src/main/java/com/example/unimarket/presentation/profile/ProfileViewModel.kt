@@ -4,8 +4,10 @@ import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.unimarket.domain.repository.AuthRepository
-import com.example.unimarket.domain.repository.ImageRepository
+import com.example.unimarket.domain.usecase.auth.UpdateProfileUseCase
+import com.example.unimarket.domain.usecase.auth.GetCurrentUserUseCase
+import com.example.unimarket.domain.usecase.auth.LogoutUseCase
+import com.example.unimarket.domain.usecase.image.UploadImageUseCase
 import com.google.firebase.auth.FirebaseUser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,8 +18,10 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
-    private val authRepository: AuthRepository,
-    private val imageRepository: ImageRepository
+    private val getCurrentUserUseCase: GetCurrentUserUseCase,
+    private val updateProfileUseCase: UpdateProfileUseCase,
+    private val logoutUseCase: LogoutUseCase,
+    private val uploadImageUseCase: UploadImageUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProfileUiState())
@@ -28,7 +32,7 @@ class ProfileViewModel @Inject constructor(
     }
 
     private fun loadUserProfile() {
-        val currentUser = authRepository.getCurrentUser() as? FirebaseUser
+        val currentUser = getCurrentUserUseCase() as? FirebaseUser
         if (currentUser != null) {
             _uiState.value = _uiState.value.copy(
                 displayName = currentUser.displayName ?: "User",
@@ -41,10 +45,10 @@ class ProfileViewModel @Inject constructor(
     fun updateAvatar(uri: Uri) {
         _uiState.value = _uiState.value.copy(isUploading = true, errorMessage = null)
         viewModelScope.launch {
-            val result = imageRepository.uploadImage(uri)
+            val result = uploadImageUseCase(uri)
             result.onSuccess { remoteUrl ->
                 // Update Firebase Auth profile
-                val updateResult = authRepository.updateProfile(name = null, photoUrl = remoteUrl)
+                val updateResult = updateProfileUseCase(name = null, photoUrl = remoteUrl)
                 updateResult.onSuccess {
                     _uiState.value = _uiState.value.copy(
                         photoUrl = remoteUrl,
@@ -75,7 +79,7 @@ class ProfileViewModel @Inject constructor(
         
         _uiState.value = _uiState.value.copy(isUploading = true, errorMessage = null)
         viewModelScope.launch {
-            val updateResult = authRepository.updateProfile(name = newName, photoUrl = null)
+            val updateResult = updateProfileUseCase(name = newName, photoUrl = null)
             updateResult.onSuccess {
                 _uiState.value = _uiState.value.copy(
                     displayName = newName,
@@ -96,7 +100,7 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun logout() {
-        authRepository.logout()
+        logoutUseCase()
     }
 }
 

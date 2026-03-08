@@ -7,4 +7,5 @@ import kotlinx.coroutines.flow.Flow
 interface ProductRepository {
     fun getCategories(): Flow<List<Category>>
     fun getRecommendedProducts(): Flow<List<Product>>
+    suspend fun addProduct(product: Product): Result<Unit>
 }

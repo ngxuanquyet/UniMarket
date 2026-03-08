@@ -3,7 +3,9 @@ package com.example.unimarket.presentation.cart
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.unimarket.domain.model.CartItem
-import com.example.unimarket.domain.repository.CartRepository
+import com.example.unimarket.domain.usecase.cart.GetCartItemsUseCase
+import com.example.unimarket.domain.usecase.cart.UpdateQuantityUseCase
+import com.example.unimarket.domain.usecase.cart.RemoveFromCartUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -25,10 +27,12 @@ data class CartUiState(
 
 @HiltViewModel
 class CartViewModel @Inject constructor(
-    private val cartRepository: CartRepository
+    private val getCartItemsUseCase: GetCartItemsUseCase,
+    private val updateQuantityUseCase: UpdateQuantityUseCase,
+    private val removeFromCartUseCase: RemoveFromCartUseCase
 ) : ViewModel() {
 
-    val uiState: StateFlow<CartUiState> = cartRepository.getCartItems()
+    val uiState: StateFlow<CartUiState> = getCartItemsUseCase()
         .map { items ->
             val subtotal = items.sumOf { it.product.price * it.quantity }
             CartUiState(
@@ -45,16 +49,16 @@ class CartViewModel @Inject constructor(
     fun updateQuantity(cartItemId: String, quantity: Int) {
         viewModelScope.launch {
             if (quantity > 0) {
-                cartRepository.updateQuantity(cartItemId, quantity)
+                updateQuantityUseCase(cartItemId, quantity)
             } else {
-                cartRepository.removeFromCart(cartItemId)
+                removeFromCartUseCase(cartItemId)
             }
         }
     }
 
     fun removeItem(cartItemId: String) {
         viewModelScope.launch {
-            cartRepository.removeFromCart(cartItemId)
+            removeFromCartUseCase(cartItemId)
         }
     }
 }

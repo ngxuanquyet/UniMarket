@@ -5,13 +5,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.ChatBubbleOutline
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PersonOutline
+import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.FabPosition
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -37,34 +35,7 @@ fun MainScreen(rootNavController: NavHostController) {
     val tabNavController = rememberNavController()
 
     Scaffold(
-        bottomBar = { BottomNavigationBar(navController = tabNavController) },
-        floatingActionButtonPosition = FabPosition.Center,
-        floatingActionButton = {
-            val navBackStackEntry by tabNavController.currentBackStackEntryAsState()
-            val currentRoute = navBackStackEntry?.destination?.route
-            val showBottomBar = currentRoute in listOf(
-                Screen.Home.route,
-                Screen.Explore.route,
-                Screen.Messages.route,
-                Screen.Profile.route
-            )
-            
-            if (showBottomBar) {
-                FloatingActionButton(
-                    onClick = { tabNavController.navigate(Screen.Sell.route) },
-                    shape = CircleShape,
-                    containerColor = PrimaryYellowDark,
-                    contentColor = Color.White,
-                    modifier = Modifier.shadow(8.dp, CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Sell",
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
-            }
-        }
+        bottomBar = { BottomNavigationBar(navController = tabNavController) }
     ) { innerPadding ->
         Box(modifier = Modifier.padding(innerPadding)) {
             MainNavGraph(navController = tabNavController, rootNavController = rootNavController)
@@ -76,9 +47,8 @@ fun MainScreen(rootNavController: NavHostController) {
 @Composable
 fun BottomNavigationBar(navController: NavHostController) {
     val items = listOf(
-        BottomNavItem("Home", Screen.Home.route, Icons.Default.Home),
-        BottomNavItem("Explore", Screen.Explore.route, Icons.Default.Search),
-        BottomNavItem("", "", Icons.Default.Home), // Empty space for FAB
+        BottomNavItem("Explore", Screen.Explore.route, Icons.Default.Explore),
+        BottomNavItem("Sell", Screen.Sell.route, Icons.Default.AddCircleOutline),
         BottomNavItem("Messages", Screen.Messages.route, Icons.Default.ChatBubbleOutline),
         BottomNavItem("Profile", Screen.Profile.route, Icons.Default.PersonOutline)
     )
@@ -87,8 +57,8 @@ fun BottomNavigationBar(navController: NavHostController) {
     val currentRoute = navBackStackEntry?.destination?.route
 
     val showBottomBar = currentRoute in listOf(
-        Screen.Home.route,
         Screen.Explore.route,
+        Screen.Sell.route,
         Screen.Messages.route,
         Screen.Profile.route
     )
@@ -98,42 +68,28 @@ fun BottomNavigationBar(navController: NavHostController) {
             containerColor = Color.White,
             tonalElevation = 8.dp
         ) {
-            items.forEachIndexed { index, item ->
-                if (index == 2) {
-                    // Empty item for FAB
-                    NavigationBarItem(
-                        selected = false,
-                        onClick = { },
-                        icon = { },
-                        enabled = false,
-                        colors = NavigationBarItemDefaults.colors(
-                            disabledIconColor = Color.Transparent,
-                            disabledTextColor = Color.Transparent
-                        )
-                    )
-                } else {
-                    NavigationBarItem(
-                        selected = currentRoute == item.route,
-                        onClick = {
-                            navController.navigate(item.route) {
-                                navController.graph.startDestinationRoute?.let { route ->
-                                    popUpTo(route) { saveState = true }
-                                }
-                                launchSingleTop = true
-                                restoreState = true
+            items.forEach { item ->
+                NavigationBarItem(
+                    selected = currentRoute == item.route,
+                    onClick = {
+                        navController.navigate(item.route) {
+                            navController.graph.startDestinationRoute?.let { route ->
+                                popUpTo(route) { saveState = true }
                             }
-                        },
-                        icon = { Icon(item.icon, contentDescription = item.title) },
-                        label = { Text(item.title, style = MaterialTheme.typography.labelSmall) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = PrimaryYellowDark,
-                            selectedTextColor = PrimaryYellowDark,
-                            unselectedIconColor = Color.Gray,
-                            unselectedTextColor = Color.Gray,
-                            indicatorColor = Color.Transparent
-                        )
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    icon = { Icon(item.icon, contentDescription = item.title) },
+                    label = { Text(item.title, style = MaterialTheme.typography.labelSmall) },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = Color.White,
+                        selectedTextColor = Color(0xFF29B6F6),
+                        unselectedIconColor = Color.Gray,
+                        unselectedTextColor = Color.Gray,
+                        indicatorColor = Color(0xFF29B6F6)
                     )
-                }
+                )
             }
         }
     }

@@ -4,7 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.unimarket.domain.model.Category
 import com.example.unimarket.domain.model.Product
-import com.example.unimarket.domain.repository.ProductRepository
+import com.example.unimarket.domain.usecase.product.GetCategoriesUseCase
+import com.example.unimarket.domain.usecase.product.GetRecommendedProductsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -20,12 +21,13 @@ data class HomeUiState(
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val productRepository: ProductRepository
+    private val getCategoriesUseCase: GetCategoriesUseCase,
+    private val getRecommendedProductsUseCase: GetRecommendedProductsUseCase
 ) : ViewModel() {
 
     val uiState: StateFlow<HomeUiState> = combine(
-        productRepository.getCategories(),
-        productRepository.getRecommendedProducts()
+        getCategoriesUseCase(),
+        getRecommendedProductsUseCase()
     ) { categories, products ->
         HomeUiState(
             categories = categories,
