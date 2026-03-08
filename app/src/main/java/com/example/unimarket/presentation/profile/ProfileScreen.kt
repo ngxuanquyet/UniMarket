@@ -64,7 +64,7 @@ fun ProfileScreen(
             TopAppBar(
                 title = { Text("Profile", fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally)) },
                 navigationIcon = {
-                    IconButton(onClick = {  }) {
+                    IconButton(onClick = { onBack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },

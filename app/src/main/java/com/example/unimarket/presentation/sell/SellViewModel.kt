@@ -36,7 +36,8 @@ class SellViewModel @Inject constructor(
         priceStr: String,
         description: String,
         category: String,
-        condition: String
+        condition: String,
+        isNegotiable: Boolean
     ) {
         val uris = _uiState.value.selectedImageUris
         if (uris.isEmpty()) {
@@ -95,7 +96,8 @@ class SellViewModel @Inject constructor(
                 rating = 0.0,
                 location = "Unknown", // Add location picking feature later
                 timeAgo = "Just now",
-                isFavorite = false
+                isFavorite = false,
+                isNegotiable = isNegotiable
             )
 
             val saveResult = addProductUseCase(product)

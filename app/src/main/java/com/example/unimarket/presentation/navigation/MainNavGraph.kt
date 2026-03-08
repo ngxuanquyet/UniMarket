@@ -8,7 +8,6 @@ import androidx.navigation.compose.composable
 import com.example.unimarket.presentation.auth.AuthViewModel
 import com.example.unimarket.presentation.cart.CartScreen
 import com.example.unimarket.presentation.explore.ExploreScreen
-import com.example.unimarket.presentation.home.HomeScreen
 import com.example.unimarket.presentation.messages.MessagesScreen
 import com.example.unimarket.presentation.profile.ProfileScreen
 import com.example.unimarket.presentation.sell.SellScreen
@@ -21,9 +20,13 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
         route = "main_tabs_graph"
     ) {
         composable(Screen.Explore.route) { ExploreScreen() }
-        composable(Screen.Sell.route) { SellScreen() }
+        composable(Screen.Sell.route) {
+            SellScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
         composable(Screen.Messages.route) { MessagesScreen() }
-        composable(Screen.Profile.route) { 
+        composable(Screen.Profile.route) {
             val authViewModel: AuthViewModel = hiltViewModel()
             ProfileScreen(
                 onLogoutClick = {
@@ -31,11 +34,12 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
                     rootNavController.navigate(Screen.AuthGraph.route) {
                         popUpTo(0) { inclusive = true }
                     }
-                }
-            ) 
+                },
+                onBack = { navController.popBackStack() }
+            )
         }
-        composable(Screen.Cart.route) { 
-            CartScreen(onBackClick = { navController.popBackStack() }) 
+        composable(Screen.Cart.route) {
+            CartScreen(onBackClick = { navController.popBackStack() })
         }
     }
 }

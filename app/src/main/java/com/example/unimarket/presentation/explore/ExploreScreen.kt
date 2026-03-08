@@ -32,60 +32,13 @@ import coil.compose.rememberAsyncImagePainter
 import com.example.unimarket.presentation.theme.PrimaryYellowDark
 import com.example.unimarket.presentation.theme.SecondaryBlue
 
-data class ExploreProduct(
-    val id: String,
-    val name: String,
-    val price: Double,
-    val condition: String,
-    val imageUrl: String,
-    val isFavorite: Boolean,
-    val tag: String? = null // e.g., "PRICE DROP", "NEW"
-)
-
-val exploreCategories = listOf("All", "Books", "Laptops", "Dorm Decor", "Clothing")
-
-val exploreProducts = listOf(
-    ExploreProduct(
-        id = "1",
-        name = "Calculus Early Transcendentals",
-        price = 25.00,
-        condition = "Excellent condition",
-        imageUrl = "https://picsum.photos/seed/calcbook/400/400",
-        isFavorite = false,
-        tag = "PRICE DROP"
-    ),
-    ExploreProduct(
-        id = "2",
-        name = "MacBook Air M1 2020",
-        price = 450.00,
-        condition = "Minor scratches",
-        imageUrl = "https://picsum.photos/seed/macbookM1/400/400",
-        isFavorite = false,
-        tag = "NEW"
-    ),
-    ExploreProduct(
-        id = "3",
-        name = "IKEA Tertial Desk Lamp",
-        price = 15.00,
-        condition = "Like new",
-        imageUrl = "https://picsum.photos/seed/ikealamp/400/400",
-        isFavorite = true
-    ),
-    ExploreProduct(
-        id = "4",
-        name = "Schwinn Commuter Bike",
-        price = 120.00,
-        condition = "Needs new tires",
-        imageUrl = "https://picsum.photos/seed/bike2/400/400",
-        isFavorite = false
-    )
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ExploreScreen() {
-    var searchQuery by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf("All") }
+fun ExploreScreen(
+    viewModel: ExploreViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+) {
+    val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
         topBar = {
@@ -118,8 +71,8 @@ fun ExploreScreen() {
             // Search Bar
             Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                 OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
+                    value = uiState.searchQuery,
+                    onValueChange = { viewModel.updateSearchQuery(it) },
                     placeholder = { Text("Find second-hand items", color = Color.Gray) },
                     leadingIcon = {
                         Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.Gray)
@@ -167,17 +120,23 @@ fun ExploreScreen() {
             }
 
             // Categories Row
+            val displayCategories = if (uiState.categories.isEmpty()) {
+                listOf("All Items")
+            } else {
+                uiState.categories.map { it.name }
+            }
+
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(exploreCategories) { category ->
-                    val isSelected = category == selectedCategory
+                items(displayCategories) { category ->
+                    val isSelected = category == uiState.selectedCategory
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(20.dp))
                             .background(if (isSelected) SecondaryBlue else Color(0xFFF4F6F9))
-                            .clickable { selectedCategory = category }
+                            .clickable { viewModel.updateSelectedCategory(category) }
                             .padding(horizontal = 20.dp, vertical = 10.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -191,16 +150,36 @@ fun ExploreScreen() {
                 }
             }
 
-            // Product Grid
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                contentPadding = PaddingValues(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(exploreProducts) { product ->
-                    ExploreProductCard(product)
+            // Product Grid or Loading
+            if (uiState.isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = SecondaryBlue)
+                }
+            } else if (uiState.filteredProducts.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No items found",
+                        color = Color.Gray,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    contentPadding = PaddingValues(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(uiState.filteredProducts) { product ->
+                        ExploreProductCard(product)
+                    }
                 }
             }
         }
@@ -208,7 +187,7 @@ fun ExploreScreen() {
 }
 
 @Composable
-fun ExploreProductCard(product: ExploreProduct) {
+fun ExploreProductCard(product: com.example.unimarket.domain.model.Product) {
     var isFavorite by remember { mutableStateOf(product.isFavorite) }
 
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -220,25 +199,27 @@ fun ExploreProductCard(product: ExploreProduct) {
                 .background(Color(0xFFF0F0F0))
         ) {
             Image(
-                painter = rememberAsyncImagePainter(model = product.imageUrl),
+                painter = rememberAsyncImagePainter(
+                    model = product.imageUrls.firstOrNull() ?: "https://via.placeholder.com/400"
+                ),
                 contentDescription = product.name,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
 
-            // Tags (e.g., PRICE DROP, NEW)
-            if (product.tag != null) {
-                val tagColor = if (product.tag == "PRICE DROP") Color(0xFF00BFA5) else SecondaryBlue
+            // Tags (e.g., PRICE DROP, NEW) -> Simplified logic based on timeAgo or condition
+            val tag = if (product.condition == "New") "NEW" else null
+            if (tag != null) {
                 Box(
                     modifier = Modifier
                         .padding(12.dp)
                         .clip(RoundedCornerShape(6.dp))
-                        .background(tagColor)
+                        .background(SecondaryBlue)
                         .padding(horizontal = 8.dp, vertical = 4.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = product.tag,
+                        text = tag,
                         color = Color.White,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold

@@ -1,26 +1,32 @@
 package com.example.unimarket.presentation.sell
 
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.VerticalAlignTop
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -29,12 +35,17 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
-import android.widget.Toast
-import com.example.unimarket.presentation.theme.PrimaryYellowDark
+
+val SurfaceLightBlue = Color(0xFFEFF3F8)
+val BorderLightBlue = Color(0xFFE0E5EC)
+val AppBlue = Color(0xFF29B6F6)
+val TextDarkBlack = Color(0xFF1E293B)
+val TextGray = Color(0xFF64748B)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SellScreen(
+    onBackClick: () -> Unit,
     viewModel: SellViewModel = hiltViewModel()
 ) {
     val scrollState = rememberScrollState()
@@ -44,21 +55,20 @@ fun SellScreen(
     var title by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
+    var isNegotiable by remember { mutableStateOf(false) }
     
-    // Mocked selections for now
     val categories = listOf("Electronics", "Textbooks", "Furniture", "Clothing", "Other")
     var categoryExpanded by remember { mutableStateOf(false) }
-    var category by remember { mutableStateOf("Select Category") }
+    var category by remember { mutableStateOf("Select a category") }
     
-    val conditions = listOf("New", "Used - Like New", "Used - Good", "Used - Fair")
-    var conditionExpanded by remember { mutableStateOf(false) }
-    var condition by remember { mutableStateOf("Select Condition") }
+    val conditions = listOf("New", "Like New", "Good", "Fair")
+    var condition by remember { mutableStateOf("New") }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
     ) { uris ->
         val current = uiState.selectedImageUris
-        val combined = (current + uris).distinct().take(6)
+        val combined = (current + uris).distinct().take(5)
         viewModel.updateSelectedImages(combined)
     }
 
@@ -68,8 +78,9 @@ fun SellScreen(
             title = ""
             price = ""
             description = ""
-            category = "Select Category"
-            condition = "Select Condition"
+            category = "Select a category"
+            condition = "New"
+            isNegotiable = false
             viewModel.clearMessages()
         }
         if (uiState.errorMessage != null) {
@@ -83,263 +94,295 @@ fun SellScreen(
             TopAppBar(
                 title = { 
                     Text(
-                        "List an Item", 
-                        fontWeight = FontWeight.Bold,
+                        "Sell an Item", 
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 20.sp,
+                        color = TextDarkBlack,
                         modifier = Modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally)
                     ) 
                 },
                 navigationIcon = {
-                    IconButton(onClick = { /* Close action */ }) {
-                        Icon(Icons.Default.Close, contentDescription = "Close")
+                    IconButton(onClick = { onBackClick() }, modifier = Modifier.padding(start = 8.dp)) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextDarkBlack)
                     }
                 },
                 actions = {
-                    TextButton(
-                        onClick = { viewModel.postListing(title, price, description, category, condition) },
-                        enabled = !uiState.isLoading
-                    ) {
-                        if (uiState.isLoading) {
-                            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = PrimaryYellowDark, strokeWidth = 2.dp)
-                        } else {
-                            Text("Post", fontWeight = FontWeight.Bold, color = PrimaryYellowDark, fontSize = 16.sp)
-                        }
-                    }
+                    Spacer(modifier = Modifier.width(48.dp))
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFFF9FAFC))
             )
         },
-        containerColor = Color.White
+        containerColor = Color(0xFFF9FAFC),
+        bottomBar = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 16.dp)
+            ) {
+                Button(
+                    onClick = { viewModel.postListing(title, price, description, category, condition, isNegotiable) },
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = AppBlue),
+                    shape = RoundedCornerShape(28.dp),
+                    enabled = !uiState.isLoading
+                ) {
+                    if (uiState.isLoading) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
+                    } else {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.VerticalAlignTop, contentDescription = "Upload", tint = Color.White, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Post Item", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                        }
+                    }
+                }
+            }
+        }
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
                 .verticalScroll(scrollState)
-                .padding(16.dp)
+                .padding(horizontal = 24.dp, vertical = 24.dp)
         ) {
             
-            // Photo Upload Area
-            // Photo Upload Area
-            if (uiState.selectedImageUris.isNotEmpty()) {
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(uiState.selectedImageUris) { uri ->
-                        Box(
-                            modifier = Modifier
-                                .size(160.dp)
-                                .background(Color(0xFFF7F8FA), RoundedCornerShape(12.dp))
-                                .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(12.dp))
-                        ) {
-                            AsyncImage(
-                                model = uri,
-                                contentDescription = "Selected Image",
-                                modifier = Modifier.fillMaxSize().padding(1.dp), // add 1dp padding so border isn't covered
-                                contentScale = ContentScale.Crop
-                            )
-                            IconButton(
-                                onClick = { 
-                                    val newList = uiState.selectedImageUris.filter { it != uri }
-                                    viewModel.updateSelectedImages(newList)
-                                },
-                                modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(24.dp)
-                            ) {
-                                Box(modifier = Modifier.size(24.dp).background(Color.White, RoundedCornerShape(12.dp))) {
-                                    Icon(Icons.Default.Cancel, contentDescription = "Remove Image", tint = Color.Red, modifier = Modifier.fillMaxSize())
-                                }
-                            }
-                        }
-                    }
-                    if (uiState.selectedImageUris.size < 6) {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .size(160.dp)
-                                    .background(Color(0xFFF7F8FA), RoundedCornerShape(12.dp))
-                                    .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(12.dp))
-                                    .clickable { imagePickerLauncher.launch("image/*") },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(
-                                        imageVector = Icons.Default.AddPhotoAlternate,
-                                        contentDescription = "Add Photos",
-                                        tint = PrimaryYellowDark,
-                                        modifier = Modifier.size(48.dp)
-                                    )
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text("Add More", color = Color.Gray, fontSize = 14.sp)
-                                }
-                            }
-                        }
-                    }
-                }
-            } else {
+            // Image Picker Custom Layout
+            Row(modifier = Modifier.fillMaxWidth().height(260.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                // Left Huge Image (Pill shaped)
+                val firstImage = uiState.selectedImageUris.getOrNull(0)
+                val dashColor = Color(0xFFB0C0D0)
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(160.dp)
-                        .background(Color(0xFFF7F8FA), RoundedCornerShape(12.dp))
-                        .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(12.dp))
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .drawBehind { // Draw dashed border for pill
+                            if (firstImage == null) {
+                                drawRoundRect(
+                                    color = dashColor,
+                                    style = Stroke(
+                                        width = 3.dp.toPx(),
+                                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f)
+                                    ),
+                                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(80.dp.toPx())
+                                )
+                            }
+                        }
+                        .clip(RoundedCornerShape(80.dp))
+                        .background(if (firstImage == null) SurfaceLightBlue else Color.Transparent)
                         .clickable { imagePickerLauncher.launch("image/*") },
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Default.AddPhotoAlternate,
-                            contentDescription = "Add Photos",
-                            tint = PrimaryYellowDark,
-                            modifier = Modifier.size(48.dp)
+                    if (firstImage != null) {
+                        AsyncImage(model = firstImage, contentDescription = "Main Photo", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                    }
+                }
+
+                // Right 2x2 grid
+                Column(
+                    modifier = Modifier.weight(1.2f).fillMaxHeight(),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Top Row
+                    Row(modifier = Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        SmallImageBox(uri = uiState.selectedImageUris.getOrNull(1), onClick = { imagePickerLauncher.launch("image/*") }, modifier = Modifier.weight(1f).fillMaxHeight())
+                        SmallImageBox(uri = uiState.selectedImageUris.getOrNull(2), onClick = { imagePickerLauncher.launch("image/*") }, isAdd = true, modifier = Modifier.weight(1f).fillMaxHeight())
+                    }
+                    // Bottom Row
+                    Row(modifier = Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        SmallImageBox(uri = uiState.selectedImageUris.getOrNull(3), onClick = { imagePickerLauncher.launch("image/*") }, modifier = Modifier.weight(1f).fillMaxHeight())
+                        SmallImageBox(uri = uiState.selectedImageUris.getOrNull(4), onClick = { imagePickerLauncher.launch("image/*") }, modifier = Modifier.weight(1f).fillMaxHeight())
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Title Input
+            Text("Item Title", fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp), color = TextDarkBlack)
+            CustomTextField(
+                value = title,
+                onValueChange = { title = it },
+                placeholder = "What are you selling?"
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Category Dropdown
+            Text("Category", fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp), color = TextDarkBlack)
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth().height(56.dp).clickable { categoryExpanded = true },
+                    shape = RoundedCornerShape(28.dp),
+                    color = Color.White,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderLightBlue)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 24.dp).fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(category, color = if (category == "Select a category") Color.Gray else TextDarkBlack, fontSize = 16.sp)
+                        Icon(Icons.Default.ArrowDropDown, contentDescription = "Dropdown", tint = Color.Gray)
+                    }
+                }
+                DropdownMenu(
+                    expanded = categoryExpanded,
+                    onDismissRequest = { categoryExpanded = false },
+                    modifier = Modifier.fillMaxWidth(0.9f)
+                ) {
+                    categories.forEach { selection ->
+                        DropdownMenuItem(
+                            text = { Text(selection) },
+                            onClick = {
+                                category = selection
+                                categoryExpanded = false
+                            }
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("Add Photos (Max 6)", color = Color.Gray, fontSize = 14.sp)
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Title Input
-            Text("Title", fontWeight = FontWeight.Medium, modifier = Modifier.padding(bottom = 8.dp))
-            OutlinedTextField(
-                value = title,
-                onValueChange = { title = it },
-                placeholder = { Text("What are you selling?", color = Color.Gray) },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = Color(0xFFE0E0E0),
-                    focusedBorderColor = PrimaryYellowDark
-                ),
-                singleLine = true
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Price Input
-            Text("Price", fontWeight = FontWeight.Medium, modifier = Modifier.padding(bottom = 8.dp))
-            OutlinedTextField(
-                value = price,
-                onValueChange = { price = it },
-                placeholder = { Text("$ 0.00", color = Color.Gray) },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = Color(0xFFE0E0E0),
-                    focusedBorderColor = PrimaryYellowDark
-                ),
-                singleLine = true
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Category Dropdown (Mocked for single selection simply with clicking right now)
-            Text("Category", fontWeight = FontWeight.Medium, modifier = Modifier.padding(bottom = 8.dp))
-            OutlinedCard(
-                modifier = Modifier.fillMaxWidth().clickable { categoryExpanded = true },
-                shape = RoundedCornerShape(8.dp),
-                colors = CardDefaults.outlinedCardColors(containerColor = Color.Transparent),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE0E0E0))
-            ) {
-                Box {
-                    Row(
-                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(category, color = if (category == "Select Category") Color.Gray else Color.Black)
-                        Icon(Icons.Default.ArrowDropDown, contentDescription = "Dropdown", tint = Color.Gray)
-                    }
-                    DropdownMenu(
-                        expanded = categoryExpanded,
-                        onDismissRequest = { categoryExpanded = false },
-                        modifier = Modifier.fillMaxWidth(0.9f)
-                    ) {
-                        categories.forEach { selection ->
-                            DropdownMenuItem(
-                                text = { Text(selection) },
-                                onClick = {
-                                    category = selection
-                                    categoryExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
+            // Price & Negotiable Row
+            Text("Price", fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp), color = TextDarkBlack)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                CustomTextField(
+                    value = price,
+                    onValueChange = { price = it },
+                    placeholder = "$ 0.00",
+                    modifier = Modifier.weight(1f)
+                )
+                
+                Spacer(modifier = Modifier.width(16.dp))
+                
+                Switch(
+                    checked = isNegotiable,
+                    onCheckedChange = { isNegotiable = it },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = AppBlue,
+                        uncheckedThumbColor = Color.White,
+                        uncheckedTrackColor = Color.LightGray,
+                        uncheckedBorderColor = Color.Transparent
+                    )
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Negotiable", color = TextGray, fontSize = 14.sp, fontWeight = FontWeight.Medium)
             }
-            
-            Spacer(modifier = Modifier.height(16.dp))
 
-            // Condition Dropdown (Mocked)
-            Text("Condition", fontWeight = FontWeight.Medium, modifier = Modifier.padding(bottom = 8.dp))
-            OutlinedCard(
-                modifier = Modifier.fillMaxWidth().clickable { conditionExpanded = true },
-                shape = RoundedCornerShape(8.dp),
-                colors = CardDefaults.outlinedCardColors(containerColor = Color.Transparent),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE0E0E0))
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Item Condition
+            Text("Item Condition", fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp), color = TextDarkBlack)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Box {
-                    Row(
-                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                conditions.forEach { cond ->
+                    val isSelected = condition == cond
+                    Surface(
+                        modifier = Modifier
+                            .height(40.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .clickable { condition = cond },
+                        color = if (isSelected) Color(0xFFE1F5FE) else Color.White,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) AppBlue else BorderLightBlue)
                     ) {
-                        Text(condition, color = if (condition == "Select Condition") Color.Gray else Color.Black)
-                        Icon(Icons.Default.ArrowDropDown, contentDescription = "Dropdown", tint = Color.Gray)
-                    }
-                    DropdownMenu(
-                        expanded = conditionExpanded,
-                        onDismissRequest = { conditionExpanded = false },
-                        modifier = Modifier.fillMaxWidth(0.9f)
-                    ) {
-                        conditions.forEach { selection ->
-                            DropdownMenuItem(
-                                text = { Text(selection) },
-                                onClick = {
-                                    condition = selection
-                                    conditionExpanded = false
-                                }
-                            )
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 16.dp)) {
+                            Text(text = cond, color = if (isSelected) Color(0xFF03A9F4) else TextGray, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Description Input
-            Text("Description", fontWeight = FontWeight.Medium, modifier = Modifier.padding(bottom = 8.dp))
+            Text("Description", fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp), color = TextDarkBlack)
             OutlinedTextField(
                 value = description,
                 onValueChange = { description = it },
-                placeholder = { Text("Describe your item (brand, size, flaws, etc.)", color = Color.Gray) },
-                modifier = Modifier.fillMaxWidth().height(150.dp),
-                shape = RoundedCornerShape(8.dp),
+                placeholder = { 
+                    Text(
+                        "Describe your item, including any flaws,\ndimensions, or specific details buyers\nshould know...", 
+                        color = Color.Gray.copy(alpha=0.7f),
+                        lineHeight = 22.sp
+                    ) 
+                },
+                modifier = Modifier.fillMaxWidth().height(160.dp),
+                shape = RoundedCornerShape(24.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = Color(0xFFE0E0E0),
-                    focusedBorderColor = PrimaryYellowDark
+                    unfocusedBorderColor = BorderLightBlue,
+                    focusedBorderColor = AppBlue,
+                    unfocusedContainerColor = Color.White,
+                    focusedContainerColor = Color.White
                 ),
-                maxLines = 5
+                maxLines = 6
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
-            
-            Button(
-                onClick = { viewModel.postListing(title, price, description, category, condition) },
-                modifier = Modifier.fillMaxWidth().height(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryYellowDark),
-                shape = RoundedCornerShape(25.dp),
-                enabled = !uiState.isLoading
-            ) {
-                if (uiState.isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.Black, strokeWidth = 2.dp)
-                } else {
-                    Text("Post Listing", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Spacer(modifier = Modifier.height(40.dp))
+        }
+    }
+}
+
+@Composable
+fun CustomTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    modifier: Modifier = Modifier
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        placeholder = { Text(placeholder, color = Color.Gray.copy(alpha=0.7f), fontSize = 16.sp) },
+        modifier = modifier.fillMaxWidth().height(56.dp),
+        shape = RoundedCornerShape(28.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            unfocusedContainerColor = Color.White,
+            focusedContainerColor = Color.White,
+            unfocusedBorderColor = BorderLightBlue,
+            focusedBorderColor = AppBlue,
+        ),
+        singleLine = true,
+        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 16.sp, color = TextDarkBlack)
+    )
+}
+
+@Composable
+fun SmallImageBox(uri: Uri?, onClick: () -> Unit, isAdd: Boolean = false, modifier: Modifier) {
+    val dashColor = Color(0xFFB0C0D0)
+    Box(
+        modifier = modifier
+            .drawBehind {
+                if (uri == null) {
+                    drawCircle(
+                        color = dashColor,
+                        style = Stroke(
+                            width = 3.dp.toPx(),
+                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f)
+                        ),
+                        radius = size.minDimension / 2
+                    )
                 }
             }
-            
-            Spacer(modifier = Modifier.height(80.dp)) // Padding for bottom nav bar
+            .clip(CircleShape)
+            .background(if (uri == null) SurfaceLightBlue else Color.Transparent)
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        if (uri != null) {
+            AsyncImage(model = uri, contentDescription = "Small Photo", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        } else {
+            // Placeholder Icon
+            Icon(
+                imageVector = if (isAdd) Icons.Default.AddPhotoAlternate else Icons.Default.Image,
+                contentDescription = null,
+                tint = Color(0xFF78909C), // Slate grey
+                modifier = Modifier.size(24.dp)
+            )
         }
     }
 }

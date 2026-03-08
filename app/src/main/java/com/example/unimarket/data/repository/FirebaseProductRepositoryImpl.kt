@@ -29,7 +29,6 @@ class FirebaseProductRepositoryImpl @Inject constructor(
 
     override fun getRecommendedProducts(): Flow<List<Product>> = callbackFlow {
         val subscription = firestore.collection("products")
-            // .orderBy("timeAgo", Query.Direction.DESCENDING) // Optionally order by creation time
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     close(error)
@@ -51,7 +50,8 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                                 rating = doc.getDouble("rating") ?: 0.0,
                                 location = doc.getString("location") ?: "",
                                 timeAgo = doc.getString("timeAgo") ?: "",
-                                isFavorite = doc.getBoolean("isFavorite") ?: false
+                                isFavorite = doc.getBoolean("isFavorite") ?: false,
+                                isNegotiable = doc.getBoolean("isNegotiable") ?: false
                             )
                         } catch (e: Exception) {
                             null
@@ -76,7 +76,8 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                 "rating" to product.rating,
                 "location" to product.location,
                 "timeAgo" to product.timeAgo,
-                "isFavorite" to product.isFavorite
+                "isFavorite" to product.isFavorite,
+                "isNegotiable" to product.isNegotiable
             )
             firestore.collection("products").add(productMap).await()
             Result.success(Unit)
