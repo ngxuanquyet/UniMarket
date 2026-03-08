@@ -6,5 +6,7 @@ interface AuthRepository {
     fun logout()
     fun getCurrentUser(): Any? // Can be mapped to a domain User model later if needed
 
+    suspend fun updateProfile(name: String?, photoUrl: String?): Result<Unit>
+
     suspend fun signInWithGoogle(idToken: String): Result<Unit>
 }
