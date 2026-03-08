@@ -16,12 +16,6 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
 
-data class SellUiState(
-    val selectedImageUris: List<Uri> = emptyList(),
-    val isLoading: Boolean = false,
-    val successMessage: String? = null,
-    val errorMessage: String? = null
-)
 
 @HiltViewModel
 class SellViewModel @Inject constructor(

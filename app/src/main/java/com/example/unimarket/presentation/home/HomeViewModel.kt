@@ -13,11 +13,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
-data class HomeUiState(
-    val categories: List<Category> = emptyList(),
-    val recommendedProducts: List<Product> = emptyList(),
-    val isLoading: Boolean = false
-)
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
