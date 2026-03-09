@@ -60,11 +60,10 @@ class AuthRepositoryImpl @Inject constructor(
             val authResult = auth.signInWithCredential(credential).await()
             val user = authResult.user
             
-            if (user != null && user.displayName != user.email) {
-                // For Google login, use email as display name
+            if (user != null && user.displayName.isNullOrEmpty()) {
+                // Set default display name if none exists
                 val profileUpdates = userProfileChangeRequest {
-                    displayName = user.email
-                    // Google already sets photoUri, so we don't need to override it unless it's null
+                    displayName = user.email ?: "User"
                 }
                 user.updateProfile(profileUpdates).await()
             }

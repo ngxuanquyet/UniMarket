@@ -1,5 +1,7 @@
 package com.example.unimarket.presentation.components
 
+import com.example.unimarket.presentation.theme.*
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -58,7 +60,7 @@ fun ProductCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(1f)
-                        .background(Color(0xFFF0F0F0))
+                        .background(ProfileAvatarBorder)
                 )
                 
                 IconButton(

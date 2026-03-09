@@ -1,5 +1,7 @@
 package com.example.unimarket.presentation.home
 
+import com.example.unimarket.presentation.theme.*
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -46,7 +48,7 @@ fun HomeScreen(
                 onCartClick = onCartClick
             )
         },
-        containerColor = Color(0xFFF7F8FA)
+        containerColor = BackgroundLight
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -131,9 +133,9 @@ fun HomeTopBar(onCartClick: () -> Unit) {
                 .height(50.dp)
                 .clip(RoundedCornerShape(8.dp)),
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color(0xFFF0F0F0),
-                unfocusedContainerColor = Color(0xFFF0F0F0),
-                disabledContainerColor = Color(0xFFF0F0F0),
+                focusedContainerColor = ProfileAvatarBorder,
+                unfocusedContainerColor = ProfileAvatarBorder,
+                disabledContainerColor = ProfileAvatarBorder,
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent
             )
@@ -150,7 +152,7 @@ fun HomeBanner(modifier: Modifier = Modifier) {
             .clip(RoundedCornerShape(16.dp))
             .background(
                 brush = Brush.horizontalGradient(
-                    colors = listOf(Color(0xFF5CA0FA), SecondaryBlue)
+                    colors = listOf(TagBlue, SecondaryBlue)
                 )
             )
     ) {
@@ -235,7 +237,7 @@ fun CategoriesSection(
                     .background(if (isSelected) PrimaryYellowDark else Color.White)
                     .border(
                         width = 1.dp,
-                        color = if (isSelected) Color.Transparent else Color(0xFFE0E0E0),
+                        color = if (isSelected) Color.Transparent else DividerColor,
                         shape = RoundedCornerShape(24.dp)
                     )
                     .clickable { onCategorySelected(category.id) }

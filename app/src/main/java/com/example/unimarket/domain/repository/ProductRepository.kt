@@ -8,4 +8,6 @@ interface ProductRepository {
     fun getCategories(): Flow<List<Category>>
     fun getRecommendedProducts(): Flow<List<Product>>
     suspend fun addProduct(product: Product): Result<Unit>
+    suspend fun deleteProduct(productId: String): Result<Unit>
+    suspend fun updateProduct(product: Product): Result<Unit>
 }

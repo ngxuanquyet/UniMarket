@@ -1,5 +1,7 @@
 package com.example.unimarket.presentation.cart
 
+import com.example.unimarket.presentation.theme.*
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -51,7 +53,7 @@ fun CartScreen(
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFFF7F8FA))
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = BackgroundLight)
             )
         },
         bottomBar = {
@@ -60,7 +62,7 @@ fun CartScreen(
                 onPlaceOrderClick = { /* Handle checkout */ }
             )
         },
-        containerColor = Color(0xFFF7F8FA)
+        containerColor = BackgroundLight
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -143,7 +145,7 @@ fun CartScreen(
                             .weight(1f)
                             .height(50.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            unfocusedContainerColor = Color(0xFFF0F0F0),
+                            unfocusedContainerColor = ProfileAvatarBorder,
                             unfocusedBorderColor = Color.Transparent,
                             focusedBorderColor = PrimaryYellowDark
                         ),
@@ -152,7 +154,7 @@ fun CartScreen(
                     Spacer(modifier = Modifier.width(12.dp))
                     Button(
                         onClick = { },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE0E0E0)),
+                        colors = ButtonDefaults.buttonColors(containerColor = DividerColor),
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text("Apply", color = Color.Black)
@@ -183,7 +185,7 @@ fun CartScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     SummaryRow("Discount applied", "-$${String.format("%.2f", uiState.discount)}", AccentGreen)
                     
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFE0E0E0))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = DividerColor)
                     
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -230,7 +232,7 @@ fun CartItemRow(
                 modifier = Modifier
                     .size(80.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFFF0F0F0))
+                    .background(ProfileAvatarBorder)
             )
             
             Spacer(modifier = Modifier.width(12.dp))
@@ -270,7 +272,7 @@ fun CartItemRow(
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
-                        .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(4.dp))
+                        .border(1.dp, DividerColor, RoundedCornerShape(4.dp))
                         .padding(horizontal = 4.dp, vertical = 2.dp)
                 ) {
                     Icon(

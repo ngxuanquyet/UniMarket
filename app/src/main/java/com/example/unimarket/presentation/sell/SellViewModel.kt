@@ -1,17 +1,21 @@
 package com.example.unimarket.presentation.sell
 
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.unimarket.domain.model.Product
 import com.example.unimarket.domain.usecase.product.AddProductUseCase
 import com.example.unimarket.domain.usecase.image.UploadImageUseCase
+import com.example.unimarket.domain.usecase.explore.GetAllProductsUseCase
+import com.example.unimarket.domain.usecase.product.UpdateProductUseCase
 import com.example.unimarket.domain.usecase.auth.GetCurrentUserUseCase
 import com.google.firebase.auth.FirebaseUser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
@@ -20,15 +24,57 @@ import javax.inject.Inject
 @HiltViewModel
 class SellViewModel @Inject constructor(
     private val addProductUseCase: AddProductUseCase,
+    private val updateProductUseCase: UpdateProductUseCase,
     private val uploadImageUseCase: UploadImageUseCase,
-    private val getCurrentUserUseCase: GetCurrentUserUseCase
+    private val getCurrentUserUseCase: GetCurrentUserUseCase,
+    private val getAllProductsUseCase: GetAllProductsUseCase
 ): ViewModel() {
     
     private val _uiState = MutableStateFlow(SellUiState())
     val uiState: StateFlow<SellUiState> = _uiState.asStateFlow()
 
+    private var editingProductId: String? = null
+    var initialProduct: Product? = null
+        private set
+
+    fun setEditProductId(id: String?) {
+        if (id == null || editingProductId == id) return
+        editingProductId = id
+        
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            // Fetch product using GetAllProductsUseCase flow
+            val products = getAllProductsUseCase().firstOrNull() ?: emptyList()
+            val product = products.find { it.id == id }
+            
+            if (product != null) {
+                initialProduct = product
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    selectedImageUris = product.imageUrls.map { Uri.parse(it) }
+                )
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = "Product not found"
+                )
+            }
+        }
+    }
+
     fun updateSelectedImages(uris: List<Uri>) {
         _uiState.value = _uiState.value.copy(selectedImageUris = uris, errorMessage = null)
+    }
+
+    fun updateImageAtIndex(uri: Uri, index: Int) {
+        val currentUris = _uiState.value.selectedImageUris.toMutableList()
+        if (index < currentUris.size) {
+            currentUris[index] = uri
+        } else {
+            // If we're adding it at the end or at an index beyond current size
+            currentUris.add(uri)
+        }
+        _uiState.value = _uiState.value.copy(selectedImageUris = currentUris.take(6), errorMessage = null)
     }
 
     fun postListing(
@@ -68,12 +114,19 @@ class SellViewModel @Inject constructor(
             var uploadError: String? = null
 
             for (uri in uris) {
-                val uploadResult = uploadImageUseCase(uri)
-                if (uploadResult.isSuccess) {
-                    uploadedUrls.add(uploadResult.getOrNull()!!)
+                val uriStr = uri.toString()
+                if (uriStr.startsWith("http://") || uriStr.startsWith("https://")) {
+                    // This is an existing image URL from Firestore, no need to upload
+                    uploadedUrls.add(uriStr)
                 } else {
-                    uploadError = uploadResult.exceptionOrNull()?.message
-                    break
+                    // This is a local file URI (e.g. content://...), upload it
+                    val uploadResult = uploadImageUseCase(uri)
+                    if (uploadResult.isSuccess) {
+                        uploadedUrls.add(uploadResult.getOrNull()!!)
+                    } else {
+                        uploadError = uploadResult.exceptionOrNull()?.message
+                        break
+                    }
                 }
             }
 
@@ -82,31 +135,40 @@ class SellViewModel @Inject constructor(
                     isLoading = false,
                     errorMessage = "Failed to upload image: $uploadError"
                 )
+                Log.d("ccc", "${_uiState.value.errorMessage}")
                 return@launch
             }
             
-            // 2. Save product to Firestore
+            // 2. Determine ID
+            val productId = editingProductId ?: UUID.randomUUID().toString()
+
+            // 3. Save product to Firestore
             val product = Product(
-                id = UUID.randomUUID().toString(), // Generate a unique ID if needed, though Firestore does this automatically on add(). Using UUID for the model placeholder. 
+                id = productId,
                 name = title,
                 price = price,
                 imageUrls = uploadedUrls,
                 categoryId = category, // In a real app, map category name back to ID. Using name as string for ease.
                 condition = condition,
                 sellerName = sellerName,
-                rating = 0.0,
-                location = "Unknown", // Add location picking feature later
-                timeAgo = "Just now",
-                isFavorite = false,
+                rating = initialProduct?.rating ?: 0.0,
+                location = initialProduct?.location ?: "Unknown", // Add location picking feature later
+                timeAgo = initialProduct?.timeAgo ?: "Just now",
+                isFavorite = initialProduct?.isFavorite ?: false,
                 isNegotiable = isNegotiable,
                 userId = userId
             )
 
-            val saveResult = addProductUseCase(product)
+            val saveResult = if (editingProductId != null) {
+                updateProductUseCase(product)
+            } else {
+                addProductUseCase(product)
+            }
+
             saveResult.onSuccess {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    successMessage = "Product listed successfully!",
+                    successMessage = if (editingProductId != null) "Product updated successfully!" else "Product listed successfully!",
                     selectedImageUris = emptyList()
                 )
             }.onFailure { error ->

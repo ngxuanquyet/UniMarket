@@ -1,5 +1,6 @@
 package com.example.unimarket.data.repository
 
+import android.util.Log
 import com.example.unimarket.domain.model.Category
 import com.example.unimarket.domain.model.Product
 import com.example.unimarket.domain.repository.ProductRepository
@@ -82,6 +83,39 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                 "userId" to product.userId
             )
             firestore.collection("products").add(productMap).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun deleteProduct(productId: String): Result<Unit> {
+        return try {
+            firestore.collection("products").document(productId).delete().await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun updateProduct(product: Product): Result<Unit> {
+        return try {
+            val productMap = mapOf(
+                "name" to product.name,
+                "price" to product.price,
+                "imageUrls" to product.imageUrls,
+                "categoryId" to product.categoryId,
+                "condition" to product.condition,
+                "sellerName" to product.sellerName,
+                "rating" to product.rating,
+                "location" to product.location,
+                "timeAgo" to product.timeAgo,
+                "isFavorite" to product.isFavorite,
+                "isNegotiable" to product.isNegotiable,
+                "userId" to product.userId
+            )
+            // Using set() to overwrite or create if not exists
+            firestore.collection("products").document(product.id).set(productMap).await()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

@@ -1,5 +1,7 @@
 package com.example.unimarket.presentation.mylistings
 
+import com.example.unimarket.presentation.theme.*
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,6 +22,10 @@ import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,35 +41,81 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.unimarket.domain.model.Product
 import com.example.unimarket.presentation.navigation.Screen
+import kotlinx.coroutines.launch
 
-val AppBlue = Color(0xFF29B6F6)
-val TextDarkBlack = Color(0xFF1E293B)
-val TextGray = Color(0xFF64748B)
-val BackgroundLight = Color(0xFFF8FAFC)
 val SurfaceWhite = Color.White
-val GreenBadge = Color(0xFF4CAF50)
-val GreenBadgeBg = Color(0xFFE8F5E9)
-val OrangeBadge = Color(0xFFFF9800)
-val OrangeBadgeBg = Color(0xFFFFF3E0)
-val RedDangerText = Color(0xFFE53935)
-val RedDangerBg = Color(0xFFFFEBEE)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MyListingsScreen(
-    navController: NavController,
+    onBackClick: () -> Unit,
+    onAddClick: () -> Unit,
+    onEditClick: (String) -> Unit,
     viewModel: MyListingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
+    
+    var itemToDelete by remember { mutableStateOf<Product?>(null) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    if (showDeleteDialog && itemToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { 
+                showDeleteDialog = false
+                itemToDelete = null
+            },
+            title = { Text("Confirm Deletion") },
+            text = { Text("Are you sure you want to delete this listing? This action cannot be undone after a few seconds.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val product = itemToDelete!!
+                        showDeleteDialog = false
+                        itemToDelete = null
+                        
+                        // Execute deletion
+                        viewModel.deleteListing(product)
+                        
+                        // Show Undo Snackbar
+                        coroutineScope.launch {
+                            val snackbarResult = snackbarHostState.showSnackbar(
+                                message = "Listing deleted",
+                                actionLabel = "Undo",
+                                duration = SnackbarDuration.Short
+                            )
+                            if (snackbarResult == SnackbarResult.ActionPerformed) {
+                                viewModel.undoDelete()
+                            }
+                        }
+                    }
+                ) {
+                    Text("Delete", color = RedDanger)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { 
+                        showDeleteDialog = false
+                        itemToDelete = null
+                    }
+                ) {
+                    Text("Cancel", color = TextDarkBlack)
+                }
+            }
+        )
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { 
-                    Text("My Listings", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = TextDarkBlack) 
+                title = {
+                    Text("My Listings", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = TextDarkBlack)
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = { onBackClick() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextDarkBlack)
                     }
                 },
@@ -77,18 +129,18 @@ fun MyListingsScreen(
         },
         containerColor = SurfaceWhite,
         floatingActionButton = {
-            // "Post New Item" FAB overlapping bottom navigation or scrollable list
-            ExtendedFloatingActionButton(
-                onClick = { navController.navigate(Screen.Sell.route) },
-                icon = { Icon(Icons.Default.AddCircleOutline, contentDescription = "Post New Item", tint = SurfaceWhite) },
-                text = { Text("Post New Item", color = SurfaceWhite, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
+            // "Post New Item" FAB
+            FloatingActionButton(
+                onClick = { onAddClick() },
                 containerColor = AppBlue,
                 contentColor = SurfaceWhite,
-                shape = RoundedCornerShape(28.dp),
-                modifier = Modifier.padding(bottom = 80.dp).fillMaxWidth(0.85f).height(56.dp)
-            )
+                shape = CircleShape,
+                modifier = Modifier.padding(bottom = 10.dp) // Maintain padding above bottom nav
+            ) {
+                Icon(Icons.Default.AddCircleOutline, contentDescription = "Post New Item")
+            }
         },
-        floatingActionButtonPosition = FabPosition.Center
+        floatingActionButtonPosition = FabPosition.End
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -108,24 +160,24 @@ fun MyListingsScreen(
                         height = 3.dp
                     )
                 },
-                divider = { HorizontalDivider(color = Color(0xFFE2E8F0)) }
+                divider = { HorizontalDivider(color = BorderLightGray) }
             ) {
                 tabs.forEachIndexed { index, title ->
                     Tab(
                         selected = uiState.currentTab == index,
                         onClick = { viewModel.setTab(index) },
-                        text = { 
+                        text = {
                             Text(
-                                text = title, 
+                                text = title,
                                 fontWeight = if (uiState.currentTab == index) FontWeight.Bold else FontWeight.Medium,
                                 fontSize = 15.sp,
                                 color = if (uiState.currentTab == index) AppBlue else TextGray
-                            ) 
+                            )
                         }
                     )
                 }
             }
-            
+
             // Content Body
             Box(
                 modifier = Modifier
@@ -144,7 +196,7 @@ fun MyListingsScreen(
                         item {
                             Surface(
                                 shape = RoundedCornerShape(32.dp),
-                                color = Color(0xFFE1F5FE), // Light blue tint
+                                color = LightBlueSelection, // Light blue tint
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
@@ -168,7 +220,14 @@ fun MyListingsScreen(
 
                         // Listing Items
                         items(uiState.displayedListings) { product ->
-                            ListingCard(product = product)
+                            ListingCard(
+                                product = product,
+                                onEditClick = { onEditClick(it) },
+                                onDeleteClick = { 
+                                    itemToDelete = product
+                                    showDeleteDialog = true
+                                }
+                            )
                         }
                     }
                 }
@@ -178,13 +237,17 @@ fun MyListingsScreen(
 }
 
 @Composable
-fun ListingCard(product: Product) {
+fun ListingCard(
+    product: Product,
+    onEditClick: (String) -> Unit,
+    onDeleteClick: () -> Unit
+) {
     Surface(
         shape = RoundedCornerShape(24.dp),
         color = SurfaceWhite,
         modifier = Modifier.fillMaxWidth(),
         shadowElevation = 0.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEDF2F7))
+        border = androidx.compose.foundation.BorderStroke(1.dp, TagBlueBg)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth()) {
@@ -196,15 +259,15 @@ fun ListingCard(product: Product) {
                     modifier = Modifier
                         .size(90.dp)
                         .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFFE2E8F0))
+                        .background(BorderLightGray)
                 )
-                
+
                 Spacer(modifier = Modifier.width(16.dp))
-                
+
             // Product Details
             Column(modifier = Modifier.weight(1f)) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(), 
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -213,7 +276,7 @@ fun ListingCard(product: Product) {
                     val badgeText = if (isUnderReview) "UNDER REVIEW" else "ACTIVE"
                     val badgeColor = if (isUnderReview) OrangeBadge else GreenBadge
                     val badgeBg = if (isUnderReview) OrangeBadgeBg else GreenBadgeBg
-                    
+
                     Box(
                         modifier = Modifier
                             .background(badgeBg, RoundedCornerShape(4.dp))
@@ -221,7 +284,7 @@ fun ListingCard(product: Product) {
                     ) {
                         Text(badgeText, color = badgeColor, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     }
-                    
+
                     Text(
                         "$${String.format("%.2f", product.price)}",
                         color = AppBlue,
@@ -229,9 +292,9 @@ fun ListingCard(product: Product) {
                         fontWeight = FontWeight.Bold
                     )
                 }
-                
+
                 Spacer(modifier = Modifier.height(6.dp))
-                
+
                 Text(
                     product.name,
                     color = TextDarkBlack,
@@ -241,16 +304,16 @@ fun ListingCard(product: Product) {
                     lineHeight = 20.sp,
                     overflow = TextOverflow.Ellipsis
                 )
-                
+
                 Spacer(modifier = Modifier.height(4.dp))
-                
+
                 val views = (10..100).random() // Dummy views count
                 Text(
                     "${product.timeAgo} • $views views",
                     color = TextGray,
                     fontSize = 12.sp
                 )
-                
+
                 val isUnderReviewTextFlag = product.name.contains("Watch", ignoreCase = true)
                 if (isUnderReviewTextFlag) {
                      Text(
@@ -261,11 +324,11 @@ fun ListingCard(product: Product) {
                 }
             }
             }
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            HorizontalDivider(color = Color(0xFFF1F5F9))
+            HorizontalDivider(color = ActionChipBg)
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             // Action Buttons
             val isUnderReview = product.name.contains("Watch", ignoreCase = true)
             Row(
@@ -273,12 +336,12 @@ fun ListingCard(product: Product) {
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 if (isUnderReview) {
-                    ActionChip("Edit Listing", Icons.Default.Edit, TextDarkBlack, Color(0xFFF1F5F9), Modifier.weight(1f))
-                    ActionChip("Cancel", Icons.Outlined.Cancel, RedDangerText, RedDangerBg, Modifier.weight(1f))
+                    ActionChip("Edit Listing", Icons.Default.Edit, TextDarkBlack, ActionChipBg, Modifier.weight(1f)) { onEditClick(product.id) }
+                    ActionChip("Cancel", Icons.Outlined.Cancel, RedDanger, RedDangerBg, Modifier.weight(1f)) { onDeleteClick() }
                 } else {
-                    ActionChip("Edit", Icons.Default.Edit, TextDarkBlack, Color(0xFFF1F5F9), Modifier.weight(1f))
-                    ActionChip("Sold", Icons.Default.CheckCircleOutline, AppBlue, Color(0xFFE1F5FE), Modifier.weight(1f))
-                    ActionChip("Delete", Icons.Default.DeleteOutline, RedDangerText, RedDangerBg, Modifier.weight(1f))
+                    ActionChip("Edit", Icons.Default.Edit, TextDarkBlack, ActionChipBg, Modifier.weight(1f)) { onEditClick(product.id) }
+                    ActionChip("Sold", Icons.Default.CheckCircleOutline, AppBlue, LightBlueSelection, Modifier.weight(1f)) { /* TODO */ }
+                    ActionChip("Delete", Icons.Default.DeleteOutline, RedDanger, RedDangerBg, Modifier.weight(1f)) { onDeleteClick() }
                 }
             }
         }
@@ -286,11 +349,18 @@ fun ListingCard(product: Product) {
 }
 
 @Composable
-fun ActionChip(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector, color: Color, bgColor: Color, modifier: Modifier = Modifier) {
+fun ActionChip(
+    text: String, 
+    icon: androidx.compose.ui.graphics.vector.ImageVector, 
+    color: Color, 
+    bgColor: Color, 
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
     Surface(
         color = bgColor,
         shape = RoundedCornerShape(20.dp),
-        modifier = modifier.height(36.dp).clickable { /* TODO Action */ }
+        modifier = modifier.height(36.dp).clickable { onClick() }
     ) {
         Row(
             modifier = Modifier.fillMaxSize(),

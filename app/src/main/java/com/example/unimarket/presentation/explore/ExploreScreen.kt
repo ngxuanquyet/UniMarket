@@ -1,5 +1,7 @@
 package com.example.unimarket.presentation.explore
 
+import com.example.unimarket.presentation.theme.*
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -52,7 +54,7 @@ fun ExploreScreen(
                         modifier = Modifier
                             .padding(end = 8.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFF0F0F0))
+                            .background(ProfileAvatarBorder)
                             .size(40.dp)
                     ) {
                         Icon(Icons.Default.Notifications, contentDescription = "Notifications", tint = Color.DarkGray)
@@ -82,8 +84,8 @@ fun ExploreScreen(
                         .height(50.dp),
                     shape = RoundedCornerShape(24.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedContainerColor = Color(0xFFF4F6F9),
-                        focusedContainerColor = Color(0xFFF4F6F9),
+                        unfocusedContainerColor = MessageBg,
+                        focusedContainerColor = MessageBg,
                         unfocusedBorderColor = Color.Transparent,
                         focusedBorderColor = Color.Transparent
                     ),
@@ -102,13 +104,13 @@ fun ExploreScreen(
                     modifier = Modifier
                         .size(36.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFE1F5FE)),
+                        .background(LightBlueSelection),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.LocationOn,
                         contentDescription = "Location",
-                        tint = Color(0xFF03A9F4),
+                        tint = LightBlueAction,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -135,7 +137,7 @@ fun ExploreScreen(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(20.dp))
-                            .background(if (isSelected) SecondaryBlue else Color(0xFFF4F6F9))
+                            .background(if (isSelected) SecondaryBlue else MessageBg)
                             .clickable { viewModel.updateSelectedCategory(category) }
                             .padding(horizontal = 20.dp, vertical = 10.dp),
                         contentAlignment = Alignment.Center
@@ -196,7 +198,7 @@ fun ExploreProductCard(product: com.example.unimarket.domain.model.Product) {
                 .fillMaxWidth()
                 .aspectRatio(1f)
                 .clip(RoundedCornerShape(16.dp))
-                .background(Color(0xFFF0F0F0))
+                .background(ProfileAvatarBorder)
         ) {
             Image(
                 painter = rememberAsyncImagePainter(
@@ -241,7 +243,7 @@ fun ExploreProductCard(product: com.example.unimarket.domain.model.Product) {
                 Icon(
                     imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                     contentDescription = "Favorite",
-                    tint = if (isFavorite) Color(0xFFE53935) else Color.DarkGray,
+                    tint = if (isFavorite) RedDanger else Color.DarkGray,
                     modifier = Modifier.size(18.dp)
                 )
             }

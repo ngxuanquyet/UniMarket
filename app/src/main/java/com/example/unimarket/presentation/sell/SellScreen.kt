@@ -1,5 +1,7 @@
 package com.example.unimarket.presentation.sell
 
+import com.example.unimarket.presentation.theme.*
+
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -36,40 +38,49 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 
-val SurfaceLightBlue = Color(0xFFEFF3F8)
-val BorderLightBlue = Color(0xFFE0E5EC)
-val AppBlue = Color(0xFF29B6F6)
-val TextDarkBlack = Color(0xFF1E293B)
-val TextGray = Color(0xFF64748B)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SellScreen(
+    productId: String? = null,
     onBackClick: () -> Unit,
     viewModel: SellViewModel = hiltViewModel()
 ) {
     val scrollState = rememberScrollState()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    
-    var title by remember { mutableStateOf("") }
-    var price by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    var isNegotiable by remember { mutableStateOf(false) }
+    LaunchedEffect(productId) {
+        viewModel.setEditProductId(productId)
+    }
+
+    val initialProduct = viewModel.initialProduct
+    var title by remember(initialProduct) { mutableStateOf(initialProduct?.name ?: "") }
+    var price by remember(initialProduct) { mutableStateOf(initialProduct?.price?.toString() ?: "") }
+    var description by remember(initialProduct) { mutableStateOf("") } // Doesn't exist on Product model right now, mock it or leave blank
+    var isNegotiable by remember(initialProduct) { mutableStateOf(initialProduct?.isNegotiable ?: false) }
     
     val categories = listOf("Electronics", "Textbooks", "Furniture", "Clothing", "Other")
     var categoryExpanded by remember { mutableStateOf(false) }
-    var category by remember { mutableStateOf("Select a category") }
+    var category by remember(initialProduct) { mutableStateOf(initialProduct?.categoryId ?: "Select a category") }
     
     val conditions = listOf("New", "Like New", "Good", "Fair")
-    var condition by remember { mutableStateOf("New") }
+    var condition by remember(initialProduct) { mutableStateOf(initialProduct?.condition ?: "New") }
 
+    var pickingIndex by remember { mutableStateOf(-1) }
+    
     val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetMultipleContents()
+        contract = ActivityResultContracts.PickMultipleVisualMedia(6)
     ) { uris ->
-        val current = uiState.selectedImageUris
-        val combined = (current + uris).distinct().take(5)
-        viewModel.updateSelectedImages(combined)
+        if (uris.isNotEmpty()) {
+            viewModel.updateSelectedImages(uris.take(6))
+        }
+    }
+
+    val singleImagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null && pickingIndex != -1) {
+            viewModel.updateImageAtIndex(uri, pickingIndex)
+        }
     }
 
     LaunchedEffect(uiState.successMessage, uiState.errorMessage) {
@@ -94,7 +105,7 @@ fun SellScreen(
             TopAppBar(
                 title = { 
                     Text(
-                        "Sell an Item", 
+                        if (productId != null) "Edit Item" else "Sell an Item", 
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 20.sp,
                         color = TextDarkBlack,
@@ -109,10 +120,10 @@ fun SellScreen(
                 actions = {
                     Spacer(modifier = Modifier.width(48.dp))
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFFF9FAFC))
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = SellTopBarBg)
             )
         },
-        containerColor = Color(0xFFF9FAFC),
+        containerColor = SellTopBarBg,
         bottomBar = {
             Box(
                 modifier = Modifier
@@ -132,7 +143,7 @@ fun SellScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.VerticalAlignTop, contentDescription = "Upload", tint = Color.White, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Post Item", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            Text(if (productId != null) "Update Item" else "Post Item", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                         }
                     }
                 }
@@ -151,15 +162,18 @@ fun SellScreen(
             Row(modifier = Modifier.fillMaxWidth().height(260.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 // Left Huge Image (Pill shaped)
                 val firstImage = uiState.selectedImageUris.getOrNull(0)
-                val dashColor = Color(0xFFB0C0D0)
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
+                        .clickable { 
+                            pickingIndex = 0
+                            singleImagePickerLauncher.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) 
+                        }
                         .drawBehind { // Draw dashed border for pill
                             if (firstImage == null) {
                                 drawRoundRect(
-                                    color = dashColor,
+                                    color = DashColor,
                                     style = Stroke(
                                         width = 3.dp.toPx(),
                                         pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f)
@@ -169,8 +183,7 @@ fun SellScreen(
                             }
                         }
                         .clip(RoundedCornerShape(80.dp))
-                        .background(if (firstImage == null) SurfaceLightBlue else Color.Transparent)
-                        .clickable { imagePickerLauncher.launch("image/*") },
+                        .background(if (firstImage == null) SurfaceLightBlue else Color.Transparent),
                     contentAlignment = Alignment.Center
                 ) {
                     if (firstImage != null) {
@@ -185,13 +198,44 @@ fun SellScreen(
                 ) {
                     // Top Row
                     Row(modifier = Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        SmallImageBox(uri = uiState.selectedImageUris.getOrNull(1), onClick = { imagePickerLauncher.launch("image/*") }, modifier = Modifier.weight(1f).fillMaxHeight())
-                        SmallImageBox(uri = uiState.selectedImageUris.getOrNull(2), onClick = { imagePickerLauncher.launch("image/*") }, isAdd = true, modifier = Modifier.weight(1f).fillMaxHeight())
+                        SmallImageBox(
+                            uri = uiState.selectedImageUris.getOrNull(1), 
+                            onClick = { 
+                                pickingIndex = 1
+                                singleImagePickerLauncher.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) 
+                            }, 
+                            modifier = Modifier.weight(1f).fillMaxHeight()
+                        )
+                        SmallImageBox(
+                            uri = uiState.selectedImageUris.getOrNull(2), 
+                            onClick = { 
+                                pickingIndex = 2
+                                singleImagePickerLauncher.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) 
+                            }, 
+                            isAdd = uiState.selectedImageUris.size <= 2, 
+                            modifier = Modifier.weight(1f).fillMaxHeight()
+                        )
                     }
                     // Bottom Row
                     Row(modifier = Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        SmallImageBox(uri = uiState.selectedImageUris.getOrNull(3), onClick = { imagePickerLauncher.launch("image/*") }, modifier = Modifier.weight(1f).fillMaxHeight())
-                        SmallImageBox(uri = uiState.selectedImageUris.getOrNull(4), onClick = { imagePickerLauncher.launch("image/*") }, modifier = Modifier.weight(1f).fillMaxHeight())
+                        SmallImageBox(
+                            uri = uiState.selectedImageUris.getOrNull(3), 
+                            onClick = { 
+                                pickingIndex = 3
+                                singleImagePickerLauncher.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) 
+                            }, 
+                            isAdd = uiState.selectedImageUris.size <= 3,
+                            modifier = Modifier.weight(1f).fillMaxHeight()
+                        )
+                        SmallImageBox(
+                            uri = uiState.selectedImageUris.getOrNull(4), 
+                            onClick = { 
+                                pickingIndex = 4
+                                singleImagePickerLauncher.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) 
+                            }, 
+                            isAdd = uiState.selectedImageUris.size <= 4,
+                            modifier = Modifier.weight(1f).fillMaxHeight()
+                        )
                     }
                 }
             }
@@ -287,11 +331,11 @@ fun SellScreen(
                             .height(40.dp)
                             .clip(RoundedCornerShape(20.dp))
                             .clickable { condition = cond },
-                        color = if (isSelected) Color(0xFFE1F5FE) else Color.White,
+                        color = if (isSelected) LightBlueSelection else Color.White,
                         border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) AppBlue else BorderLightBlue)
                     ) {
                         Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 16.dp)) {
-                            Text(text = cond, color = if (isSelected) Color(0xFF03A9F4) else TextGray, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                            Text(text = cond, color = if (isSelected) LightBlueAction else TextGray, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                         }
                     }
                 }
@@ -353,13 +397,13 @@ fun CustomTextField(
 
 @Composable
 fun SmallImageBox(uri: Uri?, onClick: () -> Unit, isAdd: Boolean = false, modifier: Modifier) {
-    val dashColor = Color(0xFFB0C0D0)
     Box(
         modifier = modifier
+            .clickable { onClick() }
             .drawBehind {
                 if (uri == null) {
                     drawCircle(
-                        color = dashColor,
+                        color = DashColor,
                         style = Stroke(
                             width = 3.dp.toPx(),
                             pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f)
@@ -380,7 +424,7 @@ fun SmallImageBox(uri: Uri?, onClick: () -> Unit, isAdd: Boolean = false, modifi
             Icon(
                 imageVector = if (isAdd) Icons.Default.AddPhotoAlternate else Icons.Default.Image,
                 contentDescription = null,
-                tint = Color(0xFF78909C), // Slate grey
+                tint = SlateGrey, // Slate grey
                 modifier = Modifier.size(24.dp)
             )
         }

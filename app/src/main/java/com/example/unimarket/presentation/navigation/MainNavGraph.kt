@@ -20,8 +20,17 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
         route = "main_tabs_graph"
     ) {
         composable(Screen.Explore.route) { ExploreScreen() }
-        composable(Screen.Sell.route) {
+        composable(
+            route = Screen.Sell.route + "?productId={productId}",
+            arguments = listOf(androidx.navigation.navArgument("productId") { 
+                type = androidx.navigation.NavType.StringType
+                nullable = true
+                defaultValue = null 
+            })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId")
             SellScreen(
+                productId = productId,
                 onBackClick = { navController.popBackStack() }
             )
         }
@@ -43,7 +52,13 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
         }
         composable(Screen.MyListings.route) {
             com.example.unimarket.presentation.mylistings.MyListingsScreen(
-                navController = navController
+                onBackClick = { navController.popBackStack() },
+                onAddClick = {
+                    navController.navigate(Screen.Sell.route)
+                },
+                onEditClick = { productId ->
+                    navController.navigate(Screen.Sell.route + "?productId=$productId")
+                }
             )
         }
     }

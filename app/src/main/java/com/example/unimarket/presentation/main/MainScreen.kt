@@ -1,5 +1,7 @@
 package com.example.unimarket.presentation.main
 
+import com.example.unimarket.presentation.theme.*
+
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -86,10 +88,10 @@ fun BottomNavigationBar(navController: NavHostController) {
                     label = { Text(item.title, style = MaterialTheme.typography.labelSmall) },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = Color.White,
-                        selectedTextColor = Color(0xFF29B6F6),
+                        selectedTextColor = AppBlue,
                         unselectedIconColor = Color.Gray,
                         unselectedTextColor = Color.Gray,
-                        indicatorColor = Color(0xFF29B6F6)
+                        indicatorColor = AppBlue
                     )
                 )
             }

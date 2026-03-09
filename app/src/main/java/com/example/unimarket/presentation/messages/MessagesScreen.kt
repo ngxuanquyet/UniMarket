@@ -1,5 +1,7 @@
 package com.example.unimarket.presentation.messages
 
+import com.example.unimarket.presentation.theme.*
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -121,8 +123,8 @@ fun MessagesScreen() {
                         .height(50.dp),
                     shape = RoundedCornerShape(24.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedContainerColor = Color(0xFFF4F6F9),
-                        focusedContainerColor = Color(0xFFF4F6F9),
+                        unfocusedContainerColor = MessageBg,
+                        focusedContainerColor = MessageBg,
                         unfocusedBorderColor = Color.Transparent,
                         focusedBorderColor = Color.Transparent
                     ),
@@ -176,7 +178,7 @@ fun MessageItem(message: MessagePreview) {
                 modifier = Modifier
                     .size(54.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFE0E0E0)) // Fallback bg
+                    .background(DividerColor) // Fallback bg
             )
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -238,7 +240,7 @@ fun MessageItem(message: MessagePreview) {
                     modifier = Modifier
                         .fillMaxSize()
                         .clip(CircleShape)
-                        .background(Color(0xFFF0F0F0)) // placeholder bg
+                        .background(ProfileAvatarBorder) // placeholder bg
                 )
 
                 if (message.itemIsSold) {
@@ -268,7 +270,7 @@ fun MessageItem(message: MessagePreview) {
         }
         
         HorizontalDivider(
-            color = Color(0xFFF0F0F0),
+            color = ProfileAvatarBorder,
             thickness = 1.dp,
             modifier = Modifier.padding(start = 82.dp) // align with text content roughly
         )

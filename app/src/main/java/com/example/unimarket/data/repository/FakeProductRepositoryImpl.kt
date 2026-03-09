@@ -89,4 +89,12 @@ class FakeProductRepositoryImpl @Inject constructor() : ProductRepository {
     override suspend fun addProduct(product: Product): Result<Unit> {
         return Result.success(Unit)
     }
+
+    override suspend fun deleteProduct(productId: String): Result<Unit> {
+        return Result.success(Unit)
+    }
+
+    override suspend fun updateProduct(product: Product): Result<Unit> {
+        return Result.success(Unit)
+    }
 }

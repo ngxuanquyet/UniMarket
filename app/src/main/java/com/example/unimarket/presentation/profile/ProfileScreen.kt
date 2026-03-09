@@ -1,5 +1,7 @@
 package com.example.unimarket.presentation.profile
 
+import com.example.unimarket.presentation.theme.*
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -167,7 +169,7 @@ fun ProfileHeader(
                     modifier = Modifier
                         .size(100.dp)
                         .clip(CircleShape)
-                        .border(2.dp, Color(0xFFF0F0F0), CircleShape)
+                        .border(2.dp, ProfileAvatarBorder, CircleShape)
                         .clickable(onClick = onEditClick)
                 )
 
@@ -193,7 +195,7 @@ fun ProfileHeader(
                     modifier = Modifier
                         .fillMaxSize()
                         .clip(CircleShape)
-                        .background(Color(0xFF03A9F4)),
+                        .background(LightBlueAction),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -242,20 +244,20 @@ fun ProfileHeader(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .clip(RoundedCornerShape(16.dp))
-                .background(Color(0xFFE8F5E9)) // Light green background
-                .border(1.dp, Color(0xFFC8E6C9), RoundedCornerShape(16.dp))
+                .background(GreenBadgeBg) // Light green background
+                .border(1.dp, GreenBadgeBorder, RoundedCornerShape(16.dp))
                 .padding(horizontal = 12.dp, vertical = 6.dp)
         ) {
             Icon(
                 imageVector = Icons.Default.CheckCircle,
                 contentDescription = null,
-                tint = Color(0xFF4CAF50),
+                tint = GreenBadge,
                 modifier = Modifier.size(14.dp)
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = "Verified Student",
-                color = Color(0xFF4CAF50), // Green text
+                color = GreenBadge, // Green text
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Medium
             )
@@ -289,7 +291,7 @@ fun StatCard(value: String, label: String, modifier: Modifier = Modifier, showSt
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xFFF7F8FA))
+            .background(BackgroundLight)
             .padding(vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -324,31 +326,31 @@ fun ProfileActionsList() {
         ActionRowItem(
             title = "My Listings",
             icon = Icons.Default.LocalOffer,
-            iconBgColor = Color(0xFFE3F2FD),
-            iconColor = Color(0xFF2196F3)
+            iconBgColor = LightBlueReviewBg,
+            iconColor = BlueReview
         )
         ActionRowItem(
             title = "My Purchases",
             icon = Icons.Default.ShoppingBag,
-            iconBgColor = Color(0xFFE3F2FD),
-            iconColor = Color(0xFF2196F3)
+            iconBgColor = LightBlueReviewBg,
+            iconColor = BlueReview
         )
         ActionRowItem(
             title = "Saved Items",
             icon = Icons.Default.Favorite,
-            iconBgColor = Color(0xFFE3F2FD),
-            iconColor = Color(0xFF2196F3)
+            iconBgColor = LightBlueReviewBg,
+            iconColor = BlueReview
         )
         ActionRowItem(
             title = "Payment Methods",
             icon = Icons.Default.CreditCard,
-            iconBgColor = Color(0xFFE3F2FD),
-            iconColor = Color(0xFF2196F3)
+            iconBgColor = LightBlueReviewBg,
+            iconColor = BlueReview
         )
         ActionRowItem(
             title = "Account Settings",
             icon = Icons.Default.Settings,
-            iconBgColor = Color(0xFFF0F0F0),
+            iconBgColor = ProfileAvatarBorder,
             iconColor = Color.DarkGray
         )
     }
@@ -409,7 +411,7 @@ fun LogoutButton(onClick: () -> Unit = {}) {
             .fillMaxWidth()
             .padding(horizontal = 24.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xFFFFF0F0)) // Light red
+            .background(LightRedReviewBg) // Light red
             .clickable(onClick = onClick)
             .padding(vertical = 16.dp),
         contentAlignment = Alignment.Center
@@ -418,14 +420,14 @@ fun LogoutButton(onClick: () -> Unit = {}) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ExitToApp,
                 contentDescription = "Log Out",
-                tint = Color(0xFFE53935) // Reddish
+                tint = RedDanger // Reddish
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = "Log Out",
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFFE53935)
+                color = RedDanger
             )
         }
     }
