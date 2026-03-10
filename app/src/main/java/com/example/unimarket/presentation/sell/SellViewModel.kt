@@ -74,7 +74,7 @@ class SellViewModel @Inject constructor(
             // If we're adding it at the end or at an index beyond current size
             currentUris.add(uri)
         }
-        _uiState.value = _uiState.value.copy(selectedImageUris = currentUris.take(6), errorMessage = null)
+        _uiState.value = _uiState.value.copy(selectedImageUris = currentUris.take(5), errorMessage = null)
     }
 
     fun postListing(
