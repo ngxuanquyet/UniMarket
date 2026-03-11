@@ -68,11 +68,30 @@ class FakeCartRepositoryImpl @Inject constructor() : CartRepository {
     }
 
     override suspend fun updateQuantity(cartItemId: String, quantity: Int) {
-        _cartItems.update { current ->
-            current.map { item ->
-                if (item.id == cartItemId) item.copy(quantity = quantity)
-                else item
-            }
+        val currentItems = _cartItems.value.toMutableList()
+        val index = currentItems.indexOfFirst { it.id == cartItemId }
+        if (index != -1 && quantity > 0) {
+            currentItems[index] = currentItems[index].copy(quantity = quantity)
+            _cartItems.value = currentItems
         }
+    }
+
+    override suspend fun addToCart(product: Product) {
+        val currentItems = _cartItems.value.toMutableList()
+        val index = currentItems.indexOfFirst { it.product.id == product.id }
+        if (index != -1) {
+            // If already in cart, just increase quantity
+            currentItems[index] = currentItems[index].copy(quantity = currentItems[index].quantity + 1)
+        } else {
+            // If not in cart, add as new item
+            currentItems.add(
+                CartItem(
+                    id = "cart_${System.currentTimeMillis()}",
+                    product = product,
+                    quantity = 1
+                )
+            )
+        }
+        _cartItems.value = currentItems
     }
 }

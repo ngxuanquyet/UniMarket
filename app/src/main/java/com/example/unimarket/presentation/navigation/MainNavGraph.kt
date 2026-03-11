@@ -7,6 +7,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.unimarket.presentation.auth.AuthViewModel
 import com.example.unimarket.presentation.cart.CartScreen
+import com.example.unimarket.presentation.checkout.CheckoutScreen
 import com.example.unimarket.presentation.explore.ExploreScreen
 import com.example.unimarket.presentation.messages.MessagesScreen
 import com.example.unimarket.presentation.profile.ProfileScreen
@@ -23,6 +24,9 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
             ExploreScreen(
                 onProductClick = { productId ->
                     navController.navigate(Screen.ProductDetail.route + "/$productId")
+                },
+                onCartClick = { 
+                    navController.navigate(Screen.Cart.route)
                 }
             ) 
         }
@@ -75,6 +79,21 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
         ) { backStackEntry ->
             val productId = backStackEntry.arguments?.getString("productId") ?: return@composable
             com.example.unimarket.presentation.productdetail.ProductDetailScreen(
+                productId = productId,
+                onBackClick = { navController.popBackStack() },
+                onBuyNowClick = { pId ->
+                    navController.navigate(Screen.Checkout.route + "/$pId")
+                }
+            )
+        }
+        composable(
+            route = Screen.Checkout.route + "/{productId}",
+            arguments = listOf(androidx.navigation.navArgument("productId") {
+                type = androidx.navigation.NavType.StringType
+            })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: return@composable
+            CheckoutScreen(
                 productId = productId,
                 onBackClick = { navController.popBackStack() }
             )

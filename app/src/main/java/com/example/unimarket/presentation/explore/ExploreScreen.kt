@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,6 +40,7 @@ import com.example.unimarket.presentation.theme.SecondaryBlue
 @Composable
 fun ExploreScreen(
     onProductClick: (String) -> Unit = {},
+    onCartClick: () -> Unit = {},
     viewModel: ExploreViewModel = androidx.hilt.navigation.compose.hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -50,6 +52,16 @@ fun ExploreScreen(
                     Text("Explore", fontWeight = FontWeight.Bold, fontSize = 24.sp) 
                 },
                 actions = {
+                    IconButton(
+                        onClick = { onCartClick() },
+                        modifier = Modifier
+                            .padding(end = 8.dp)
+                            .clip(CircleShape)
+                            .background(ProfileAvatarBorder)
+                            .size(40.dp)
+                    ) {
+                        Icon(Icons.Default.ShoppingCart, contentDescription = "Cart", tint = Color.DarkGray)
+                    }
                     IconButton(
                         onClick = { },
                         modifier = Modifier

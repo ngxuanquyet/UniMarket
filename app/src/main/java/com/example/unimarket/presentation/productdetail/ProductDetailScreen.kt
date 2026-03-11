@@ -42,6 +42,7 @@ import kotlinx.coroutines.launch
 fun ProductDetailScreen(
     productId: String?,
     onBackClick: () -> Unit,
+    onBuyNowClick: (String) -> Unit = {},
     viewModel: ProductDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -68,12 +69,25 @@ fun ProductDetailScreen(
         return
     }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(viewModel.uiEvent) {
+        viewModel.uiEvent.collect { event ->
+            when (event) {
+                is ProductDetailViewModel.UiEvent.ShowSnackbar -> {
+                    snackbarHostState.showSnackbar(event.message)
+                }
+            }
+        }
+    }
+
     var isFavorite by remember { mutableStateOf(product.isFavorite) }
     
     val pagerState = rememberPagerState(pageCount = { product.imageUrls.takeIf { it.isNotEmpty() }?.size ?: 1 })
     val coroutineScope = rememberCoroutineScope()
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { },
@@ -131,30 +145,30 @@ fun ProductDetailScreen(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Chat Button
+                    // Add to Cart Button (Outlined)
                     OutlinedButton(
-                        onClick = { /* Handle chat */ },
+                        onClick = { viewModel.addToCart(product) },
                         modifier = Modifier
-                            .weight(0.3f)
+                            .weight(0.5f)
                             .height(50.dp),
                         shape = RoundedCornerShape(24.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Black)
                     ) {
-                        Icon(Icons.Default.ChatBubbleOutline, contentDescription = "Chat")
+                        Icon(Icons.Default.ShoppingCart, contentDescription = "Cart", modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Add to Cart", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     }
 
-                    // Add to Cart Button
+                    // Buy Now Button (Solid)
                     Button(
-                        onClick = { /* Handle add to cart */ },
+                        onClick = { onBuyNowClick(product.id) },
                         modifier = Modifier
-                            .weight(0.7f)
+                            .weight(0.5f)
                             .height(50.dp),
                         shape = RoundedCornerShape(24.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = SecondaryBlue)
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryYellowDark)
                     ) {
-                        Icon(Icons.Default.ShoppingCart, contentDescription = "Cart")
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Add to Cart", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text("Buy Now", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
                 }
             }
