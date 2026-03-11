@@ -271,11 +271,24 @@ fun ListingCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Badge (Mock Logic for 'Under Review' vs 'Active')
                     val isUnderReview = product.name.contains("Watch", ignoreCase = true)
-                    val badgeText = if (isUnderReview) "UNDER REVIEW" else "ACTIVE"
-                    val badgeColor = if (isUnderReview) OrangeBadge else GreenBadge
-                    val badgeBg = if (isUnderReview) OrangeBadgeBg else GreenBadgeBg
+                    val isDraft = product.sellerName == "Draft"
+
+                    val badgeText = when {
+                        isDraft -> "DRAFT"
+                        isUnderReview -> "UNDER REVIEW"
+                        else -> "ACTIVE"
+                    }
+                    val badgeColor = when {
+                        isDraft -> TextGray
+                        isUnderReview -> OrangeBadge
+                        else -> GreenBadge
+                    }
+                    val badgeBg = when {
+                        isDraft -> BorderLightGray
+                        isUnderReview -> OrangeBadgeBg
+                        else -> GreenBadgeBg
+                    }
 
                     Box(
                         modifier = Modifier
@@ -331,11 +344,16 @@ fun ListingCard(
 
             // Action Buttons
             val isUnderReview = product.name.contains("Watch", ignoreCase = true)
+            val isDraft = product.sellerName == "Draft"
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                if (isUnderReview) {
+                if (isDraft) {
+                    ActionChip("Edit Draft", Icons.Default.Edit, TextDarkBlack, ActionChipBg, Modifier.weight(1f)) { onEditClick(product.id) }
+                    ActionChip("Delete Draft", Icons.Default.DeleteOutline, RedDanger, RedDangerBg, Modifier.weight(1f)) { onDeleteClick() }
+                } else if (isUnderReview) {
                     ActionChip("Edit Listing", Icons.Default.Edit, TextDarkBlack, ActionChipBg, Modifier.weight(1f)) { onEditClick(product.id) }
                     ActionChip("Cancel", Icons.Outlined.Cancel, RedDanger, RedDangerBg, Modifier.weight(1f)) { onDeleteClick() }
                 } else {

@@ -2,6 +2,7 @@ package com.example.unimarket.presentation.sell
 
 import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -29,9 +30,12 @@ import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.VerticalAlignTop
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -100,23 +104,32 @@ fun SellScreen(
             initialProduct?.price?.toString() ?: ""
         )
     }
-    var description by remember(initialProduct) { mutableStateOf("") } // Doesn't exist on Product model right now, mock it or leave blank
+    var description by remember(initialProduct) { mutableStateOf(initialProduct?.description ?: "") }
     var isNegotiable by remember(initialProduct) {
         mutableStateOf(
             initialProduct?.isNegotiable ?: false
         )
     }
 
+    var specCounter by remember { mutableIntStateOf(0) }
+    val specifications = remember(initialProduct) {
+        androidx.compose.runtime.mutableStateListOf<SpecItem>().apply {
+            initialProduct?.specifications?.forEach { (k, v) ->
+                add(SpecItem(specCounter++, k, v))
+            }
+        }
+    }
+
     val categories = listOf("Electronics", "Textbooks", "Furniture", "Clothing", "Other")
     var categoryExpanded by remember { mutableStateOf(false) }
     var category by remember(initialProduct) {
         mutableStateOf(
-            initialProduct?.categoryId ?: "Select a category"
+            initialProduct?.categoryId?.takeIf { it.isNotBlank() } ?: "Select a category"
         )
     }
 
     val conditions = listOf("New", "Like New", "Good", "Fair")
-    var condition by remember(initialProduct) { mutableStateOf(initialProduct?.condition ?: "New") }
+    var condition by remember(initialProduct) { mutableStateOf(initialProduct?.condition ?: "") }
 
     var pickingIndex by remember { mutableIntStateOf(-1) }
 
@@ -153,6 +166,77 @@ fun SellScreen(
         }
     }
 
+    var showDraftDialog by remember { mutableStateOf(false) }
+
+    val hasUnsavedChanges = if (initialProduct != null && viewModel.isEditingDraft) {
+        val initialUris = initialProduct.imageUrls
+        val currentUris = uiState.selectedImageUris.map { it.toString() }
+        
+        title != initialProduct.name ||
+        price != initialProduct.price.toString() ||
+        description != initialProduct.description ||
+        category != (initialProduct.categoryId.takeIf { it.isNotBlank() } ?: "Select a category") ||
+        condition != initialProduct.condition ||
+        isNegotiable != initialProduct.isNegotiable ||
+        currentUris != initialUris ||
+        specifications.associate { it.key to it.value } != initialProduct.specifications
+    } else if (initialProduct == null) {
+        title.isNotBlank() || price.isNotBlank() || description.isNotBlank() || uiState.selectedImageUris.isNotEmpty() || specifications.isNotEmpty()
+    } else {
+        false
+    }
+
+    val handleBackClick = {
+        if (hasUnsavedChanges && (initialProduct == null || viewModel.isEditingDraft)) {
+            showDraftDialog = true
+        } else {
+            onBackClick()
+        }
+    }
+
+    BackHandler {
+        handleBackClick()
+    }
+
+    if (showDraftDialog) {
+        AlertDialog(
+            onDismissRequest = { showDraftDialog = false },
+            title = { Text("Save Draft?", fontWeight = FontWeight.Bold, color = TextDarkBlack) },
+            text = { 
+                Text(
+                    if (initialProduct != null) "You have unsaved changes. Do you want to save the changes to this draft?" 
+                    else "You have unsaved changes. Do you want to save this listing as a draft?", 
+                    color = TextGray
+                ) 
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDraftDialog = false
+                    viewModel.saveAsDraft(
+                        title = title,
+                        priceStr = price,
+                        description = description,
+                        categoryId = category,
+                        condition = condition,
+                        isNegotiable = isNegotiable,
+                        specifications = specifications.filter { it.key.isNotBlank() }.associate { it.key to it.value },
+                        onDraftSaved = { onBackClick() }
+                    )
+                }) {
+                    Text("Save", color = AppBlue, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showDraftDialog = false
+                    onBackClick()
+                }) {
+                    Text("Discard", color = Color.Red)
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -169,7 +253,7 @@ fun SellScreen(
                 },
                 navigationIcon = {
                     IconButton(
-                        onClick = { onBackClick() },
+                        onClick = { handleBackClick() },
                         modifier = Modifier.padding(start = 8.dp)
                     ) {
                         Icon(
@@ -200,7 +284,8 @@ fun SellScreen(
                             description,
                             category,
                             condition,
-                            isNegotiable
+                            isNegotiable,
+                            specifications.filter { it.key.isNotBlank() }.associate { it.key to it.value }
                         )
                     },
                     modifier = Modifier
@@ -569,6 +654,51 @@ fun SellScreen(
                 maxLines = 6
             )
 
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Specifications
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Specifications",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = TextDarkBlack
+                )
+                TextButton(onClick = { specifications.add(SpecItem(specCounter++, "", "")) }) {
+                    Text("+ Add Spec", color = AppBlue, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                specifications.forEachIndexed { index, spec ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CustomTextField(
+                            value = spec.key,
+                            onValueChange = { specifications[index] = spec.copy(key = it) },
+                            placeholder = "e.g. Brand",
+                            modifier = Modifier.weight(1f)
+                        )
+                        CustomTextField(
+                            value = spec.value,
+                            onValueChange = { specifications[index] = spec.copy(value = it) },
+                            placeholder = "e.g. Apple",
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(onClick = { specifications.removeAt(index) }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Remove", tint = Color.Red)
+                        }
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(40.dp))
         }
     }
@@ -646,3 +776,5 @@ fun SmallImageBox(uri: Uri?, onClick: () -> Unit, isAdd: Boolean = false, modifi
         }
     }
 }
+
+data class SpecItem(val id: Int, val key: String, val value: String)

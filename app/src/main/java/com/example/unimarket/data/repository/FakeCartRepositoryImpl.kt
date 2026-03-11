@@ -20,6 +20,7 @@ class FakeCartRepositoryImpl @Inject constructor() : CartRepository {
                     id = "101",
                     name = "Introduction to Algorithms, 3rd Edition (Used)",
                     price = 45.00,
+                    description = "Used for CS intro class, has some dog-eared pages.",
                     imageUrls = listOf("https://picsum.photos/seed/algo/100/100"),
                     categoryId = "3",
                     condition = "Used",
@@ -29,7 +30,8 @@ class FakeCartRepositoryImpl @Inject constructor() : CartRepository {
                     timeAgo = "1 week ago",
                     isFavorite = false,
                     isNegotiable = true,
-                    userId = "fakeUser6"
+                    userId = "fakeUser6",
+                    specifications = mapOf("Publisher" to "MIT Press")
                 ),
                 quantity = 1
             ),
@@ -39,6 +41,7 @@ class FakeCartRepositoryImpl @Inject constructor() : CartRepository {
                     id = "102",
                     name = "LED Desk Lamp with USB Charging Port",
                     price = 15.00,
+                    description = "Has 3 brightness settings and a USB port.",
                     imageUrls = listOf("https://picsum.photos/seed/lamp2/100/100"),
                     categoryId = "4",
                     condition = "Used",
@@ -48,7 +51,8 @@ class FakeCartRepositoryImpl @Inject constructor() : CartRepository {
                     timeAgo = "2 days ago",
                     isFavorite = true,
                     isNegotiable = false,
-                    userId = "fakeUser5"
+                    userId = "fakeUser5",
+                    specifications = mapOf("Color" to "White", "Feature" to "USB Port")
                 ),
                 quantity = 2
             )

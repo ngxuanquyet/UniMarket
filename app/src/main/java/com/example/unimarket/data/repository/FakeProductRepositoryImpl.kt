@@ -26,6 +26,7 @@ class FakeProductRepositoryImpl @Inject constructor() : ProductRepository {
                     id = "1",
                     name = "Apple Watch Series 5 - Space Gray",
                     price = 120.00,
+                    description = "Mint condition Apple watch comes with original charger.",
                     imageUrls = listOf("https://picsum.photos/seed/watch/200/200"),
                     categoryId = "2",
                     condition = "Used",
@@ -35,12 +36,14 @@ class FakeProductRepositoryImpl @Inject constructor() : ProductRepository {
                     timeAgo = "1 hour ago",
                     isFavorite = true,
                     isNegotiable = false,
-                    userId = "fakeUser1"
+                    userId = "fakeUser1",
+                    specifications = mapOf("Brand" to "Apple", "Model" to "Series 5")
                 ),
                 Product(
                     id = "2",
                     name = "Calculus: Early Transcendentals 8th Edition",
                     price = 45.00,
+                    description = "Some highlights in the first 3 chapters, otherwise great condition.",
                     imageUrls = listOf("https://picsum.photos/seed/book/200/200"),
                     categoryId = "3",
                     condition = "Used",
@@ -50,12 +53,14 @@ class FakeProductRepositoryImpl @Inject constructor() : ProductRepository {
                     timeAgo = "5 hours ago",
                     isFavorite = false,
                     isNegotiable = true,
-                    userId = "fakeUser2"
+                    userId = "fakeUser2",
+                    specifications = mapOf("Author" to "James Stewart", "Edition" to "8th")
                 ),
                 Product(
                     id = "3",
                     name = "Minimalist LED Desk Lamp",
                     price = 15.00,
+                    description = "Works perfectly, selling because I'm graduating.",
                     imageUrls = listOf("https://picsum.photos/seed/lamp2/200/200"),
                     categoryId = "4",
                     condition = "Used",
@@ -65,12 +70,14 @@ class FakeProductRepositoryImpl @Inject constructor() : ProductRepository {
                     timeAgo = "1 day ago",
                     isFavorite = true,
                     isNegotiable = false,
-                    userId = "fakeUser3"
+                    userId = "fakeUser3",
+                    specifications = mapOf("Color" to "Black", "Power" to "10W")
                 ),
                 Product(
                     id = "4",
                     name = "Sony Noise Cancelling Headphones",
                     price = 80.00,
+                    description = "Battery lasts all day, amazing noise cancellation.",
                     imageUrls = listOf("https://picsum.photos/seed/headphones/200/200"),
                     categoryId = "2",
                     condition = "Used",
@@ -80,7 +87,8 @@ class FakeProductRepositoryImpl @Inject constructor() : ProductRepository {
                     timeAgo = "2d ago",
                     isFavorite = false,
                     isNegotiable = true,
-                    userId = "fakeUser4"
+                    userId = "fakeUser4",
+                    specifications = mapOf("Brand" to "Sony", "Type" to "Over-ear")
                 )
             )
         )

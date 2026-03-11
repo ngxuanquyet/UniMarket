@@ -5,6 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.example.unimarket.domain.usecase.explore.GetAllProductsUseCase
 import com.example.unimarket.domain.usecase.auth.GetCurrentUserUseCase
 import com.example.unimarket.domain.usecase.product.DeleteProductUseCase
+import com.example.unimarket.data.local.DraftProduct
+import com.example.unimarket.domain.model.Product
+import com.example.unimarket.domain.usecase.draft.DeleteDraftUseCase
+import com.example.unimarket.domain.usecase.draft.GetDraftsUseCase
 import com.google.firebase.auth.FirebaseUser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -13,6 +17,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -20,7 +25,9 @@ import javax.inject.Inject
 class MyListingsViewModel @Inject constructor(
     private val getAllProductsUseCase: GetAllProductsUseCase,
     private val getCurrentUserUseCase: GetCurrentUserUseCase,
-    private val deleteProductUseCase: DeleteProductUseCase
+    private val deleteProductUseCase: DeleteProductUseCase,
+    private val getDraftsUseCase: GetDraftsUseCase,
+    private val deleteDraftUseCase: DeleteDraftUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MyListingsUiState(isLoading = true))
@@ -38,24 +45,45 @@ class MyListingsViewModel @Inject constructor(
         val currentUid = currentUser?.uid
         
         viewModelScope.launch {
-            getAllProductsUseCase()
-                .catch { error ->
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        errorMessage = error.message ?: "Failed to load listings"
+            val productsFlow = getAllProductsUseCase().catch { error ->
+                _uiState.value = _uiState.value.copy(
+                    errorMessage = error.message ?: "Failed to load listings"
+                )
+            }
+            // Use empty string if uid is null to avoid crashing, though flow might return empty
+            val draftsFlow = getDraftsUseCase(currentUid ?: "")
+
+            combine(productsFlow, draftsFlow) { products, drafts ->
+                val myProducts = products.filter { it.userId == currentUid }
+                
+                // Map DraftProduct to Product
+                val mappedDrafts = drafts.map { draftItem ->
+                    Product(
+                        id = draftItem.id,
+                        name = draftItem.name,
+                        price = draftItem.price ?: 0.0,
+                        description = draftItem.description,
+                        imageUrls = draftItem.imageUrls,
+                        categoryId = draftItem.categoryId,
+                        condition = draftItem.condition,
+                        sellerName = "Draft",
+                        rating = 0.0,
+                        location = "Draft",
+                        timeAgo = "Drafted recently",
+                        isFavorite = false,
+                        isNegotiable = draftItem.isNegotiable,
+                        userId = draftItem.userId,
+                        specifications = draftItem.specifications
                     )
                 }
-                .collect { products ->
-                    val myProducts = products.filter { it.userId == currentUid }
-                    
-                    _uiState.value = _uiState.value.copy(
-                        activeListings = myProducts,
-                        // Dummy data for other tabs to show UI capabilities
-                        soldListings = emptyList(), 
-                        draftListings = emptyList(),
-                        isLoading = false
-                    )
-                }
+
+                _uiState.value = _uiState.value.copy(
+                    activeListings = myProducts,
+                    soldListings = emptyList(), // Dummy data for now
+                    draftListings = mappedDrafts,
+                    isLoading = false
+                )
+            }.collect {} 
         }
     }
 
@@ -63,27 +91,45 @@ class MyListingsViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(currentTab = index)
     }
 
-    fun deleteListing(product: com.example.unimarket.domain.model.Product) {
+    fun deleteListing(product: Product) {
         // Cancel any pending delete job just in case
         deleteJob?.cancel()
 
+        val isDraft = _uiState.value.currentTab == 2
+
         // 1. Optimistic UI update: Remove from list temporarily
         pendingDeleteProduct = product
-        val updatedListings = _uiState.value.activeListings.filter { it.id != product.id }
-        _uiState.value = _uiState.value.copy(activeListings = updatedListings)
+        if (isDraft) {
+            val updatedListings = _uiState.value.draftListings.filter { it.id != product.id }
+            _uiState.value = _uiState.value.copy(draftListings = updatedListings)
+        } else {
+            val updatedListings = _uiState.value.activeListings.filter { it.id != product.id }
+            _uiState.value = _uiState.value.copy(activeListings = updatedListings)
+        }
 
         // 2. Start a delayed job to actually delete it
         deleteJob = viewModelScope.launch {
             delay(4000) // Wait 4 seconds for undo
             
             // If the coroutine wasn't cancelled by undo, proceed with deletion
-            val result = deleteProductUseCase(product.id)
-            result.onFailure { error ->
-                // If deletion fails, put it back and show error
-                undoDelete() 
-                _uiState.value = _uiState.value.copy(
-                    errorMessage = "Failed to delete listing: ${error.message}"
-                )
+            if (isDraft) {
+                try {
+                    deleteDraftUseCase(product.id)
+                } catch (e: Exception) {
+                    undoDelete()
+                    _uiState.value = _uiState.value.copy(
+                        errorMessage = "Failed to delete draft: ${e.message}"
+                    )
+                }
+            } else {
+                val result = deleteProductUseCase(product.id)
+                result.onFailure { error ->
+                    // If deletion fails, put it back and show error
+                    undoDelete() 
+                    _uiState.value = _uiState.value.copy(
+                        errorMessage = "Failed to delete listing: ${error.message}"
+                    )
+                }
             }
             pendingDeleteProduct = null
         }
@@ -93,9 +139,16 @@ class MyListingsViewModel @Inject constructor(
         deleteJob?.cancel()
         pendingDeleteProduct?.let { product ->
             // Add it back to the list
-            val updatedListings = _uiState.value.activeListings.toMutableList()
-            updatedListings.add(product)
-            _uiState.value = _uiState.value.copy(activeListings = updatedListings)
+            val isDraft = _uiState.value.currentTab == 2
+            if (isDraft) {
+                val updatedListings = _uiState.value.draftListings.toMutableList()
+                updatedListings.add(product)
+                _uiState.value = _uiState.value.copy(draftListings = updatedListings)
+            } else {
+                val updatedListings = _uiState.value.activeListings.toMutableList()
+                updatedListings.add(product)
+                _uiState.value = _uiState.value.copy(activeListings = updatedListings)
+            }
         }
         pendingDeleteProduct = null
     }

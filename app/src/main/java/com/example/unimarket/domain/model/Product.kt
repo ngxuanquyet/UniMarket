@@ -4,6 +4,7 @@ data class Product(
     val id: String,
     val name: String,
     val price: Double,
+    val description: String,
     val imageUrls: List<String>,
     val categoryId: String,
     val condition: String,
@@ -13,5 +14,6 @@ data class Product(
     val timeAgo: String,
     val isFavorite: Boolean = false,
     val isNegotiable: Boolean = false,
-    val userId: String
+    val userId: String,
+    val specifications: Map<String, String> = emptyMap()
 )

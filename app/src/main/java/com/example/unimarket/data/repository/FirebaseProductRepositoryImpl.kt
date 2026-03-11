@@ -44,6 +44,7 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                                 id = doc.id,
                                 name = doc.getString("name") ?: "",
                                 price = doc.getDouble("price") ?: 0.0,
+                                description = doc.getString("description") ?: "",
                                 imageUrls = (doc.get("imageUrls") as? List<String>) ?: emptyList(),
                                 categoryId = doc.getString("categoryId") ?: "",
                                 condition = doc.getString("condition") ?: "",
@@ -53,7 +54,8 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                                 timeAgo = doc.getString("timeAgo") ?: "",
                                 isFavorite = doc.getBoolean("isFavorite") ?: false,
                                 isNegotiable = doc.getBoolean("isNegotiable") ?: false,
-                                userId = doc.getString("userId") ?: ""
+                                userId = doc.getString("userId") ?: "",
+                                specifications = (doc.get("specifications") as? Map<String, String>) ?: emptyMap()
                             )
                         } catch (e: Exception) {
                             null
@@ -71,6 +73,7 @@ class FirebaseProductRepositoryImpl @Inject constructor(
             val productMap = mapOf(
                 "name" to product.name,
                 "price" to product.price,
+                "description" to product.description,
                 "imageUrls" to product.imageUrls,
                 "categoryId" to product.categoryId,
                 "condition" to product.condition,
@@ -80,7 +83,8 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                 "timeAgo" to product.timeAgo,
                 "isFavorite" to product.isFavorite,
                 "isNegotiable" to product.isNegotiable,
-                "userId" to product.userId
+                "userId" to product.userId,
+                "specifications" to product.specifications
             )
             firestore.collection("products").add(productMap).await()
             Result.success(Unit)
@@ -103,6 +107,7 @@ class FirebaseProductRepositoryImpl @Inject constructor(
             val productMap = mapOf(
                 "name" to product.name,
                 "price" to product.price,
+                "description" to product.description,
                 "imageUrls" to product.imageUrls,
                 "categoryId" to product.categoryId,
                 "condition" to product.condition,
@@ -112,7 +117,8 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                 "timeAgo" to product.timeAgo,
                 "isFavorite" to product.isFavorite,
                 "isNegotiable" to product.isNegotiable,
-                "userId" to product.userId
+                "userId" to product.userId,
+                "specifications" to product.specifications
             )
             // Using set() to overwrite or create if not exists
             firestore.collection("products").document(product.id).set(productMap).await()

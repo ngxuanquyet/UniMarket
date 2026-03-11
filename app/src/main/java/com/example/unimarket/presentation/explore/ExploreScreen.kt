@@ -38,6 +38,7 @@ import com.example.unimarket.presentation.theme.SecondaryBlue
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExploreScreen(
+    onProductClick: (String) -> Unit = {},
     viewModel: ExploreViewModel = androidx.hilt.navigation.compose.hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -180,7 +181,10 @@ fun ExploreScreen(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     items(uiState.filteredProducts) { product ->
-                        ExploreProductCard(product)
+                        ExploreProductCard(
+                            product = product,
+                            onClick = { onProductClick(product.id) }
+                        )
                     }
                 }
             }
@@ -189,7 +193,10 @@ fun ExploreScreen(
 }
 
 @Composable
-fun ExploreProductCard(product: com.example.unimarket.domain.model.Product) {
+fun ExploreProductCard(
+    product: com.example.unimarket.domain.model.Product,
+    onClick: () -> Unit = {}
+) {
     var isFavorite by remember { mutableStateOf(product.isFavorite) }
 
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -199,6 +206,7 @@ fun ExploreProductCard(product: com.example.unimarket.domain.model.Product) {
                 .aspectRatio(1f)
                 .clip(RoundedCornerShape(16.dp))
                 .background(ProfileAvatarBorder)
+                .clickable { onClick() }
         ) {
             Image(
                 painter = rememberAsyncImagePainter(

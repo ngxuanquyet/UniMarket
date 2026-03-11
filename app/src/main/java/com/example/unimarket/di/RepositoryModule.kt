@@ -40,4 +40,10 @@ abstract class RepositoryModule {
     abstract fun bindImageRepository(
         imageRepositoryImpl: com.example.unimarket.data.repository.ImageRepositoryImpl
     ): ImageRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindLocalDraftRepository(
+        localDraftRepositoryImpl: com.example.unimarket.data.repository.LocalDraftRepositoryImpl
+    ): com.example.unimarket.domain.repository.LocalDraftRepository
 }

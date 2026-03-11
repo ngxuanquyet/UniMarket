@@ -10,6 +10,7 @@ sealed class Screen(val route: String) {
     object Login : Screen("login")
     object SignUp : Screen("sign_up")
     object MyListings : Screen("my_listings")
+    object ProductDetail : Screen("product_detail")
     
     // Nested Graph Routes
     object AuthGraph : Screen("auth_graph")
