@@ -2,7 +2,6 @@ package com.example.unimarket.presentation.auth
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -28,7 +27,6 @@ import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -54,8 +52,6 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
-import com.example.unimarket.presentation.navigation.Screen
 import com.example.unimarket.presentation.theme.BackgroundLight
 import com.example.unimarket.presentation.theme.DividerColor
 import com.example.unimarket.presentation.theme.LightBlueBg
@@ -66,7 +62,8 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialException
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import androidx.credentials.exceptions.NoCredentialException
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
@@ -258,14 +255,13 @@ fun LoginScreen(
             onClick = {
                 coroutineScope.launch {
                     try {
-                        val googleIdOption = GetGoogleIdOption.Builder()
-                            .setFilterByAuthorizedAccounts(false)
-                            .setServerClientId(context.getString(R.string.default_web_client_id))
-                            .setAutoSelectEnabled(true)
+                        val signInWithGoogleOption = GetSignInWithGoogleOption.Builder(
+                            context.getString(R.string.default_web_client_id)
+                        )
                             .build()
 
                         val request = GetCredentialRequest.Builder()
-                            .addCredentialOption(googleIdOption)
+                            .addCredentialOption(signInWithGoogleOption)
                             .build()
 
                         val result = credentialManager.getCredential(request = request, context = context)
@@ -280,6 +276,12 @@ fun LoginScreen(
                         } else {
                             Toast.makeText(context, "Unexpected credential type", Toast.LENGTH_SHORT).show()
                         }
+                    } catch (e: NoCredentialException) {
+                        Toast.makeText(
+                            context,
+                            "No Google account found on this device, or Google Sign-In is not configured correctly.",
+                            Toast.LENGTH_LONG
+                        ).show()
                     } catch (e: GetCredentialException) {
                         Toast.makeText(context, "Google Sign-In failed: ${e.message}", Toast.LENGTH_SHORT).show()
                     } catch (e: Exception) {
