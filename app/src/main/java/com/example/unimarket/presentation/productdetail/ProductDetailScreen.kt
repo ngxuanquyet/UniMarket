@@ -1,5 +1,6 @@
 package com.example.unimarket.presentation.productdetail
 
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -28,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -35,6 +37,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
 import com.example.unimarket.presentation.theme.*
+import com.example.unimarket.presentation.util.formatVnd
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,6 +51,9 @@ fun ProductDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
+
+    val context = LocalContext.current
+    val auth = FirebaseAuth.getInstance()
 
     LaunchedEffect(productId) {
         if (productId != null) {
@@ -82,8 +89,9 @@ fun ProductDetailScreen(
     }
 
     var isFavorite by remember { mutableStateOf(product.isFavorite) }
-    
-    val pagerState = rememberPagerState(pageCount = { product.imageUrls.takeIf { it.isNotEmpty() }?.size ?: 1 })
+
+    val pagerState =
+        rememberPagerState(pageCount = { product.imageUrls.takeIf { it.isNotEmpty() }?.size ?: 1 })
     val coroutineScope = rememberCoroutineScope()
 
     Scaffold(
@@ -100,7 +108,11 @@ fun ProductDetailScreen(
                             .clip(CircleShape)
                             .background(Color.White.copy(alpha = 0.8f))
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.Black)
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.Black
+                        )
                     }
                 },
                 actions = {
@@ -147,28 +159,57 @@ fun ProductDetailScreen(
                 ) {
                     // Add to Cart Button (Outlined)
                     OutlinedButton(
-                        onClick = { viewModel.addToCart(product) },
+                        onClick = {
+                            if (auth.uid != product.userId) {
+                                viewModel.addToCart(product)
+                            } else {
+                                Toast.makeText(
+                                    context,
+                                    "You cannot add your own product to cart",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        },
                         modifier = Modifier
                             .weight(0.5f)
                             .height(50.dp),
                         shape = RoundedCornerShape(24.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Black)
                     ) {
-                        Icon(Icons.Default.ShoppingCart, contentDescription = "Cart", modifier = Modifier.size(18.dp))
+                        Icon(
+                            Icons.Default.ShoppingCart,
+                            contentDescription = "Cart",
+                            modifier = Modifier.size(18.dp)
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Add to Cart", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     }
 
                     // Buy Now Button (Solid)
                     Button(
-                        onClick = { onBuyNowClick(product.id) },
+                        onClick = {
+                            if (auth.uid != product.userId) {
+                                onBuyNowClick(product.id)
+                            } else {
+                                Toast.makeText(
+                                    context,
+                                    "You cannot buy your own product",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        },
                         modifier = Modifier
                             .weight(0.5f)
                             .height(50.dp),
                         shape = RoundedCornerShape(24.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = PrimaryYellowDark)
                     ) {
-                        Text("Buy Now", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text(
+                            "Buy Now",
+                            color = Color.Black,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
                     }
                 }
             }
@@ -273,21 +314,21 @@ fun ProductDetailScreen(
                     color = Color.Black,
                     lineHeight = 28.sp
                 )
-                
+
                 Spacer(modifier = Modifier.height(12.dp))
-                
+
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "$${String.format("%.2f", product.price)}",
+                        text = formatVnd(product.price),
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = SecondaryBlue
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = "$${String.format("%.2f", product.price * 1.1)}", // Mock original price
+                        text = formatVnd(product.price * 1.1), // Mock original price
                         fontSize = 14.sp,
                         color = Color.Gray,
                         textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
@@ -316,7 +357,12 @@ fun ProductDetailScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Icons.Default.LocationOn, contentDescription = "Location", tint = Color.Gray, modifier = Modifier.size(16.dp))
+                    Icon(
+                        Icons.Default.LocationOn,
+                        contentDescription = "Location",
+                        tint = Color.Gray,
+                        modifier = Modifier.size(16.dp)
+                    )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = product.location.ifBlank { "Campus Library meet-up" },
@@ -373,7 +419,12 @@ fun ProductDetailScreen(
 
                 Column(horizontalAlignment = Alignment.End) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Star, contentDescription = "Rating", tint = PrimaryYellowDark, modifier = Modifier.size(16.dp))
+                        Icon(
+                            Icons.Default.Star,
+                            contentDescription = "Rating",
+                            tint = PrimaryYellowDark,
+                            modifier = Modifier.size(16.dp)
+                        )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = if (product.rating > 0) product.rating.toString() else "4.9",
@@ -401,7 +452,7 @@ fun ProductDetailScreen(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = product.description.ifBlank { 
+                    text = product.description.ifBlank {
                         "No description provided for this item. Please contact the seller for more details."
                     },
                     fontSize = 14.sp,
@@ -411,7 +462,7 @@ fun ProductDetailScreen(
             }
 
             HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp)
-            
+
             // Specifications Section
             if (product.specifications.isNotEmpty()) {
                 Column(modifier = Modifier.padding(20.dp)) {
@@ -422,7 +473,7 @@ fun ProductDetailScreen(
                         color = Color.Black
                     )
                     Spacer(modifier = Modifier.height(16.dp))
-                    
+
                     product.specifications.forEach { (key, value) ->
                         SpecRow(key, value)
                     }
@@ -443,6 +494,11 @@ fun SpecRow(label: String, value: String) {
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(text = label, color = Color.Gray, fontSize = 14.sp)
-        Text(text = value, fontWeight = FontWeight.Medium, fontSize = 14.sp, color = Color.Black)
+        Text(
+            text = value,
+            fontWeight = FontWeight.Medium,
+            fontSize = 14.sp,
+            color = Color.Black
+        )
     }
 }

@@ -34,6 +34,7 @@ import com.example.unimarket.domain.model.CartItem
 import com.example.unimarket.presentation.theme.AccentGreen
 import com.example.unimarket.presentation.theme.PrimaryYellowDark
 import com.example.unimarket.presentation.theme.SecondaryBlue
+import com.example.unimarket.presentation.util.formatVnd
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -123,7 +124,7 @@ fun CartScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Campus Wallet Balance: ", color = Color.Gray)
-                    Text("$120.50", fontWeight = FontWeight.Bold)
+                    Text(formatVnd(120.50), fontWeight = FontWeight.Bold)
                 }
             }
             
@@ -179,11 +180,11 @@ fun CartScreen(
                         modifier = Modifier.padding(bottom = 12.dp)
                     )
                     
-                    SummaryRow("Subtotal (${uiState.cartItems.size} items)", "$${String.format("%.2f", uiState.subtotal)}")
+                    SummaryRow("Subtotal (${uiState.cartItems.size} items)", formatVnd(uiState.subtotal))
                     Spacer(modifier = Modifier.height(8.dp))
-                    SummaryRow("Delivery Fee", "$${String.format("%.2f", uiState.deliveryFee)}")
+                    SummaryRow("Delivery Fee", formatVnd(uiState.deliveryFee))
                     Spacer(modifier = Modifier.height(8.dp))
-                    SummaryRow("Discount applied", "-$${String.format("%.2f", uiState.discount)}", AccentGreen)
+                    SummaryRow("Discount applied", "-${formatVnd(uiState.discount)}", AccentGreen)
                     
                     HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = DividerColor)
                     
@@ -194,7 +195,7 @@ fun CartScreen(
                     ) {
                         Text("Total", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                         Text(
-                            "$${String.format("%.2f", uiState.total)}",
+                            formatVnd(uiState.total),
                             fontWeight = FontWeight.Bold,
                             color = PrimaryYellowDark,
                             style = MaterialTheme.typography.titleLarge
@@ -261,7 +262,7 @@ fun CartItemRow(
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 Text(
-                    text = "$${String.format("%.2f", item.product.price)}",
+                    text = formatVnd(item.product.price),
                     style = MaterialTheme.typography.titleMedium,
                     color = PrimaryYellowDark,
                     fontWeight = FontWeight.Bold
@@ -355,7 +356,7 @@ fun CartBottomBar(total: Double, onPlaceOrderClick: () -> Unit) {
             Column {
                 Text("Total Payment", color = Color.Gray, style = MaterialTheme.typography.labelMedium)
                 Text(
-                    text = "$${String.format("%.2f", total)}",
+                    text = formatVnd(total),
                     style = MaterialTheme.typography.titleLarge,
                     color = PrimaryYellowDark,
                     fontWeight = FontWeight.Bold

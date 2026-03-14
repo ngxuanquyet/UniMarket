@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import com.example.unimarket.domain.model.Product
 import com.example.unimarket.presentation.theme.PrimaryYellowDark
+import com.example.unimarket.presentation.util.formatVnd
 
 @Composable
 fun ProductCard(
@@ -112,7 +113,7 @@ fun ProductCard(
                 
                 // Price
                 Text(
-                    text = "$${String.format("%.2f", product.price)}",
+                    text = formatVnd(product.price),
                     style = MaterialTheme.typography.titleLarge,
                     color = PrimaryYellowDark,
                     fontWeight = FontWeight.Bold

@@ -1,6 +1,6 @@
 package com.example.unimarket.di
 
-import com.example.unimarket.data.repository.FakeCartRepositoryImpl
+import com.example.unimarket.data.repository.InMemoryCartRepositoryImpl
 import com.example.unimarket.domain.repository.AuthRepository
 import com.example.unimarket.domain.repository.CartRepository
 import com.example.unimarket.domain.repository.ImageRepository
@@ -26,7 +26,7 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindCartRepository(
-        fakeCartRepositoryImpl: FakeCartRepositoryImpl
+        inMemoryCartRepositoryImpl: InMemoryCartRepositoryImpl
     ): CartRepository
 
     @Binds

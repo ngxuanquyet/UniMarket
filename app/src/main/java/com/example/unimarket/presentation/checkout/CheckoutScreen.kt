@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
 import com.example.unimarket.presentation.theme.*
+import com.example.unimarket.presentation.util.formatVnd
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -105,7 +106,7 @@ fun CheckoutScreen(
                             Text("Condition: ${product.condition}", color = Color.Gray, fontSize = 12.sp)
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                "$${String.format("%.2f", product.price)}",
+                                formatVnd(product.price),
                                 color = SecondaryBlue,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 18.sp
@@ -158,7 +159,7 @@ fun CheckoutScreen(
 
                 DeliveryOptionCard(
                     title = "Campus Delivery",
-                    subtitle = "+$2.00 - Delivered to your dorm",
+                    subtitle = "+${formatVnd(2.00)} - Delivered to your dorm",
                     isSelected = deliveryMethod == "Campus Delivery",
                     icon = Icons.Default.LocalShipping,
                     onClick = { deliveryMethod = "Campus Delivery" }
@@ -179,7 +180,7 @@ fun CheckoutScreen(
 
                 PaymentOptionCard(
                     title = "Student Wallet",
-                    subtitle = "Balance: $152.50",
+                    subtitle = "Balance: ${formatVnd(152.50)}",
                     isSelected = paymentMethod == "Student Wallet",
                     icon = Icons.Default.AccountBalanceWallet,
                     onClick = { paymentMethod = "Student Wallet" }
@@ -212,11 +213,11 @@ fun CheckoutScreen(
                     val deliveryFee = if (deliveryMethod == "Campus Delivery") 2.00 else 0.00
                     val total = subtotal + platformFee + deliveryFee
 
-                    SummaryRow("Subtotal", "$${String.format("%.2f", subtotal)}")
+                    SummaryRow("Subtotal", formatVnd(subtotal))
                     Spacer(modifier = Modifier.height(12.dp))
-                    SummaryRow("Platform Fee", "$${String.format("%.2f", platformFee)}")
+                    SummaryRow("Platform Fee", formatVnd(platformFee))
                     Spacer(modifier = Modifier.height(12.dp))
-                    SummaryRow("Delivery", "$${String.format("%.2f", deliveryFee)}")
+                    SummaryRow("Delivery", formatVnd(deliveryFee))
 
                     HorizontalDivider(color = DividerColor, modifier = Modifier.padding(vertical = 16.dp))
 
@@ -227,7 +228,7 @@ fun CheckoutScreen(
                     ) {
                         Text("Total", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         Text(
-                            "$${String.format("%.2f", total)}",
+                            formatVnd(total),
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp,
                             color = SecondaryBlue

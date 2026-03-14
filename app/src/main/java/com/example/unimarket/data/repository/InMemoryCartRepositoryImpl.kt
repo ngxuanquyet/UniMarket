@@ -8,12 +8,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import javax.inject.Inject
 
-class FakeCartRepositoryImpl @Inject constructor() : CartRepository {
-    
-    private val _cartItems = MutableStateFlow<List<CartItem>>(emptyList())
+class InMemoryCartRepositoryImpl @Inject constructor() : CartRepository {
+
+    private val cartItems = MutableStateFlow<List<CartItem>>(emptyList())
 
     init {
-        _cartItems.value = listOf(
+        cartItems.value = listOf(
             CartItem(
                 id = "1",
                 product = Product(
@@ -30,7 +30,7 @@ class FakeCartRepositoryImpl @Inject constructor() : CartRepository {
                     timeAgo = "1 week ago",
                     isFavorite = false,
                     isNegotiable = true,
-                    userId = "fakeUser6",
+                    userId = "user6",
                     specifications = mapOf("Publisher" to "MIT Press")
                 ),
                 quantity = 1
@@ -51,7 +51,7 @@ class FakeCartRepositoryImpl @Inject constructor() : CartRepository {
                     timeAgo = "2 days ago",
                     isFavorite = true,
                     isNegotiable = false,
-                    userId = "fakeUser5",
+                    userId = "user5",
                     specifications = mapOf("Color" to "White", "Feature" to "USB Port")
                 ),
                 quantity = 2
@@ -59,31 +59,30 @@ class FakeCartRepositoryImpl @Inject constructor() : CartRepository {
         )
     }
 
-    override fun getCartItems(): Flow<List<CartItem>> = _cartItems
+    override fun getCartItems(): Flow<List<CartItem>> = cartItems
 
     override suspend fun removeFromCart(cartItemId: String) {
-        _cartItems.update { current ->
-            current.filter { it.id != cartItemId }
+        cartItems.update { currentItems ->
+            currentItems.filter { it.id != cartItemId }
         }
     }
 
     override suspend fun updateQuantity(cartItemId: String, quantity: Int) {
-        val currentItems = _cartItems.value.toMutableList()
-        val index = currentItems.indexOfFirst { it.id == cartItemId }
-        if (index != -1 && quantity > 0) {
-            currentItems[index] = currentItems[index].copy(quantity = quantity)
-            _cartItems.value = currentItems
+        val currentItems = cartItems.value.toMutableList()
+        val itemIndex = currentItems.indexOfFirst { it.id == cartItemId }
+        if (itemIndex != -1 && quantity > 0) {
+            currentItems[itemIndex] = currentItems[itemIndex].copy(quantity = quantity)
+            cartItems.value = currentItems
         }
     }
 
     override suspend fun addToCart(product: Product) {
-        val currentItems = _cartItems.value.toMutableList()
-        val index = currentItems.indexOfFirst { it.product.id == product.id }
-        if (index != -1) {
-            // If already in cart, just increase quantity
-            currentItems[index] = currentItems[index].copy(quantity = currentItems[index].quantity + 1)
+        val currentItems = cartItems.value.toMutableList()
+        val itemIndex = currentItems.indexOfFirst { it.product.id == product.id }
+        if (itemIndex != -1) {
+            currentItems[itemIndex] =
+                currentItems[itemIndex].copy(quantity = currentItems[itemIndex].quantity + 1)
         } else {
-            // If not in cart, add as new item
             currentItems.add(
                 CartItem(
                     id = "cart_${System.currentTimeMillis()}",
@@ -92,6 +91,6 @@ class FakeCartRepositoryImpl @Inject constructor() : CartRepository {
                 )
             )
         }
-        _cartItems.value = currentItems
+        cartItems.value = currentItems
     }
 }

@@ -41,6 +41,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.unimarket.domain.model.Product
 import com.example.unimarket.presentation.navigation.Screen
+import com.example.unimarket.presentation.util.formatVnd
 import kotlinx.coroutines.launch
 
 val SurfaceWhite = Color.White
@@ -212,7 +213,7 @@ fun MyListingsScreen(
                                     Column(horizontalAlignment = Alignment.End) {
                                         Text("EST. VALUE", color = TextGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                         Spacer(modifier = Modifier.height(4.dp))
-                                        Text("$${String.format("%.2f", uiState.estimatedValue)}", color = TextDarkBlack, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+                                        Text(formatVnd(uiState.estimatedValue), color = TextDarkBlack, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
                                     }
                                 }
                             }
@@ -299,7 +300,7 @@ fun ListingCard(
                     }
 
                     Text(
-                        "$${String.format("%.2f", product.price)}",
+                        formatVnd(product.price),
                         color = AppBlue,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold

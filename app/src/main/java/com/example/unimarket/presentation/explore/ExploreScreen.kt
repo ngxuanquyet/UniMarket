@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
 import com.example.unimarket.presentation.theme.PrimaryYellowDark
 import com.example.unimarket.presentation.theme.SecondaryBlue
+import com.example.unimarket.presentation.util.formatVnd
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -272,7 +273,7 @@ fun ExploreProductCard(
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(
-            text = "$${String.format("%.2f", product.price)}",
+            text = formatVnd(product.price),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             fontSize = 18.sp
