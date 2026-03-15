@@ -4,6 +4,7 @@ import com.example.unimarket.presentation.theme.*
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -35,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
+import com.example.unimarket.domain.model.DeliveryMethod
 import com.example.unimarket.domain.model.Product
 import com.example.unimarket.presentation.theme.PrimaryYellowDark
 import com.example.unimarket.presentation.util.formatVnd
@@ -129,6 +131,33 @@ fun ProductCard(
                         color = Color.Gray
                     )
                 }
+
+                if (product.deliveryMethodsAvailable.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    DeliveryMethodSummary(product.deliveryMethodsAvailable)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DeliveryMethodSummary(methods: List<DeliveryMethod>) {
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        methods.take(2).forEach { method ->
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(ProfileAvatarBorder)
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = method.title,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = SecondaryBlue,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
     }

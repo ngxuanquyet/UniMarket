@@ -39,6 +39,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -72,6 +73,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.example.unimarket.domain.model.DeliveryMethod
 import com.example.unimarket.presentation.theme.AppBlue
 import com.example.unimarket.presentation.theme.BorderLightBlue
 import com.example.unimarket.presentation.theme.DashColor
@@ -130,6 +132,11 @@ fun SellScreen(
 
     val conditions = listOf("New", "Like New", "Good", "Fair")
     var condition by remember(initialProduct) { mutableStateOf(initialProduct?.condition ?: "") }
+    val selectedDeliveryMethods = remember(initialProduct) {
+        androidx.compose.runtime.mutableStateListOf<DeliveryMethod>().apply {
+            addAll(initialProduct?.deliveryMethodsAvailable ?: emptyList())
+        }
+    }
 
     var pickingIndex by remember { mutableIntStateOf(-1) }
 
@@ -158,6 +165,7 @@ fun SellScreen(
             category = "Select a category"
             condition = "New"
             isNegotiable = false
+            selectedDeliveryMethods.clear()
             viewModel.clearMessages()
         }
         if (uiState.errorMessage != null) {
@@ -178,10 +186,11 @@ fun SellScreen(
         category != (initialProduct.categoryId.takeIf { it.isNotBlank() } ?: "Select a category") ||
         condition != initialProduct.condition ||
         isNegotiable != initialProduct.isNegotiable ||
+        selectedDeliveryMethods.toList() != initialProduct.deliveryMethodsAvailable ||
         currentUris != initialUris ||
         specifications.associate { it.key to it.value } != initialProduct.specifications
     } else if (initialProduct == null) {
-        title.isNotBlank() || price.isNotBlank() || description.isNotBlank() || uiState.selectedImageUris.isNotEmpty() || specifications.isNotEmpty()
+        title.isNotBlank() || price.isNotBlank() || description.isNotBlank() || uiState.selectedImageUris.isNotEmpty() || specifications.isNotEmpty() || selectedDeliveryMethods.isNotEmpty()
     } else {
         false
     }
@@ -220,6 +229,7 @@ fun SellScreen(
                         condition = condition,
                         isNegotiable = isNegotiable,
                         specifications = specifications.filter { it.key.isNotBlank() }.associate { it.key to it.value },
+                        deliveryMethodsAvailable = selectedDeliveryMethods.toList(),
                         onDraftSaved = { onBackClick() }
                     )
                 }) {
@@ -285,7 +295,8 @@ fun SellScreen(
                             category,
                             condition,
                             isNegotiable,
-                            specifications.filter { it.key.isNotBlank() }.associate { it.key to it.value }
+                            specifications.filter { it.key.isNotBlank() }.associate { it.key to it.value },
+                            selectedDeliveryMethods.toList()
                         )
                     },
                     modifier = Modifier
@@ -616,6 +627,48 @@ fun SellScreen(
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium
                             )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                "Delivery Methods Available",
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                modifier = Modifier.padding(bottom = 8.dp),
+                color = TextDarkBlack
+            )
+            Text(
+                "Chon mot hoac nhieu phuong thuc ma ban co the ho tro.",
+                color = TextGray,
+                fontSize = 13.sp
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                DeliveryMethod.entries.chunked(2).forEach { rowItems ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        rowItems.forEach { method ->
+                            FilterChip(
+                                selected = selectedDeliveryMethods.contains(method),
+                                onClick = {
+                                    if (selectedDeliveryMethods.contains(method)) {
+                                        selectedDeliveryMethods.remove(method)
+                                    } else {
+                                        selectedDeliveryMethods.add(method)
+                                    }
+                                },
+                                label = { Text(method.title) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        if (rowItems.size == 1) {
+                            Spacer(modifier = Modifier.weight(1f))
                         }
                     }
                 }

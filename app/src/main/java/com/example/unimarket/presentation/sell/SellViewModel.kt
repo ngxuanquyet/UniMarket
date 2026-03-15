@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.unimarket.domain.model.Product
+import com.example.unimarket.domain.model.DeliveryMethod
 import com.example.unimarket.data.local.DraftProduct
 import com.example.unimarket.domain.usecase.auth.GetCurrentUserUseCase
 import com.example.unimarket.domain.usecase.draft.DeleteDraftUseCase
@@ -84,7 +85,8 @@ class SellViewModel @Inject constructor(
                         isFavorite = false,
                         isNegotiable = draft.isNegotiable,
                         userId = draft.userId,
-                        specifications = draft.specifications
+                        specifications = draft.specifications,
+                        deliveryMethodsAvailable = draft.deliveryMethodsAvailable
                     )
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
@@ -124,7 +126,8 @@ class SellViewModel @Inject constructor(
         category: String,
         condition: String,
         isNegotiable: Boolean,
-        specifications: Map<String, String>
+        specifications: Map<String, String>,
+        deliveryMethodsAvailable: List<DeliveryMethod>
     ) {
         val uris = _uiState.value.selectedImageUris
         if (uris.isEmpty()) {
@@ -134,6 +137,11 @@ class SellViewModel @Inject constructor(
 
         if (title.isBlank() || priceStr.isBlank() || description.isBlank() || category == "Select a category" || condition == "") {
             _uiState.value = _uiState.value.copy(errorMessage = "Please fill in all required fields")
+            return
+        }
+
+        if (deliveryMethodsAvailable.isEmpty()) {
+            _uiState.value = _uiState.value.copy(errorMessage = "Please select at least one delivery method")
             return
         }
 
@@ -199,7 +207,8 @@ class SellViewModel @Inject constructor(
                 isFavorite = initialProduct?.isFavorite ?: false,
                 isNegotiable = isNegotiable,
                 userId = userId,
-                specifications = specifications
+                specifications = specifications,
+                deliveryMethodsAvailable = deliveryMethodsAvailable
             )
 
             val saveResult = if (editingProductId != null && !isEditingDraft) {
@@ -239,6 +248,7 @@ class SellViewModel @Inject constructor(
         condition: String,
         isNegotiable: Boolean,
         specifications: Map<String, String>,
+        deliveryMethodsAvailable: List<DeliveryMethod>,
         onDraftSaved: () -> Unit
     ) {
         val currentUser = getCurrentUserUseCase() as? FirebaseUser ?: return
@@ -270,7 +280,8 @@ class SellViewModel @Inject constructor(
                 categoryId = if (categoryId == "Select a category") "" else categoryId,
                 condition = condition,
                 isNegotiable = isNegotiable,
-                specifications = specifications
+                specifications = specifications,
+                deliveryMethodsAvailable = deliveryMethodsAvailable
             )
 
             try {

@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
+import com.example.unimarket.domain.model.DeliveryMethod
 import com.example.unimarket.presentation.theme.*
 import com.example.unimarket.presentation.util.formatVnd
 import com.google.firebase.auth.FirebaseAuth
@@ -376,6 +377,18 @@ fun ProductDetailScreen(
                         color = Color.Gray
                     )
                 }
+
+                if (product.deliveryMethodsAvailable.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Delivery Methods Available",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = Color.Black
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    DeliveryMethodChips(product.deliveryMethodsAvailable)
+                }
             }
 
             HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp)
@@ -500,5 +513,33 @@ fun SpecRow(label: String, value: String) {
             fontSize = 14.sp,
             color = Color.Black
         )
+    }
+}
+
+@Composable
+private fun DeliveryMethodChips(methods: List<DeliveryMethod>) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        methods.chunked(2).forEach { rowItems ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                rowItems.forEach { method ->
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(BackgroundLight)
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = method.title,
+                            color = SecondaryBlue,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+        }
     }
 }

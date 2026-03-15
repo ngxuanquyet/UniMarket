@@ -11,9 +11,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.RemoveShoppingCart
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.LocalOffer
@@ -51,160 +52,181 @@ fun CartScreen(
                 title = { Text("Your Cart") },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BackgroundLight)
             )
         },
         bottomBar = {
-            CartBottomBar(
-                total = uiState.total,
-                onPlaceOrderClick = { /* Handle checkout */ }
-            )
+            if (uiState.cartItems.isNotEmpty()) {
+                CartBottomBar(
+                    total = uiState.total,
+                    onPlaceOrderClick = { /* Handle checkout */ }
+                )
+            }
         },
         containerColor = BackgroundLight
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .verticalScroll(scrollState)
-                .padding(horizontal = 16.dp)
-        ) {
-            Text(
-                text = "Selected Items",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(vertical = 12.dp)
-            )
-
-            // Cart Items
-            uiState.cartItems.forEach { item ->
-                CartItemRow(
-                    item = item,
-                    onIncrease = { viewModel.updateQuantity(item.id, item.quantity + 1) },
-                    onDecrease = { viewModel.updateQuantity(item.id, item.quantity - 1) },
-                    onRemove = { viewModel.removeItem(item.id) }
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            // Delivery Address
-            SectionCard(
-                title = "Delivery Address",
-                icon = Icons.Default.LocationOn,
-                iconTint = PrimaryYellowDark,
-                actionText = "Change"
+        if (uiState.cartItems.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = Alignment.Center
             ) {
-                Column {
-                    Text("North Campus Dorms, Building C", fontWeight = FontWeight.Bold)
-                    Text("Room 304", color = Color.Gray, style = MaterialTheme.typography.bodyMedium)
-                    Text("Contact: John Doe (+1 234-567-8900)", color = Color.Gray, style = MaterialTheme.typography.bodyMedium)
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Payment Method
-            SectionCard(
-                title = "Payment Method",
-                icon = Icons.Default.CreditCard,
-                iconTint = PrimaryYellowDark,
-                actionText = "Select"
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
-                        imageVector = Icons.Default.CreditCard,
+                        imageVector = Icons.Default.RemoveShoppingCart,
                         contentDescription = null,
                         tint = Color.Gray,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(48.dp)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Campus Wallet Balance: ", color = Color.Gray)
-                    Text(formatVnd(120.50), fontWeight = FontWeight.Bold)
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Student Discount
-            SectionCard(
-                title = "Student Discount",
-                icon = Icons.Default.LocalOffer,
-                iconTint = PrimaryYellowDark,
-                actionText = ""
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(
-                        value = "",
-                        onValueChange = {},
-                        placeholder = { Text("Enter code") },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(50.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            unfocusedContainerColor = ProfileAvatarBorder,
-                            unfocusedBorderColor = Color.Transparent,
-                            focusedBorderColor = PrimaryYellowDark
-                        ),
-                        shape = RoundedCornerShape(8.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Button(
-                        onClick = { },
-                        colors = ButtonDefaults.buttonColors(containerColor = DividerColor),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text("Apply", color = Color.Black)
-                    }
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Order Summary
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                shape = RoundedCornerShape(12.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                    Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "Order Summary",
+                        text = "Your Cart is empty",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 12.dp)
+                        fontWeight = FontWeight.Bold
                     )
-                    
-                    SummaryRow("Subtotal (${uiState.cartItems.size} items)", formatVnd(uiState.subtotal))
-                    Spacer(modifier = Modifier.height(8.dp))
-                    SummaryRow("Delivery Fee", formatVnd(uiState.deliveryFee))
-                    Spacer(modifier = Modifier.height(8.dp))
-                    SummaryRow("Discount applied", "-${formatVnd(uiState.discount)}", AccentGreen)
-                    
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = DividerColor)
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Total", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            formatVnd(uiState.total),
-                            fontWeight = FontWeight.Bold,
-                            color = PrimaryYellowDark,
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                    }
                 }
             }
-            
-            Spacer(modifier = Modifier.height(24.dp))
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = 16.dp)
+            ) {
+                Text(
+                    text = "Selected Items",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(vertical = 12.dp)
+                )
+
+                uiState.cartItems.forEach { item ->
+                    CartItemRow(
+                        item = item,
+                        onIncrease = { viewModel.updateQuantity(item.id, item.quantity + 1) },
+                        onDecrease = { viewModel.updateQuantity(item.id, item.quantity - 1) },
+                        onRemove = { viewModel.removeItem(item.id) }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                SectionCard(
+                    title = "Delivery Address",
+                    icon = Icons.Default.LocationOn,
+                    iconTint = PrimaryYellowDark,
+                    actionText = "Change"
+                ) {
+                    Column {
+                        Text("North Campus Dorms, Building C", fontWeight = FontWeight.Bold)
+                        Text("Room 304", color = Color.Gray, style = MaterialTheme.typography.bodyMedium)
+                        Text("Contact: John Doe (+1 234-567-8900)", color = Color.Gray, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                SectionCard(
+                    title = "Payment Method",
+                    icon = Icons.Default.CreditCard,
+                    iconTint = PrimaryYellowDark,
+                    actionText = "Select"
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.CreditCard,
+                            contentDescription = null,
+                            tint = Color.Gray,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Campus Wallet Balance: ", color = Color.Gray)
+                        Text(formatVnd(120.50), fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                SectionCard(
+                    title = "Student Discount",
+                    icon = Icons.Default.LocalOffer,
+                    iconTint = PrimaryYellowDark,
+                    actionText = ""
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedTextField(
+                            value = "",
+                            onValueChange = {},
+                            placeholder = { Text("Enter code") },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(50.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                unfocusedContainerColor = ProfileAvatarBorder,
+                                unfocusedBorderColor = Color.Transparent,
+                                focusedBorderColor = PrimaryYellowDark
+                            ),
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Button(
+                            onClick = { },
+                            colors = ButtonDefaults.buttonColors(containerColor = DividerColor),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("Apply", color = Color.Black)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    shape = RoundedCornerShape(12.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Order Summary",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        )
+
+                        SummaryRow("Subtotal (${uiState.cartItems.size} items)", formatVnd(uiState.subtotal))
+                        Spacer(modifier = Modifier.height(8.dp))
+                        SummaryRow("Delivery Fee", formatVnd(uiState.deliveryFee))
+                        Spacer(modifier = Modifier.height(8.dp))
+                        SummaryRow("Discount applied", "-${formatVnd(uiState.discount)}", AccentGreen)
+
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = DividerColor)
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Total", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                formatVnd(uiState.total),
+                                fontWeight = FontWeight.Bold,
+                                color = PrimaryYellowDark,
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+            }
         }
     }
 }

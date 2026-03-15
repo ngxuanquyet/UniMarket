@@ -2,7 +2,9 @@ package com.example.unimarket.data.repository
 
 import android.util.Log
 import com.example.unimarket.domain.model.Category
+import com.example.unimarket.domain.model.deliveryMethodsFromStorage
 import com.example.unimarket.domain.model.Product
+import com.example.unimarket.domain.model.toStorageValue
 import com.example.unimarket.domain.repository.ProductRepository
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.channels.awaitClose
@@ -55,7 +57,10 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                                 isFavorite = doc.getBoolean("isFavorite") ?: false,
                                 isNegotiable = doc.getBoolean("isNegotiable") ?: false,
                                 userId = doc.getString("userId") ?: "",
-                                specifications = (doc.get("specifications") as? Map<String, String>) ?: emptyMap()
+                                specifications = (doc.get("specifications") as? Map<String, String>) ?: emptyMap(),
+                                deliveryMethodsAvailable = deliveryMethodsFromStorage(
+                                    (doc.get("deliveryMethodsAvailable") as? List<String>) ?: emptyList()
+                                )
                             )
                         } catch (e: Exception) {
                             null
@@ -84,7 +89,8 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                 "isFavorite" to product.isFavorite,
                 "isNegotiable" to product.isNegotiable,
                 "userId" to product.userId,
-                "specifications" to product.specifications
+                "specifications" to product.specifications,
+                "deliveryMethodsAvailable" to product.deliveryMethodsAvailable.map { it.toStorageValue() }
             )
             firestore.collection("products").add(productMap).await()
             Result.success(Unit)
@@ -118,7 +124,8 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                 "isFavorite" to product.isFavorite,
                 "isNegotiable" to product.isNegotiable,
                 "userId" to product.userId,
-                "specifications" to product.specifications
+                "specifications" to product.specifications,
+                "deliveryMethodsAvailable" to product.deliveryMethodsAvailable.map { it.toStorageValue() }
             )
             // Using set() to overwrite or create if not exists
             firestore.collection("products").document(product.id).set(productMap).await()

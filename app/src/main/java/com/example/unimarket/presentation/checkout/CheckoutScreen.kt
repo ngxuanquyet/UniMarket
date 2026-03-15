@@ -4,15 +4,50 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.LocalShipping
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Handshake
+import androidx.compose.material.icons.filled.Money
+import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.RadioButtonChecked
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -23,8 +58,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.rememberAsyncImagePainter
-import com.example.unimarket.presentation.theme.*
+import com.example.unimarket.domain.model.DeliveryMethod
+import com.example.unimarket.domain.model.UserAddress
+import com.example.unimarket.presentation.theme.BackgroundLight
+import com.example.unimarket.presentation.theme.DividerColor
+import com.example.unimarket.presentation.theme.ProfileAvatarBorder
+import com.example.unimarket.presentation.theme.SecondaryBlue
 import com.example.unimarket.presentation.util.formatVnd
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,7 +75,7 @@ fun CheckoutScreen(
     onBackClick: () -> Unit,
     viewModel: CheckoutViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
 
     LaunchedEffect(productId) {
@@ -46,8 +87,8 @@ fun CheckoutScreen(
             TopAppBar(
                 title = { Text("Checkout", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    androidx.compose.material3.IconButton(onClick = onBackClick) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
@@ -61,10 +102,13 @@ fun CheckoutScreen(
             }
         } else if (uiState.product == null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Product not found", color = Color.Gray)
+                Text(uiState.errorMessage ?: "Product not found", color = Color.Gray)
             }
         } else {
-            val product = uiState.product!!
+            val product = requireNotNull(uiState.product)
+            val deliveryFee = if (uiState.selectedDeliveryMethod == DeliveryMethod.SHIPPING) 30000.0 else 0.0
+            val platformFee = 1500.0
+            val total = product.price + platformFee + deliveryFee
 
             Column(
                 modifier = Modifier
@@ -72,20 +116,15 @@ fun CheckoutScreen(
                     .padding(paddingValues)
                     .verticalScroll(scrollState)
             ) {
-                // Item Summary
-                Text(
-                    text = "ITEM SUMMARY",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Gray,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
+                SectionTitle("ITEM SUMMARY")
 
                 Card(
                     colors = CardDefaults.cardColors(containerColor = BackgroundLight),
                     shape = RoundedCornerShape(24.dp),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     Row(
                         modifier = Modifier.padding(16.dp),
@@ -117,103 +156,65 @@ fun CheckoutScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Delivery Method
-                Text(
-                    text = "DELIVERY METHOD",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Gray,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
+                SectionTitle("DELIVERY METHOD")
 
-                var deliveryMethod by remember { mutableStateOf("Meet in person") }
-
-                DeliveryOptionCard(
-                    title = "Meet in person",
-                    subtitle = "Free - Coordinate a spot on campus",
-                    isSelected = deliveryMethod == "Meet in person",
-                    icon = Icons.Default.Groups,
-                    onClick = { deliveryMethod = "Meet in person" }
-                ) {
-                    if (deliveryMethod == "Meet in person") {
-                        Column(modifier = Modifier.padding(top = 12.dp)) {
-                            Text("PICK A MEETING POINT", fontSize = 10.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            OutlinedTextField(
-                                value = "Main Library Entrance",
-                                onValueChange = {},
-                                readOnly = true,
-                                trailingIcon = { Icon(Icons.Default.KeyboardArrowDown, contentDescription = null) },
-                                modifier = Modifier.fillMaxWidth().height(50.dp),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    unfocusedBorderColor = Color.LightGray,
-                                    focusedBorderColor = SecondaryBlue
+                if (uiState.availableDeliveryMethods.isEmpty()) {
+                    Text(
+                        text = "Nguoi ban chua thiet lap phuong thuc giao nhan.",
+                        color = Color.Gray,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                } else {
+                    uiState.availableDeliveryMethods.forEach { method ->
+                        DeliveryOptionCard(
+                            title = method.title,
+                            subtitle = method.subtitle,
+                            isSelected = uiState.selectedDeliveryMethod == method,
+                            icon = method.icon(),
+                            onClick = { viewModel.selectDeliveryMethod(method) }
+                        ) {
+                            if (uiState.selectedDeliveryMethod == method) {
+                                DeliveryMethodDetails(
+                                    method = method,
+                                    buyerAddresses = uiState.buyerAddresses,
+                                    sellerAddresses = uiState.sellerAddresses,
+                                    selectedBuyerAddressId = uiState.selectedBuyerAddressId,
+                                    selectedSellerAddressId = uiState.selectedSellerAddressId,
+                                    meetingPoint = uiState.meetingPoint,
+                                    onBuyerAddressClick = viewModel::selectBuyerAddress,
+                                    onSellerAddressClick = viewModel::selectSellerAddress,
+                                    onMeetingPointChange = viewModel::updateMeetingPoint
                                 )
-                            )
+                            }
                         }
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                DeliveryOptionCard(
-                    title = "Campus Delivery",
-                    subtitle = "+${formatVnd(2.00)} - Delivered to your dorm",
-                    isSelected = deliveryMethod == "Campus Delivery",
-                    icon = Icons.Default.LocalShipping,
-                    onClick = { deliveryMethod = "Campus Delivery" }
-                )
-
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Payment Method
-                Text(
-                    text = "PAYMENT METHOD",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Gray,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
-
-                var paymentMethod by remember { mutableStateOf("Student Wallet") }
-
-                PaymentOptionCard(
-                    title = "Student Wallet",
-                    subtitle = "Balance: ${formatVnd(152.50)}",
-                    isSelected = paymentMethod == "Student Wallet",
-                    icon = Icons.Default.AccountBalanceWallet,
-                    onClick = { paymentMethod = "Student Wallet" }
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
+                SectionTitle("PAYMENT METHOD")
 
                 PaymentOptionCard(
                     title = "Cash on delivery",
-                    isSelected = paymentMethod == "Cash on delivery",
+                    isSelected = uiState.paymentMethod == "Cash on delivery",
                     icon = Icons.Default.Money,
-                    onClick = { paymentMethod = "Cash on delivery" }
+                    onClick = { viewModel.selectPaymentMethod("Cash on delivery") }
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
                 PaymentOptionCard(
                     title = "Bank Transfer",
-                    isSelected = paymentMethod == "Bank Transfer",
+                    isSelected = uiState.paymentMethod == "Bank Transfer",
                     icon = Icons.Default.AccountBalance,
-                    onClick = { paymentMethod = "Bank Transfer" }
+                    onClick = { viewModel.selectPaymentMethod("Bank Transfer") }
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Summary
                 Column(modifier = Modifier.padding(horizontal = 24.dp)) {
-                    val subtotal = product.price
-                    val platformFee = 1.50
-                    val deliveryFee = if (deliveryMethod == "Campus Delivery") 2.00 else 0.00
-                    val total = subtotal + platformFee + deliveryFee
-
-                    SummaryRow("Subtotal", formatVnd(subtotal))
+                    SummaryRow("Subtotal", formatVnd(product.price))
                     Spacer(modifier = Modifier.height(12.dp))
                     SummaryRow("Platform Fee", formatVnd(platformFee))
                     Spacer(modifier = Modifier.height(12.dp))
@@ -238,9 +239,8 @@ fun CheckoutScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // Confirm Button
                 Button(
-                    onClick = { /* Handle actual purchase */ },
+                    onClick = { },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
@@ -258,8 +258,140 @@ fun CheckoutScreen(
                     fontSize = 10.sp,
                     color = Color.Gray,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 16.dp, bottom = 32.dp)
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(top = 16.dp, bottom = 32.dp)
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SectionTitle(title: String) {
+    Text(
+        text = title,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Bold,
+        color = Color.Gray,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+    )
+}
+
+@Composable
+private fun DeliveryMethodDetails(
+    method: DeliveryMethod,
+    buyerAddresses: List<UserAddress>,
+    sellerAddresses: List<UserAddress>,
+    selectedBuyerAddressId: String?,
+    selectedSellerAddressId: String?,
+    meetingPoint: String,
+    onBuyerAddressClick: (String) -> Unit,
+    onSellerAddressClick: (String) -> Unit,
+    onMeetingPointChange: (String) -> Unit
+) {
+    when (method) {
+        DeliveryMethod.DIRECT_MEET -> {
+            Spacer(modifier = Modifier.height(12.dp))
+            OutlinedTextField(
+                value = meetingPoint,
+                onValueChange = onMeetingPointChange,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Diem gap truc tiep") },
+                placeholder = { Text("VD: Cong truong, canteen, san truong...") },
+                shape = RoundedCornerShape(14.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = Color.LightGray,
+                    focusedBorderColor = SecondaryBlue
+                )
+            )
+        }
+
+        DeliveryMethod.BUYER_TO_SELLER -> {
+            AddressSelector(
+                title = "Dia chi nguoi ban",
+                addresses = sellerAddresses,
+                selectedAddressId = selectedSellerAddressId,
+                emptyState = "Nguoi ban chua co dia chi de ban den nhan hang.",
+                onAddressClick = onSellerAddressClick
+            )
+        }
+
+        DeliveryMethod.SELLER_TO_BUYER -> {
+            AddressSelector(
+                title = "Dia chi nguoi mua",
+                addresses = buyerAddresses,
+                selectedAddressId = selectedBuyerAddressId,
+                emptyState = "Ban chua co dia chi. Hay them dia chi trong Profile.",
+                onAddressClick = onBuyerAddressClick
+            )
+        }
+
+        DeliveryMethod.SHIPPING -> {
+            AddressSelector(
+                title = "Dia chi nhan hang",
+                addresses = buyerAddresses,
+                selectedAddressId = selectedBuyerAddressId,
+                emptyState = "Ban chua co dia chi giao hang. Hay them dia chi trong Profile.",
+                onAddressClick = onBuyerAddressClick
+            )
+        }
+    }
+}
+
+@Composable
+private fun AddressSelector(
+    title: String,
+    addresses: List<UserAddress>,
+    selectedAddressId: String?,
+    emptyState: String,
+    onAddressClick: (String) -> Unit
+) {
+    Spacer(modifier = Modifier.height(12.dp))
+    Text(title, fontSize = 11.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
+    Spacer(modifier = Modifier.height(8.dp))
+
+    if (addresses.isEmpty()) {
+        Text(emptyState, color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+        return
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        addresses.forEach { address ->
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .border(
+                        width = 1.dp,
+                        color = if (selectedAddressId == address.id) SecondaryBlue else Color.LightGray,
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    .clickable { onAddressClick(address.id) }
+                    .padding(12.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = if (selectedAddressId == address.id) Icons.Default.RadioButtonChecked else Icons.Default.RadioButtonUnchecked,
+                        contentDescription = null,
+                        tint = if (selectedAddressId == address.id) SecondaryBlue else Color.LightGray
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = buildString {
+                                append("Dia chi")
+                                if (address.isDefault) append(" • Mac dinh")
+                            },
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(address.recipientName, style = MaterialTheme.typography.bodySmall)
+                        if (address.phoneNumber.isNotBlank()) {
+                            Text(address.phoneNumber, color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+                        }
+                        Text(address.shortDisplay(), color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
             }
         }
     }
@@ -356,5 +488,14 @@ fun SummaryRow(label: String, value: String) {
     ) {
         Text(label, color = Color.Gray, fontSize = 14.sp)
         Text(value, color = Color.Gray, fontSize = 14.sp)
+    }
+}
+
+private fun DeliveryMethod.icon(): ImageVector {
+    return when (this) {
+        DeliveryMethod.DIRECT_MEET -> Icons.Default.Handshake
+        DeliveryMethod.BUYER_TO_SELLER -> Icons.Default.Storefront
+        DeliveryMethod.SELLER_TO_BUYER -> Icons.Default.Place
+        DeliveryMethod.SHIPPING -> Icons.Default.LocalShipping
     }
 }

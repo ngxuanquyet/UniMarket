@@ -31,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.unimarket.domain.model.DeliveryMethod
 import coil.compose.rememberAsyncImagePainter
 import com.example.unimarket.presentation.theme.PrimaryYellowDark
 import com.example.unimarket.presentation.theme.SecondaryBlue
@@ -298,5 +299,36 @@ fun ExploreProductCard(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
+
+        if (product.deliveryMethodsAvailable.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            DeliveryMethodSummaryChips(product.deliveryMethodsAvailable)
+        }
+    }
+}
+
+@Composable
+private fun DeliveryMethodSummaryChips(methods: List<DeliveryMethod>) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        methods.take(2).chunked(2).forEach { rowItems ->
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                rowItems.forEach { method ->
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(MessageBg)
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = method.title,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = SecondaryBlue,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+        }
     }
 }

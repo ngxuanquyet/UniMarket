@@ -73,7 +73,8 @@ class MyListingsViewModel @Inject constructor(
                         isFavorite = false,
                         isNegotiable = draftItem.isNegotiable,
                         userId = draftItem.userId,
-                        specifications = draftItem.specifications
+                        specifications = draftItem.specifications,
+                        deliveryMethodsAvailable = draftItem.deliveryMethodsAvailable
                     )
                 }
 

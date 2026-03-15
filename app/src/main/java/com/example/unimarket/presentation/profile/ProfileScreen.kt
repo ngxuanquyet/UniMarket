@@ -1,7 +1,8 @@
 package com.example.unimarket.presentation.profile
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import com.example.unimarket.presentation.theme.*
-
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -16,11 +17,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,15 +26,14 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
-import coil.request.ImageRequest
 import coil.request.CachePolicy
+import coil.request.ImageRequest
+import com.example.unimarket.domain.model.UserAddress
 import com.example.unimarket.presentation.theme.PrimaryYellowDark
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -52,6 +48,8 @@ fun ProfileScreen(
 
     var showEditNameDialog by remember { mutableStateOf(false) }
     var newNameInput by remember { mutableStateOf("") }
+    var editingAddress by remember { mutableStateOf<UserAddress?>(null) }
+    var showAddressDialog by remember { mutableStateOf(false) }
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -97,7 +95,23 @@ fun ProfileScreen(
             
             Spacer(modifier = Modifier.height(24.dp))
             ProfileStatsRow()
-            
+
+            Spacer(modifier = Modifier.height(24.dp))
+            AddressSection(
+                addresses = uiState.addresses,
+                isLoading = uiState.isLoadingAddresses,
+                onAddClick = {
+                    editingAddress = null
+                    showAddressDialog = true
+                },
+                onEditClick = {
+                    editingAddress = it
+                    showAddressDialog = true
+                },
+                onDeleteClick = viewModel::deleteAddress,
+                onSetDefaultClick = viewModel::setDefaultAddress
+            )
+
             Spacer(modifier = Modifier.height(32.dp))
             ProfileActionsList()
             
@@ -134,6 +148,17 @@ fun ProfileScreen(
                     TextButton(onClick = { showEditNameDialog = false }) {
                         Text("Cancel")
                     }
+                }
+            )
+        }
+
+        if (showAddressDialog) {
+            AddressEditorDialog(
+                initialAddress = editingAddress,
+                onDismiss = { showAddressDialog = false },
+                onSave = { address ->
+                    viewModel.saveAddress(address)
+                    showAddressDialog = false
                 }
             )
         }
@@ -354,6 +379,217 @@ fun ProfileActionsList() {
             iconColor = Color.DarkGray
         )
     }
+}
+
+@Composable
+fun AddressSection(
+    addresses: List<UserAddress>,
+    isLoading: Boolean,
+    onAddClick: () -> Unit,
+    onEditClick: (UserAddress) -> Unit,
+    onDeleteClick: (String) -> Unit,
+    onSetDefaultClick: (UserAddress) -> Unit
+) {
+    Column(modifier = Modifier.padding(horizontal = 24.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "My Addresses",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+            TextButton(onClick = onAddClick) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Add")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 20.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.dp,
+                    color = PrimaryYellowDark
+                )
+            }
+        } else if (addresses.isEmpty()) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = BackgroundLight),
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Chua co dia chi nao", fontWeight = FontWeight.SemiBold)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        "Them dia chi de nguoi mua hoac nguoi ban co the chon khi giao nhan.",
+                        color = Color.Gray,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        } else {
+            addresses.forEach { address ->
+                AddressCard(
+                    address = address,
+                    onEditClick = { onEditClick(address) },
+                    onDeleteClick = { onDeleteClick(address.id) },
+                    onSetDefaultClick = { onSetDefaultClick(address) }
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun AddressCard(
+    address: UserAddress,
+    onEditClick: () -> Unit,
+    onDeleteClick: () -> Unit,
+    onSetDefaultClick: () -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(18.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, BorderLightGray, RoundedCornerShape(18.dp))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "Dia chi",
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+                if (address.isDefault) {
+                    AssistChip(
+                        onClick = {},
+                        label = { Text("Mac dinh") },
+                        leadingIcon = {
+                            Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(14.dp))
+                        }
+                    )
+                } else {
+                    TextButton(onClick = onSetDefaultClick) {
+                        Text("Dat mac dinh")
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(address.recipientName, fontWeight = FontWeight.Medium)
+            if (address.phoneNumber.isNotBlank()) {
+                Text(address.phoneNumber, color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(address.shortDisplay(), color = Color.DarkGray)
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = onEditClick, shape = RoundedCornerShape(12.dp)) {
+                    Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Sua")
+                }
+                OutlinedButton(
+                    onClick = onDeleteClick,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Xoa")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AddressEditorDialog(
+    initialAddress: UserAddress?,
+    onDismiss: () -> Unit,
+    onSave: (UserAddress) -> Unit
+) {
+    var recipientName by remember(initialAddress) { mutableStateOf(initialAddress?.recipientName.orEmpty()) }
+    var phoneNumber by remember(initialAddress) { mutableStateOf(initialAddress?.phoneNumber.orEmpty()) }
+    var addressLine by remember(initialAddress) { mutableStateOf(initialAddress?.addressLine.orEmpty()) }
+    var isDefault by remember(initialAddress) { mutableStateOf(initialAddress?.isDefault ?: false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (initialAddress == null) "Them dia chi" else "Sua dia chi") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedTextField(
+                    value = recipientName,
+                    onValueChange = { recipientName = it },
+                    label = { Text("Ho ten nguoi nhan") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = phoneNumber,
+                    onValueChange = { phoneNumber = it },
+                    label = { Text("So dien thoai") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = addressLine,
+                    onValueChange = { addressLine = it },
+                    label = { Text("Address") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(checked = isDefault, onCheckedChange = { isDefault = it })
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Dat lam dia chi mac dinh")
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onSave(
+                        UserAddress(
+                            id = initialAddress?.id.orEmpty(),
+                            recipientName = recipientName.trim(),
+                            phoneNumber = phoneNumber.trim(),
+                            addressLine = addressLine.trim(),
+                            isDefault = isDefault
+                        )
+                    )
+                }
+            ) {
+                Text("Luu")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Huy")
+            }
+        }
+    )
 }
 
 @Composable

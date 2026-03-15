@@ -3,6 +3,7 @@ package com.example.unimarket.data.local
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverter
+import com.example.unimarket.domain.model.DeliveryMethod
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
@@ -18,6 +19,7 @@ data class DraftProduct(
     val condition: String,
     val isNegotiable: Boolean,
     val specifications: Map<String, String>,
+    val deliveryMethodsAvailable: List<DeliveryMethod>,
     val lastModified: Long = System.currentTimeMillis()
 )
 
@@ -51,6 +53,21 @@ class Converters {
             gson.fromJson(value, mapType) ?: emptyMap()
         } catch (e: Exception) {
             emptyMap()
+        }
+    }
+
+    @TypeConverter
+    fun fromDeliveryMethodList(value: List<DeliveryMethod>?): String {
+        return gson.toJson(value ?: emptyList<DeliveryMethod>())
+    }
+
+    @TypeConverter
+    fun toDeliveryMethodList(value: String): List<DeliveryMethod> {
+        val listType = object : TypeToken<List<DeliveryMethod>>() {}.type
+        return try {
+            gson.fromJson(value, listType) ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
         }
     }
 }
