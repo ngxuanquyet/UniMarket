@@ -5,11 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.example.unimarket.domain.usecase.explore.GetAllProductsUseCase
 import com.example.unimarket.domain.usecase.product.GetCategoriesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -21,34 +21,45 @@ class ExploreViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(ExploreUiState(isLoading = true))
     val uiState: StateFlow<ExploreUiState> = _uiState.asStateFlow()
+    private var loadJob: Job? = null
 
     init {
         loadData()
     }
 
+    fun refresh() {
+        loadData()
+    }
+
     private fun loadData() {
-        viewModelScope.launch {
-            combine(
-                getAllProductsUseCase(),
-                getCategoriesUseCase()
-            ) { products, categories ->
-                Pair(products, categories)
+        loadJob?.cancel()
+        _uiState.value = _uiState.value.copy(
+            isLoading = true,
+            errorMessage = null
+        )
+
+        loadJob = viewModelScope.launch {
+            try {
+                val products = getAllProductsUseCase().first()
+                val categories = getCategoriesUseCase().first()
+                val currentState = _uiState.value
+
+                _uiState.value = currentState.copy(
+                    products = products,
+                    categories = categories,
+                    isLoading = false,
+                    filteredProducts = filterProducts(
+                        products,
+                        currentState.searchQuery,
+                        currentState.selectedCategory
+                    )
+                )
+            } catch (error: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = error.message ?: "Failed to load explore data"
+                )
             }
-                .catch { error ->
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        errorMessage = error.message ?: "Failed to load explore data"
-                    )
-                }
-                .collect { (products, categories) ->
-                    val currentState = _uiState.value
-                    _uiState.value = currentState.copy(
-                        products = products,
-                        categories = categories,
-                        isLoading = false,
-                        filteredProducts = filterProducts(products, currentState.searchQuery, currentState.selectedCategory)
-                    )
-                }
         }
     }
 

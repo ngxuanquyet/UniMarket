@@ -17,6 +17,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -77,90 +78,97 @@ fun ProfileScreen(
         },
         containerColor = Color.White
     ) { paddingValues ->
-        Column(
+        PullToRefreshBox(
+            isRefreshing = uiState.isLoadingAddresses || uiState.isUploading,
+            onRefresh = viewModel::refresh,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .verticalScroll(scrollState)
         ) {
-            Spacer(modifier = Modifier.height(24.dp))
-            ProfileHeader(
-                uiState = uiState,
-                onEditClick = { launcher.launch("image/*") },
-                onEditNameClick = { 
-                    newNameInput = uiState.displayName
-                    showEditNameDialog = true
-                }
-            )
-            
-            Spacer(modifier = Modifier.height(24.dp))
-            ProfileStatsRow()
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+            ) {
+                Spacer(modifier = Modifier.height(24.dp))
+                ProfileHeader(
+                    uiState = uiState,
+                    onEditClick = { launcher.launch("image/*") },
+                    onEditNameClick = {
+                        newNameInput = uiState.displayName
+                        showEditNameDialog = true
+                    }
+                )
 
-            Spacer(modifier = Modifier.height(24.dp))
-            AddressSection(
-                addresses = uiState.addresses,
-                isLoading = uiState.isLoadingAddresses,
-                onAddClick = {
-                    editingAddress = null
-                    showAddressDialog = true
-                },
-                onEditClick = {
-                    editingAddress = it
-                    showAddressDialog = true
-                },
-                onDeleteClick = viewModel::deleteAddress,
-                onSetDefaultClick = viewModel::setDefaultAddress
-            )
+                Spacer(modifier = Modifier.height(24.dp))
+                ProfileStatsRow()
 
-            Spacer(modifier = Modifier.height(32.dp))
-            ProfileActionsList()
-            
-            Spacer(modifier = Modifier.height(32.dp))
-            LogoutButton(onClick = onLogoutClick)
-            
-            Spacer(modifier = Modifier.height(80.dp)) // Bottom nav padding
-        }
+                Spacer(modifier = Modifier.height(24.dp))
+                AddressSection(
+                    addresses = uiState.addresses,
+                    isLoading = uiState.isLoadingAddresses,
+                    onAddClick = {
+                        editingAddress = null
+                        showAddressDialog = true
+                    },
+                    onEditClick = {
+                        editingAddress = it
+                        showAddressDialog = true
+                    },
+                    onDeleteClick = viewModel::deleteAddress,
+                    onSetDefaultClick = viewModel::setDefaultAddress
+                )
 
-        if (showEditNameDialog) {
-            AlertDialog(
-                onDismissRequest = { showEditNameDialog = false },
-                title = { Text("Edit Display Name") },
-                text = {
-                    OutlinedTextField(
-                        value = newNameInput,
-                        onValueChange = { newNameInput = it },
-                        label = { Text("New Name") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                },
-                confirmButton = {
-                    TextButton(onClick = {
-                        if (newNameInput.isNotBlank()) {
-                            viewModel.updateDisplayName(newNameInput)
+                Spacer(modifier = Modifier.height(32.dp))
+                ProfileActionsList()
+
+                Spacer(modifier = Modifier.height(32.dp))
+                LogoutButton(onClick = onLogoutClick)
+
+                Spacer(modifier = Modifier.height(80.dp)) // Bottom nav padding
+            }
+
+            if (showEditNameDialog) {
+                AlertDialog(
+                    onDismissRequest = { showEditNameDialog = false },
+                    title = { Text("Edit Display Name") },
+                    text = {
+                        OutlinedTextField(
+                            value = newNameInput,
+                            onValueChange = { newNameInput = it },
+                            label = { Text("New Name") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            if (newNameInput.isNotBlank()) {
+                                viewModel.updateDisplayName(newNameInput)
+                            }
+                            showEditNameDialog = false
+                        }) {
+                            Text("Save")
                         }
-                        showEditNameDialog = false
-                    }) {
-                        Text("Save")
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showEditNameDialog = false }) {
+                            Text("Cancel")
+                        }
                     }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showEditNameDialog = false }) {
-                        Text("Cancel")
-                    }
-                }
-            )
-        }
+                )
+            }
 
-        if (showAddressDialog) {
-            AddressEditorDialog(
-                initialAddress = editingAddress,
-                onDismiss = { showAddressDialog = false },
-                onSave = { address ->
-                    viewModel.saveAddress(address)
-                    showAddressDialog = false
-                }
-            )
+            if (showAddressDialog) {
+                AddressEditorDialog(
+                    initialAddress = editingAddress,
+                    onDismiss = { showAddressDialog = false },
+                    onSave = { address ->
+                        viewModel.saveAddress(address)
+                        showAddressDialog = false
+                    }
+                )
+            }
         }
     }
 }

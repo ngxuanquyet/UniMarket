@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Cancel
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -185,50 +186,56 @@ fun MyListingsScreen(
                     .fillMaxSize()
                     .background(BackgroundLight)
             ) {
-                if (uiState.isLoading) {
+                if (uiState.isLoading && uiState.displayedListings.isEmpty()) {
                     CircularProgressIndicator(color = AppBlue, modifier = Modifier.align(Alignment.Center))
                 } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 160.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    PullToRefreshBox(
+                        isRefreshing = uiState.isLoading,
+                        onRefresh = viewModel::refresh,
+                        modifier = Modifier.fillMaxSize()
                     ) {
-                        // Stat Card
-                        item {
-                            Surface(
-                                shape = RoundedCornerShape(32.dp),
-                                color = LightBlueSelection, // Light blue tint
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 160.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            // Stat Card
+                            item {
+                                Surface(
+                                    shape = RoundedCornerShape(32.dp),
+                                    color = LightBlueSelection, // Light blue tint
+                                    modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Column {
-                                        Text("LIVE ITEMS", color = AppBlue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text("${uiState.liveItemsCount} Items", color = TextDarkBlack, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
-                                    }
-                                    Column(horizontalAlignment = Alignment.End) {
-                                        Text("EST. VALUE", color = TextGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(formatVnd(uiState.estimatedValue), color = TextDarkBlack, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column {
+                                            Text("LIVE ITEMS", color = AppBlue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text("${uiState.liveItemsCount} Items", color = TextDarkBlack, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+                                        }
+                                        Column(horizontalAlignment = Alignment.End) {
+                                            Text("EST. VALUE", color = TextGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(formatVnd(uiState.estimatedValue), color = TextDarkBlack, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+                                        }
                                     }
                                 }
                             }
-                        }
 
-                        // Listing Items
-                        items(uiState.displayedListings) { product ->
-                            ListingCard(
-                                product = product,
-                                onEditClick = { onEditClick(it) },
-                                onDeleteClick = { 
-                                    itemToDelete = product
-                                    showDeleteDialog = true
-                                }
-                            )
+                            // Listing Items
+                            items(uiState.displayedListings) { product ->
+                                ListingCard(
+                                    product = product,
+                                    onEditClick = { onEditClick(it) },
+                                    onDeleteClick = {
+                                        itemToDelete = product
+                                        showDeleteDialog = true
+                                    }
+                                )
+                            }
                         }
                     }
                 }

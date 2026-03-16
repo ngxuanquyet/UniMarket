@@ -13,11 +13,10 @@ import com.google.firebase.auth.FirebaseUser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -33,6 +32,7 @@ class MyListingsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(MyListingsUiState(isLoading = true))
     val uiState: StateFlow<MyListingsUiState> = _uiState.asStateFlow()
 
+    private var loadJob: Job? = null
     private var deleteJob: Job? = null
     private var pendingDeleteProduct: com.example.unimarket.domain.model.Product? = null
 
@@ -40,23 +40,26 @@ class MyListingsViewModel @Inject constructor(
         loadMyListings()
     }
 
+    fun refresh() {
+        loadMyListings()
+    }
+
     private fun loadMyListings() {
+        loadJob?.cancel()
+        _uiState.value = _uiState.value.copy(
+            isLoading = true,
+            errorMessage = null
+        )
+
         val currentUser = getCurrentUserUseCase() as? FirebaseUser
         val currentUid = currentUser?.uid
         
-        viewModelScope.launch {
-            val productsFlow = getAllProductsUseCase().catch { error ->
-                _uiState.value = _uiState.value.copy(
-                    errorMessage = error.message ?: "Failed to load listings"
-                )
-            }
-            // Use empty string if uid is null to avoid crashing, though flow might return empty
-            val draftsFlow = getDraftsUseCase(currentUid ?: "")
-
-            combine(productsFlow, draftsFlow) { products, drafts ->
+        loadJob = viewModelScope.launch {
+            try {
+                val products = getAllProductsUseCase().first()
+                val drafts = getDraftsUseCase(currentUid ?: "").first()
                 val myProducts = products.filter { it.userId == currentUid }
-                
-                // Map DraftProduct to Product
+
                 val mappedDrafts = drafts.map { draftItem ->
                     Product(
                         id = draftItem.id,
@@ -80,11 +83,16 @@ class MyListingsViewModel @Inject constructor(
 
                 _uiState.value = _uiState.value.copy(
                     activeListings = myProducts,
-                    soldListings = emptyList(), // Dummy data for now
+                    soldListings = emptyList(),
                     draftListings = mappedDrafts,
-                    isLoading = false
+                    isLoading = false,
                 )
-            }.collect {} 
+            } catch (error: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = error.message ?: "Failed to load listings"
+                )
+            }
         }
     }
 

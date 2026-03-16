@@ -42,6 +42,11 @@ class ProfileViewModel @Inject constructor(
         loadAddresses()
     }
 
+    fun refresh() {
+        loadUserProfile()
+        loadAddresses()
+    }
+
     private fun loadUserProfile() {
         val currentUser = getCurrentUserUseCase() as? FirebaseUser
         if (currentUser != null) {

@@ -6,11 +6,12 @@ import com.example.unimarket.domain.model.deliveryMethodsFromStorage
 import com.example.unimarket.domain.model.Product
 import com.example.unimarket.domain.model.toStorageValue
 import com.example.unimarket.domain.repository.ProductRepository
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import com.google.firebase.firestore.Source
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
@@ -30,47 +31,11 @@ class FirebaseProductRepositoryImpl @Inject constructor(
         )
     }
 
-    override fun getRecommendedProducts(): Flow<List<Product>> = callbackFlow {
-        val subscription = firestore.collection("products")
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    close(error)
-                    return@addSnapshotListener
-                }
-
-                if (snapshot != null) {
-                    val products = snapshot.documents.mapNotNull { doc ->
-                        try {
-                            // Manual mapping to handle default values safely if needed
-                            Product(
-                                id = doc.id,
-                                name = doc.getString("name") ?: "",
-                                price = doc.getDouble("price") ?: 0.0,
-                                description = doc.getString("description") ?: "",
-                                imageUrls = (doc.get("imageUrls") as? List<String>) ?: emptyList(),
-                                categoryId = doc.getString("categoryId") ?: "",
-                                condition = doc.getString("condition") ?: "",
-                                sellerName = doc.getString("sellerName") ?: "",
-                                rating = doc.getDouble("rating") ?: 0.0,
-                                location = doc.getString("location") ?: "",
-                                timeAgo = doc.getString("timeAgo") ?: "",
-                                isFavorite = doc.getBoolean("isFavorite") ?: false,
-                                isNegotiable = doc.getBoolean("isNegotiable") ?: false,
-                                userId = doc.getString("userId") ?: "",
-                                specifications = (doc.get("specifications") as? Map<String, String>) ?: emptyMap(),
-                                deliveryMethodsAvailable = deliveryMethodsFromStorage(
-                                    (doc.get("deliveryMethodsAvailable") as? List<String>) ?: emptyList()
-                                )
-                            )
-                        } catch (e: Exception) {
-                            null
-                        }
-                    }
-                    trySend(products)
-                }
-            }
-
-        awaitClose { subscription.remove() }
+    override fun getRecommendedProducts(): Flow<List<Product>> = flow {
+        val snapshot = firestore.collection("products")
+            .get(Source.SERVER)
+            .await()
+        emit(snapshot.documents.mapNotNull(::mapProduct))
     }
 
     override suspend fun addProduct(product: Product): Result<Unit> {
@@ -132,6 +97,34 @@ class FirebaseProductRepositoryImpl @Inject constructor(
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    private fun mapProduct(doc: DocumentSnapshot): Product? {
+        return try {
+            Product(
+                id = doc.id,
+                name = doc.getString("name") ?: "",
+                price = doc.getDouble("price") ?: 0.0,
+                description = doc.getString("description") ?: "",
+                imageUrls = (doc.get("imageUrls") as? List<String>) ?: emptyList(),
+                categoryId = doc.getString("categoryId") ?: "",
+                condition = doc.getString("condition") ?: "",
+                sellerName = doc.getString("sellerName") ?: "",
+                rating = doc.getDouble("rating") ?: 0.0,
+                location = doc.getString("location") ?: "",
+                timeAgo = doc.getString("timeAgo") ?: "",
+                isFavorite = doc.getBoolean("isFavorite") ?: false,
+                isNegotiable = doc.getBoolean("isNegotiable") ?: false,
+                userId = doc.getString("userId") ?: "",
+                specifications = (doc.get("specifications") as? Map<String, String>) ?: emptyMap(),
+                deliveryMethodsAvailable = deliveryMethodsFromStorage(
+                    (doc.get("deliveryMethodsAvailable") as? List<String>) ?: emptyList()
+                )
+            )
+        } catch (e: Exception) {
+            Log.w("FirebaseProductRepo", "Failed to map product ${doc.id}", e)
+            null
         }
     }
 }
