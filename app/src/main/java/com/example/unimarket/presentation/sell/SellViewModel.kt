@@ -84,6 +84,7 @@ class SellViewModel @Inject constructor(
                         timeAgo = "Draft",
                         isFavorite = false,
                         isNegotiable = draft.isNegotiable,
+                        quantityAvailable = draft.quantityAvailable ?: 1,
                         userId = draft.userId,
                         specifications = draft.specifications,
                         deliveryMethodsAvailable = draft.deliveryMethodsAvailable
@@ -125,6 +126,7 @@ class SellViewModel @Inject constructor(
         description: String,
         category: String,
         condition: String,
+        quantityStr: String,
         isNegotiable: Boolean,
         specifications: Map<String, String>,
         deliveryMethodsAvailable: List<DeliveryMethod>
@@ -135,7 +137,7 @@ class SellViewModel @Inject constructor(
             return
         }
 
-        if (title.isBlank() || priceStr.isBlank() || description.isBlank() || category == "Select a category" || condition == "") {
+        if (title.isBlank() || priceStr.isBlank() || description.isBlank() || category == "Select a category" || condition == "" || quantityStr.isBlank()) {
             _uiState.value = _uiState.value.copy(errorMessage = "Please fill in all required fields")
             return
         }
@@ -148,6 +150,12 @@ class SellViewModel @Inject constructor(
         val price = priceStr.toDoubleOrNull()
         if (price == null) {
             _uiState.value = _uiState.value.copy(errorMessage = "Invalid price format")
+            return
+        }
+
+        val quantityAvailable = quantityStr.toIntOrNull()
+        if (quantityAvailable == null || quantityAvailable <= 0) {
+            _uiState.value = _uiState.value.copy(errorMessage = "Quantity must be a number greater than 0")
             return
         }
 
@@ -206,6 +214,7 @@ class SellViewModel @Inject constructor(
                 timeAgo = initialProduct?.timeAgo ?: "Just now",
                 isFavorite = initialProduct?.isFavorite ?: false,
                 isNegotiable = isNegotiable,
+                quantityAvailable = quantityAvailable,
                 userId = userId,
                 specifications = specifications,
                 deliveryMethodsAvailable = deliveryMethodsAvailable
@@ -246,6 +255,7 @@ class SellViewModel @Inject constructor(
         description: String,
         categoryId: String,
         condition: String,
+        quantityStr: String,
         isNegotiable: Boolean,
         specifications: Map<String, String>,
         deliveryMethodsAvailable: List<DeliveryMethod>,
@@ -267,6 +277,7 @@ class SellViewModel @Inject constructor(
             // For local drafts, we just save the Uris directly as strings. The Repository handles persisting content Uris to internal storage.
             val imageUrls = uris.map { it.toString() }
             val price = priceStr.toDoubleOrNull()
+            val quantityAvailable = quantityStr.toIntOrNull()
 
             val draftId = editingProductId ?: UUID.randomUUID().toString()
 
@@ -279,6 +290,7 @@ class SellViewModel @Inject constructor(
                 description = description,
                 categoryId = if (categoryId == "Select a category") "" else categoryId,
                 condition = condition,
+                quantityAvailable = quantityAvailable,
                 isNegotiable = isNegotiable,
                 specifications = specifications,
                 deliveryMethodsAvailable = deliveryMethodsAvailable

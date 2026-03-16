@@ -14,6 +14,7 @@ data class Product(
     val timeAgo: String,
     val isFavorite: Boolean = false,
     val isNegotiable: Boolean = false,
+    val quantityAvailable: Int = 1,
     val userId: String,
     val specifications: Map<String, String> = emptyMap(),
     val deliveryMethodsAvailable: List<DeliveryMethod> = emptyList()

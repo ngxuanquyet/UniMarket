@@ -9,6 +9,7 @@ import com.example.unimarket.presentation.auth.AuthViewModel
 import com.example.unimarket.presentation.cart.CartScreen
 import com.example.unimarket.presentation.checkout.CheckoutScreen
 import com.example.unimarket.presentation.explore.ExploreScreen
+import com.example.unimarket.presentation.messages.ChatDetailScreen
 import com.example.unimarket.presentation.messages.MessagesScreen
 import com.example.unimarket.presentation.profile.ProfileScreen
 import com.example.unimarket.presentation.sell.SellScreen
@@ -44,7 +45,13 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
                 onBackClick = { navController.popBackStack() }
             )
         }
-        composable(Screen.Messages.route) { MessagesScreen() }
+        composable(Screen.Messages.route) {
+            MessagesScreen(
+                onConversationClick = { conversationId ->
+                    navController.navigate(Screen.ChatDetail.route + "/$conversationId")
+                }
+            )
+        }
         composable(Screen.Profile.route) {
             val authViewModel: AuthViewModel = hiltViewModel()
             ProfileScreen(
@@ -81,20 +88,38 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
             com.example.unimarket.presentation.productdetail.ProductDetailScreen(
                 productId = productId,
                 onBackClick = { navController.popBackStack() },
-                onBuyNowClick = { pId ->
-                    navController.navigate(Screen.Checkout.route + "/$pId")
+                onConversationOpen = { conversationId ->
+                    navController.navigate(Screen.ChatDetail.route + "/$conversationId")
+                },
+                onBuyNowClick = { pId, quantity ->
+                    navController.navigate(Screen.Checkout.route + "/$pId?quantity=$quantity")
                 }
             )
         }
         composable(
-            route = Screen.Checkout.route + "/{productId}",
+            route = Screen.ChatDetail.route + "/{conversationId}",
+            arguments = listOf(androidx.navigation.navArgument("conversationId") {
+                type = androidx.navigation.NavType.StringType
+            })
+        ) {
+            ChatDetailScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+        composable(
+            route = Screen.Checkout.route + "/{productId}?quantity={quantity}",
             arguments = listOf(androidx.navigation.navArgument("productId") {
                 type = androidx.navigation.NavType.StringType
+            }, androidx.navigation.navArgument("quantity") {
+                type = androidx.navigation.NavType.IntType
+                defaultValue = 1
             })
         ) { backStackEntry ->
             val productId = backStackEntry.arguments?.getString("productId") ?: return@composable
+            val quantity = backStackEntry.arguments?.getInt("quantity") ?: 1
             CheckoutScreen(
                 productId = productId,
+                quantity = quantity,
                 onBackClick = { navController.popBackStack() }
             )
         }

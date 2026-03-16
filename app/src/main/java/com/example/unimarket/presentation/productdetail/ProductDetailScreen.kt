@@ -15,6 +15,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -47,7 +48,8 @@ import kotlinx.coroutines.launch
 fun ProductDetailScreen(
     productId: String?,
     onBackClick: () -> Unit,
-    onBuyNowClick: (String) -> Unit = {},
+    onConversationOpen: (String) -> Unit = {},
+    onBuyNowClick: (String, Int) -> Unit = { _, _ -> },
     viewModel: ProductDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -85,6 +87,9 @@ fun ProductDetailScreen(
                 is ProductDetailViewModel.UiEvent.ShowSnackbar -> {
                     snackbarHostState.showSnackbar(event.message)
                 }
+                is ProductDetailViewModel.UiEvent.OpenConversation -> {
+                    onConversationOpen(event.conversationId)
+                }
             }
         }
     }
@@ -94,6 +99,9 @@ fun ProductDetailScreen(
     val pagerState =
         rememberPagerState(pageCount = { product.imageUrls.takeIf { it.isNotEmpty() }?.size ?: 1 })
     val coroutineScope = rememberCoroutineScope()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var purchaseAction by remember { mutableStateOf<PurchaseAction?>(null) }
+    var selectedQuantity by remember(product.id) { mutableIntStateOf(1) }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -158,11 +166,48 @@ fun ProductDetailScreen(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    OutlinedButton(
+                        onClick = {
+                            if (auth.uid != product.userId) {
+                                viewModel.startConversation(product)
+                            } else {
+                                Toast.makeText(
+                                    context,
+                                    "You cannot chat with yourself",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        },
+                        modifier = Modifier
+                            .weight(0.5f)
+                            .height(50.dp),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Black)
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.Message,
+                                contentDescription = "Chat",
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Chat Now",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+
                     // Add to Cart Button (Outlined)
                     OutlinedButton(
                         onClick = {
                             if (auth.uid != product.userId) {
-                                viewModel.addToCart(product)
+                                selectedQuantity = 1
+                                purchaseAction = PurchaseAction.AddToCart
                             } else {
                                 Toast.makeText(
                                     context,
@@ -177,20 +222,26 @@ fun ProductDetailScreen(
                         shape = RoundedCornerShape(24.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Black)
                     ) {
-                        Icon(
-                            Icons.Default.ShoppingCart,
-                            contentDescription = "Cart",
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Add to Cart", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                Icons.Default.ShoppingCart,
+                                contentDescription = "Cart",
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Add to Cart", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                        }
                     }
 
                     // Buy Now Button (Solid)
                     Button(
                         onClick = {
                             if (auth.uid != product.userId) {
-                                onBuyNowClick(product.id)
+                                selectedQuantity = 1
+                                purchaseAction = PurchaseAction.BuyNow
                             } else {
                                 Toast.makeText(
                                     context,
@@ -352,6 +403,14 @@ fun ProductDetailScreen(
                     }
                 }
 
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "Available: ${product.quantityAvailable}",
+                    fontSize = 14.sp,
+                    color = if (product.quantityAvailable > 0) Color.Gray else RedDanger,
+                    fontWeight = FontWeight.Medium
+                )
+
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Row(
@@ -495,6 +554,112 @@ fun ProductDetailScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
         }
+    }
+
+    if (purchaseAction != null) {
+        ModalBottomSheet(
+            onDismissRequest = { purchaseAction = null },
+            sheetState = sheetState,
+            containerColor = Color.White
+        ) {
+            QuantityPickerSheet(
+                productName = product.name,
+                availableQuantity = product.quantityAvailable,
+                selectedQuantity = selectedQuantity,
+                onDecrease = {
+                    selectedQuantity = (selectedQuantity - 1).coerceAtLeast(1)
+                },
+                onIncrease = {
+                    selectedQuantity =
+                        (selectedQuantity + 1).coerceAtMost(product.quantityAvailable)
+                },
+                onConfirm = {
+                    when (purchaseAction) {
+                        PurchaseAction.AddToCart -> viewModel.addToCart(product, selectedQuantity)
+                        PurchaseAction.BuyNow -> onBuyNowClick(product.id, selectedQuantity)
+                        null -> Unit
+                    }
+                    purchaseAction = null
+                }
+            )
+        }
+    }
+}
+
+private enum class PurchaseAction {
+    AddToCart,
+    BuyNow
+}
+
+@Composable
+private fun QuantityPickerSheet(
+    productName: String,
+    availableQuantity: Int,
+    selectedQuantity: Int,
+    onDecrease: () -> Unit,
+    onIncrease: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 16.dp)
+    ) {
+        Text(
+            text = "Choose quantity",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = productName,
+            color = Color.Gray,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+        Spacer(modifier = Modifier.height(20.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Available stock: $availableQuantity", fontWeight = FontWeight.Medium)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onDecrease,
+                    enabled = selectedQuantity > 1
+                ) {
+                    Text("-")
+                }
+                Text(
+                    text = selectedQuantity.toString(),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                OutlinedButton(
+                    onClick = onIncrease,
+                    enabled = selectedQuantity < availableQuantity
+                ) {
+                    Text("+")
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(
+            onClick = onConfirm,
+            enabled = availableQuantity > 0,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
+            shape = RoundedCornerShape(24.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = PrimaryYellowDark)
+        ) {
+            Text("Confirm", color = Color.Black, fontWeight = FontWeight.Bold)
+        }
+        Spacer(modifier = Modifier.height(12.dp))
     }
 }
 

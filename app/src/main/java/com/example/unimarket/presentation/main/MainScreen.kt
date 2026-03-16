@@ -11,7 +11,7 @@ import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.PersonOutline
 import androidx.compose.material.icons.filled.Explore
-import androidx.compose.material.icons.filled.ListAlt
+import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -51,7 +51,7 @@ fun BottomNavigationBar(navController: NavHostController) {
     val items = listOf(
         BottomNavItem("Explore", Screen.Explore.route, Icons.Default.Explore),
         BottomNavItem("Sell", Screen.Sell.route, Icons.Default.AddCircleOutline),
-        BottomNavItem("My Listings", Screen.MyListings.route, Icons.Default.ListAlt),
+        BottomNavItem("My Listings", Screen.MyListings.route, Icons.AutoMirrored.Filled.ListAlt),
         BottomNavItem("Messages", Screen.Messages.route, Icons.Default.ChatBubbleOutline),
         BottomNavItem("Profile", Screen.Profile.route, Icons.Default.PersonOutline)
     )

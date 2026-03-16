@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.unimarket.domain.model.Product
 import com.example.unimarket.domain.repository.CartRepository
 import com.example.unimarket.domain.usecase.explore.GetAllProductsUseCase
+import com.example.unimarket.domain.usecase.chat.CreateOrGetConversationUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,7 +20,8 @@ import javax.inject.Inject
 @HiltViewModel
 class ProductDetailViewModel @Inject constructor(
     private val getAllProductsUseCase: GetAllProductsUseCase,
-    private val cartRepository: CartRepository
+    private val cartRepository: CartRepository,
+    private val createOrGetConversationUseCase: CreateOrGetConversationUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProductDetailUiState(isLoading = true))
@@ -30,6 +32,7 @@ class ProductDetailViewModel @Inject constructor(
 
     sealed class UiEvent {
         data class ShowSnackbar(val message: String) : UiEvent()
+        data class OpenConversation(val conversationId: String) : UiEvent()
     }
 
     fun loadProduct(productId: String) {
@@ -62,14 +65,30 @@ class ProductDetailViewModel @Inject constructor(
         }
     }
 
-    fun addToCart(product: Product) {
+    fun addToCart(product: Product, quantity: Int) {
         viewModelScope.launch {
             try {
-                cartRepository.addToCart(product)
-                _uiEvent.emit(UiEvent.ShowSnackbar("Added to cart successfully"))
+                cartRepository.addToCart(product, quantity)
+                _uiEvent.emit(UiEvent.ShowSnackbar("Added $quantity item(s) to cart"))
             } catch (e: Exception) {
                 _uiEvent.emit(UiEvent.ShowSnackbar("Failed to add to cart: ${e.message}"))
             }
+        }
+    }
+
+    fun startConversation(product: Product) {
+        viewModelScope.launch {
+            createOrGetConversationUseCase(product)
+                .onSuccess { conversationId ->
+                    _uiEvent.emit(UiEvent.OpenConversation(conversationId))
+                }
+                .onFailure { error ->
+                    _uiEvent.emit(
+                        UiEvent.ShowSnackbar(
+                            error.message ?: "Failed to open conversation"
+                        )
+                    )
+                }
         }
     }
 }

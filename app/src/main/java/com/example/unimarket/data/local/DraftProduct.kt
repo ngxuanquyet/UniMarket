@@ -17,6 +17,7 @@ data class DraftProduct(
     val description: String,
     val categoryId: String,
     val condition: String,
+    val quantityAvailable: Int?,
     val isNegotiable: Boolean,
     val specifications: Map<String, String>,
     val deliveryMethodsAvailable: List<DeliveryMethod>,

@@ -24,23 +24,31 @@ class InMemoryCartRepositoryImpl @Inject constructor() : CartRepository {
         val currentItems = cartItems.value.toMutableList()
         val itemIndex = currentItems.indexOfFirst { it.id == cartItemId }
         if (itemIndex != -1 && quantity > 0) {
-            currentItems[itemIndex] = currentItems[itemIndex].copy(quantity = quantity)
+            val maxQuantity = currentItems[itemIndex].product.quantityAvailable
+            currentItems[itemIndex] = currentItems[itemIndex].copy(
+                quantity = quantity.coerceAtMost(maxQuantity)
+            )
             cartItems.value = currentItems
         }
     }
 
-    override suspend fun addToCart(product: Product) {
+    override suspend fun addToCart(product: Product, quantity: Int) {
+        if (quantity <= 0) return
+
         val currentItems = cartItems.value.toMutableList()
         val itemIndex = currentItems.indexOfFirst { it.product.id == product.id }
         if (itemIndex != -1) {
             currentItems[itemIndex] =
-                currentItems[itemIndex].copy(quantity = currentItems[itemIndex].quantity + 1)
+                currentItems[itemIndex].copy(
+                    quantity = (currentItems[itemIndex].quantity + quantity)
+                        .coerceAtMost(product.quantityAvailable)
+                )
         } else {
             currentItems.add(
                 CartItem(
                     id = "cart_${System.currentTimeMillis()}",
                     product = product,
-                    quantity = 1
+                    quantity = quantity.coerceAtMost(product.quantityAvailable)
                 )
             )
         }

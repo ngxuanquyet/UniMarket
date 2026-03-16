@@ -72,6 +72,7 @@ import com.example.unimarket.presentation.util.formatVnd
 @Composable
 fun CheckoutScreen(
     productId: String,
+    quantity: Int,
     onBackClick: () -> Unit,
     viewModel: CheckoutViewModel = hiltViewModel()
 ) {
@@ -108,7 +109,8 @@ fun CheckoutScreen(
             val product = requireNotNull(uiState.product)
             val deliveryFee = if (uiState.selectedDeliveryMethod == DeliveryMethod.SHIPPING) 30000.0 else 0.0
             val platformFee = 1500.0
-            val total = product.price + platformFee + deliveryFee
+            val subtotal = product.price * quantity
+            val total = subtotal + platformFee + deliveryFee
 
             Column(
                 modifier = Modifier
@@ -143,6 +145,7 @@ fun CheckoutScreen(
                         Column {
                             Text(product.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                             Text("Condition: ${product.condition}", color = Color.Gray, fontSize = 12.sp)
+                            Text("Quantity: $quantity", color = Color.Gray, fontSize = 12.sp)
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 formatVnd(product.price),
@@ -214,7 +217,7 @@ fun CheckoutScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Column(modifier = Modifier.padding(horizontal = 24.dp)) {
-                    SummaryRow("Subtotal", formatVnd(product.price))
+                    SummaryRow("Subtotal", formatVnd(subtotal))
                     Spacer(modifier = Modifier.height(12.dp))
                     SummaryRow("Platform Fee", formatVnd(platformFee))
                     Spacer(modifier = Modifier.height(12.dp))

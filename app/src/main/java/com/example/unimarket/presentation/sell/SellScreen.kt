@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -84,6 +85,7 @@ import com.example.unimarket.presentation.theme.SlateGrey
 import com.example.unimarket.presentation.theme.SurfaceLightBlue
 import com.example.unimarket.presentation.theme.TextDarkBlack
 import com.example.unimarket.presentation.theme.TextGray
+import androidx.compose.ui.text.input.KeyboardType
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -107,6 +109,9 @@ fun SellScreen(
         )
     }
     var description by remember(initialProduct) { mutableStateOf(initialProduct?.description ?: "") }
+    var quantity by remember(initialProduct) {
+        mutableStateOf(initialProduct?.quantityAvailable?.toString() ?: "")
+    }
     var isNegotiable by remember(initialProduct) {
         mutableStateOf(
             initialProduct?.isNegotiable ?: false
@@ -162,9 +167,12 @@ fun SellScreen(
             title = ""
             price = ""
             description = ""
+            quantity = ""
             category = "Select a category"
             condition = "New"
             isNegotiable = false
+            specCounter = 0
+            specifications.clear()
             selectedDeliveryMethods.clear()
             viewModel.clearMessages()
         }
@@ -183,6 +191,7 @@ fun SellScreen(
         title != initialProduct.name ||
         price != initialProduct.price.toString() ||
         description != initialProduct.description ||
+        quantity != initialProduct.quantityAvailable.toString() ||
         category != (initialProduct.categoryId.takeIf { it.isNotBlank() } ?: "Select a category") ||
         condition != initialProduct.condition ||
         isNegotiable != initialProduct.isNegotiable ||
@@ -190,7 +199,7 @@ fun SellScreen(
         currentUris != initialUris ||
         specifications.associate { it.key to it.value } != initialProduct.specifications
     } else if (initialProduct == null) {
-        title.isNotBlank() || price.isNotBlank() || description.isNotBlank() || uiState.selectedImageUris.isNotEmpty() || specifications.isNotEmpty() || selectedDeliveryMethods.isNotEmpty()
+        title.isNotBlank() || price.isNotBlank() || description.isNotBlank() || quantity.isNotBlank() || uiState.selectedImageUris.isNotEmpty() || specifications.isNotEmpty() || selectedDeliveryMethods.isNotEmpty()
     } else {
         false
     }
@@ -227,6 +236,7 @@ fun SellScreen(
                         description = description,
                         categoryId = category,
                         condition = condition,
+                        quantityStr = quantity,
                         isNegotiable = isNegotiable,
                         specifications = specifications.filter { it.key.isNotBlank() }.associate { it.key to it.value },
                         deliveryMethodsAvailable = selectedDeliveryMethods.toList(),
@@ -294,6 +304,7 @@ fun SellScreen(
                             description,
                             category,
                             condition,
+                            quantity,
                             isNegotiable,
                             specifications.filter { it.key.isNotBlank() }.associate { it.key to it.value },
                             selectedDeliveryMethods.toList()
@@ -592,6 +603,22 @@ fun SellScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            Text(
+                "Quantity",
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                modifier = Modifier.padding(bottom = 8.dp),
+                color = TextDarkBlack
+            )
+            CustomTextField(
+                value = quantity,
+                onValueChange = { input -> quantity = input.filter(Char::isDigit) },
+                placeholder = "Enter available quantity",
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
             // Item Condition
             Text(
                 "Item Condition",
@@ -762,7 +789,8 @@ fun CustomTextField(
     value: String,
     onValueChange: (String) -> Unit,
     placeholder: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default
 ) {
     OutlinedTextField(
         value = value,
@@ -784,6 +812,7 @@ fun CustomTextField(
             unfocusedBorderColor = BorderLightBlue,
             focusedBorderColor = AppBlue,
         ),
+        keyboardOptions = keyboardOptions,
         singleLine = true,
         textStyle = androidx.compose.ui.text.TextStyle(fontSize = 16.sp, color = TextDarkBlack)
     )

@@ -53,6 +53,7 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                 "timeAgo" to product.timeAgo,
                 "isFavorite" to product.isFavorite,
                 "isNegotiable" to product.isNegotiable,
+                "quantityAvailable" to product.quantityAvailable,
                 "userId" to product.userId,
                 "specifications" to product.specifications,
                 "deliveryMethodsAvailable" to product.deliveryMethodsAvailable.map { it.toStorageValue() }
@@ -88,6 +89,7 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                 "timeAgo" to product.timeAgo,
                 "isFavorite" to product.isFavorite,
                 "isNegotiable" to product.isNegotiable,
+                "quantityAvailable" to product.quantityAvailable,
                 "userId" to product.userId,
                 "specifications" to product.specifications,
                 "deliveryMethodsAvailable" to product.deliveryMethodsAvailable.map { it.toStorageValue() }
@@ -116,6 +118,7 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                 timeAgo = doc.getString("timeAgo") ?: "",
                 isFavorite = doc.getBoolean("isFavorite") ?: false,
                 isNegotiable = doc.getBoolean("isNegotiable") ?: false,
+                quantityAvailable = doc.getLong("quantityAvailable")?.toInt()?.coerceAtLeast(1) ?: 1,
                 userId = doc.getString("userId") ?: "",
                 specifications = (doc.get("specifications") as? Map<String, String>) ?: emptyMap(),
                 deliveryMethodsAvailable = deliveryMethodsFromStorage(

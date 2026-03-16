@@ -1,18 +1,40 @@
 package com.example.unimarket.presentation.messages
 
-import com.example.unimarket.presentation.theme.*
-
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -22,72 +44,24 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
+import com.example.unimarket.domain.model.Conversation
+import com.example.unimarket.presentation.theme.DividerColor
+import com.example.unimarket.presentation.theme.MessageBg
+import com.example.unimarket.presentation.theme.ProfileAvatarBorder
 import com.example.unimarket.presentation.theme.SecondaryBlue
-
-data class MessagePreview(
-    val id: String,
-    val userName: String,
-    val userAvatarUrl: String,
-    val lastMessage: String,
-    val timestamp: String,
-    val isUnread: Boolean,
-    val itemName: String,
-    val itemImageUrl: String,
-    val itemIsSold: Boolean
-)
-
-val sampleMessages = listOf(
-    MessagePreview(
-        id = "1",
-        userName = "Alice Walker",
-        userAvatarUrl = "https://picsum.photos/seed/alice/100/100",
-        lastMessage = "Are you still selling the textbook?",
-        timestamp = "10:30 AM",
-        isUnread = true,
-        itemName = "Bio 101 Textbook",
-        itemImageUrl = "https://picsum.photos/seed/book/100/100",
-        itemIsSold = false
-    ),
-    MessagePreview(
-        id = "2",
-        userName = "Bob Smith",
-        userAvatarUrl = "https://picsum.photos/seed/bob/100/100",
-        lastMessage = "I can meet at the library around ...",
-        timestamp = "Yesterday",
-        isUnread = false,
-        itemName = "IKEA Desk Lamp",
-        itemImageUrl = "https://picsum.photos/seed/lamp/100/100",
-        itemIsSold = false
-    ),
-    MessagePreview(
-        id = "3",
-        userName = "Charlie Davis",
-        userAvatarUrl = "https://picsum.photos/seed/charlie/100/100",
-        lastMessage = "Thanks! The calculator works gr...",
-        timestamp = "Mon",
-        isUnread = false,
-        itemName = "TI-84 Graphing Calc",
-        itemImageUrl = "https://picsum.photos/seed/calc/100/100",
-        itemIsSold = true
-    ),
-    MessagePreview(
-        id = "4",
-        userName = "Diana Prince",
-        userAvatarUrl = "https://picsum.photos/seed/diana/100/100",
-        lastMessage = "Would you take 15.000 VND for it?",
-        timestamp = "Sun",
-        isUnread = false,
-        itemName = "Mini Fridge",
-        itemImageUrl = "https://picsum.photos/seed/fridge/100/100",
-        itemIsSold = false
-    )
-)
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MessagesScreen() {
-    var searchQuery by remember { mutableStateOf("") }
+fun MessagesScreen(
+    onConversationClick: (String) -> Unit,
+    viewModel: MessagesViewModel = hiltViewModel()
+) {
+    val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
         topBar = {
@@ -112,8 +86,8 @@ fun MessagesScreen() {
             // Search Bar
             Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                 OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
+                    value = uiState.searchQuery,
+                    onValueChange = viewModel::updateSearchQuery,
                     placeholder = { Text("Search conversations...", color = Color.Gray) },
                     leadingIcon = {
                         Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.Gray)
@@ -132,12 +106,43 @@ fun MessagesScreen() {
                 )
             }
 
-            // Messages List
-            LazyColumn(
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(sampleMessages) { message ->
-                    MessageItem(message)
+            when {
+                uiState.isLoading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+
+                uiState.errorMessage != null && uiState.filteredConversations.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(uiState.errorMessage ?: "Unable to load messages", color = Color.Gray)
+                    }
+                }
+
+                uiState.filteredConversations.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("No conversations yet", color = Color.Gray)
+                    }
+                }
+
+                else -> LazyColumn(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(uiState.filteredConversations, key = { it.id }) { conversation ->
+                        MessageItem(
+                            conversation = conversation,
+                            onClick = { onConversationClick(conversation.id) }
+                        )
+                    }
                 }
             }
         }
@@ -145,45 +150,44 @@ fun MessagesScreen() {
 }
 
 @Composable
-fun MessageItem(message: MessagePreview) {
+fun MessageItem(
+    conversation: Conversation,
+    onClick: () -> Unit
+) {
     Column {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .clickable(onClick = onClick)
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Unread indicator dot
             Box(
-                modifier = Modifier
-                    .width(12.dp)
-                    .padding(end = 4.dp),
+                modifier = Modifier.size(12.dp),
                 contentAlignment = Alignment.Center
             ) {
-                if (message.isUnread) {
+                if (conversation.lastMessage.isNotBlank()) {
                     Box(
                         modifier = Modifier
                             .size(8.dp)
                             .clip(CircleShape)
-                            .background(SecondaryBlue) // Soft blue dot
+                            .background(SecondaryBlue)
                     )
                 }
             }
 
-            // User Avatar
             Image(
-                painter = rememberAsyncImagePainter(model = message.userAvatarUrl),
-                contentDescription = message.userName,
+                painter = rememberAsyncImagePainter(model = conversation.otherUser.avatarUrl),
+                contentDescription = conversation.otherUser.name,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(54.dp)
                     .clip(CircleShape)
-                    .background(DividerColor) // Fallback bg
+                    .background(DividerColor)
             )
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // Text Content
             Column(modifier = Modifier.weight(1f)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -191,26 +195,24 @@ fun MessageItem(message: MessagePreview) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = message.userName,
+                        text = conversation.otherUser.name,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Medium,
                         fontSize = 16.sp
                     )
                     Text(
-                        text = message.timestamp,
+                        text = conversation.lastMessageAt.toConversationTime(),
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (message.isUnread) SecondaryBlue else Color.Gray,
-                        fontWeight = if (message.isUnread) FontWeight.Medium else FontWeight.Normal
+                        color = Color.Gray
                     )
                 }
 
                 Spacer(modifier = Modifier.height(2.dp))
 
                 Text(
-                    text = message.lastMessage,
+                    text = conversation.lastMessage.ifBlank { "Start a conversation" },
                     style = MaterialTheme.typography.bodyMedium,
-                    color = if (message.isUnread) Color.Black else Color.DarkGray,
-                    fontWeight = if (message.isUnread) FontWeight.Medium else FontWeight.Normal,
+                    color = Color.DarkGray,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -218,7 +220,7 @@ fun MessageItem(message: MessagePreview) {
                 Spacer(modifier = Modifier.height(2.dp))
 
                 Text(
-                    text = message.itemName,
+                    text = conversation.productName,
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.Gray,
                     maxLines = 1,
@@ -228,51 +230,31 @@ fun MessageItem(message: MessagePreview) {
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // Item Image / Sold badge
             Box(
                 modifier = Modifier.size(48.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Image(
-                    painter = rememberAsyncImagePainter(model = message.itemImageUrl),
-                    contentDescription = message.itemName,
+                    painter = rememberAsyncImagePainter(model = conversation.productImageUrl),
+                    contentDescription = conversation.productName,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxSize()
                         .clip(CircleShape)
-                        .background(ProfileAvatarBorder) // placeholder bg
+                        .background(ProfileAvatarBorder)
                 )
-
-                if (message.itemIsSold) {
-                    // Gray overlay for sold items
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.6f))
-                    )
-                    // "SOLD" badge
-                    Box(
-                        modifier = Modifier
-                            .background(Color.Gray, RoundedCornerShape(4.dp))
-                            .padding(horizontal = 4.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = "SOLD",
-                            color = Color.White,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontSize = 8.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
             }
         }
-        
+
         HorizontalDivider(
             color = ProfileAvatarBorder,
-            thickness = 1.dp,
-            modifier = Modifier.padding(start = 82.dp) // align with text content roughly
+            thickness = 1.dp
         )
     }
+}
+
+private fun Long.toConversationTime(): String {
+    if (this <= 0L) return ""
+    val format = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
+    return format.format(Date(this))
 }

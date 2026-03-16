@@ -75,6 +75,7 @@ class MyListingsViewModel @Inject constructor(
                         timeAgo = "Drafted recently",
                         isFavorite = false,
                         isNegotiable = draftItem.isNegotiable,
+                        quantityAvailable = draftItem.quantityAvailable ?: 1,
                         userId = draftItem.userId,
                         specifications = draftItem.specifications,
                         deliveryMethodsAvailable = draftItem.deliveryMethodsAvailable
