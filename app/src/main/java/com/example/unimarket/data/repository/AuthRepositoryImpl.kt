@@ -7,6 +7,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.userProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import com.google.firebase.firestore.QuerySnapshot
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
@@ -44,14 +45,13 @@ class AuthRepositoryImpl @Inject constructor(
                 }
                 user.updateProfile(profileUpdates).await()
 
-                firestore.collection("users").document(user.uid).set(
-                    mapOf(
-                        "displayName" to name,
-                        "email" to email,
-                        "studentId" to studentId,
-                        "photoUrl" to profileUpdates.photoUri?.toString().orEmpty()
-                    )
-                ).await()
+                syncUserDocument(
+                    userId = user.uid,
+                    name = name,
+                    email = email,
+                    studentId = studentId,
+                    photoUrl = profileUpdates.photoUri?.toString().orEmpty()
+                )
             }
             
             // Note: studentId could be saved to a Firestore collection here
@@ -80,6 +80,16 @@ class AuthRepositoryImpl @Inject constructor(
                 }
                 user.updateProfile(profileUpdates).await()
             }
+
+            if (user != null) {
+                syncUserDocument(
+                    userId = user.uid,
+                    name = user.displayName ?: user.email ?: "User",
+                    email = user.email,
+                    studentId = null,
+                    photoUrl = user.photoUrl?.toString().orEmpty()
+                )
+            }
             
             Result.success(Unit)
         } catch (e: Exception) {
@@ -100,12 +110,13 @@ class AuthRepositoryImpl @Inject constructor(
                     if (photoUrl != null) photoUri = photoUrl.toUri()
                 }
                 user.updateProfile(profileUpdates).await()
-                val updateMap = mutableMapOf<String, Any>()
-                if (name != null) updateMap["displayName"] = name
-                if (photoUrl != null) updateMap["photoUrl"] = photoUrl
-                if (updateMap.isNotEmpty()) {
-                    firestore.collection("users").document(user.uid).update(updateMap).await()
-                }
+                syncUserDocument(
+                    userId = user.uid,
+                    name = name ?: user.displayName ?: user.email ?: "User",
+                    email = user.email,
+                    studentId = null,
+                    photoUrl = photoUrl ?: user.photoUrl?.toString().orEmpty()
+                )
                 Result.success(Unit)
             } else {
                 Result.failure(Exception("No user logged in"))
@@ -199,6 +210,33 @@ class AuthRepositoryImpl @Inject constructor(
 
     private fun addressCollection(userId: String) =
         firestore.collection("users").document(userId).collection("addresses")
+
+    private suspend fun syncUserDocument(
+        userId: String,
+        name: String,
+        email: String?,
+        studentId: String?,
+        photoUrl: String
+    ) {
+        val updateMap = mutableMapOf<String, Any>(
+            "displayName" to name,
+            "name" to name,
+            "photoUrl" to photoUrl,
+            "avatarUrl" to photoUrl
+        )
+
+        if (!email.isNullOrBlank()) {
+            updateMap["email"] = email
+        }
+        if (!studentId.isNullOrBlank()) {
+            updateMap["studentId"] = studentId
+        }
+
+        firestore.collection("users")
+            .document(userId)
+            .set(updateMap, SetOptions.merge())
+            .await()
+    }
 
     private fun QuerySnapshot.toAddresses(): List<UserAddress> {
         return documents.map { doc ->

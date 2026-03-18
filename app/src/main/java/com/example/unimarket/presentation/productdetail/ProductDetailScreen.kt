@@ -49,6 +49,7 @@ fun ProductDetailScreen(
     productId: String?,
     onBackClick: () -> Unit,
     onConversationOpen: (String) -> Unit = {},
+    onSellerClick: (String, String) -> Unit = { _, _ -> },
     onBuyNowClick: (String, Int) -> Unit = { _, _ -> },
     viewModel: ProductDetailViewModel = hiltViewModel()
 ) {
@@ -456,6 +457,7 @@ fun ProductDetailScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clickable { onSellerClick(product.userId, product.id) }
                     .padding(20.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {

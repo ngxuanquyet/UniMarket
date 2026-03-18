@@ -30,6 +30,16 @@ class MessagesViewModel @Inject constructor(
         observeConversations()
     }
 
+    fun refresh() {
+        _uiState.update {
+            it.copy(
+                isLoading = true,
+                errorMessage = null
+            )
+        }
+        observeConversations()
+    }
+
     fun updateSearchQuery(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
     }

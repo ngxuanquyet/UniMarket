@@ -1,5 +1,6 @@
 package com.example.unimarket.presentation.messages
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,9 +42,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.rememberAsyncImagePainter
 import com.example.unimarket.domain.model.ChatMessage
 import com.example.unimarket.presentation.theme.AppBlue
 import java.text.SimpleDateFormat
@@ -77,17 +80,34 @@ fun ChatDetailScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text(
-                            text = uiState.conversation?.otherUser?.name ?: "Chat",
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        uiState.conversation?.productName?.takeIf { it.isNotBlank() }?.let { productName ->
-                            Text(
-                                text = productName,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color.Gray
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        uiState.conversation?.otherUser?.let { otherUser ->
+                            Image(
+                                painter = rememberAsyncImagePainter(model = otherUser.avatarUrl),
+                                contentDescription = otherUser.name,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFE5E7EB))
                             )
+                            Spacer(modifier = Modifier.size(12.dp))
+                        }
+
+                        Column {
+                            Text(
+                                text = uiState.conversation?.otherUser?.name ?: "Chat",
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            uiState.conversation?.productName?.takeIf { it.isNotBlank() }?.let { productName ->
+                                Text(
+                                    text = productName,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color.Gray
+                                )
+                            }
                         }
                     }
                 },

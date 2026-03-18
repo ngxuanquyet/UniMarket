@@ -1,5 +1,4 @@
 package com.example.unimarket.data.repository
-
 import com.example.unimarket.domain.model.ChatMessage
 import com.example.unimarket.domain.model.ChatUser
 import com.example.unimarket.domain.model.Conversation
@@ -10,10 +9,13 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 import java.util.Date
 import javax.inject.Inject
 
@@ -32,10 +34,12 @@ class FirebaseChatRepositoryImpl @Inject constructor(
                     return@addSnapshotListener
                 }
 
-                val conversations = snapshot?.documents?.mapNotNull { doc ->
-                    mapConversation(doc, currentUserId)
-                }.orEmpty()
-                trySend(conversations)
+                launch {
+                    val conversations = snapshot?.documents?.mapNotNull { doc ->
+                        mapConversation(doc, currentUserId)
+                    }.orEmpty()
+                    trySend(conversations)
+                }
             }
 
         awaitClose { registration.remove() }
@@ -72,12 +76,16 @@ class FirebaseChatRepositoryImpl @Inject constructor(
             val buyerInfo = readUserInfoOrFallback(
                 userId = buyer.uid,
                 fallbackName = buyer.displayName ?: "Buyer",
-                fallbackAvatarUrl = buyer.photoUrl?.toString().orEmpty()
+                fallbackAvatarUrl = buyer.photoUrl?.toString().orEmpty().ifBlank {
+                    buildAvatarFallbackUrl(buyer.displayName ?: "Buyer")
+                }
             )
             val sellerInfo = readUserInfoOrFallback(
                 userId = product.userId,
                 fallbackName = product.sellerName.ifBlank { "Seller" },
-                fallbackAvatarUrl = ""
+                fallbackAvatarUrl = getAvatarUrlByUserId(product.userId).ifBlank {
+                    buildAvatarFallbackUrl(product.sellerName.ifBlank { "Seller" })
+                }
             )
 
             val createdAt = Date()
@@ -119,7 +127,9 @@ class FirebaseChatRepositoryImpl @Inject constructor(
             val senderInfo = readUserInfoOrFallback(
                 userId = currentUser.uid,
                 fallbackName = currentUser.displayName ?: "User",
-                fallbackAvatarUrl = currentUser.photoUrl?.toString().orEmpty()
+                fallbackAvatarUrl = currentUser.photoUrl?.toString().orEmpty().ifBlank {
+                    buildAvatarFallbackUrl(currentUser.displayName ?: "User")
+                }
             )
             val messageRef = messagesCollection(conversationId).document()
             val sentAt = Date()
@@ -159,31 +169,52 @@ class FirebaseChatRepositoryImpl @Inject constructor(
     ): ChatUser {
         return try {
             val userDoc = firestore.collection(USERS_COLLECTION).document(userId).get().await()
+            val resolvedName = userDoc.getString("name").orEmpty()
+                .ifBlank { userDoc.getString("displayName").orEmpty() }
+                .ifBlank { fallbackName }
+            val resolvedAvatarUrl = userDoc.getString("avatarUrl").orEmpty()
+                .ifBlank { userDoc.getString("photoUrl").orEmpty() }
+                .ifBlank { fallbackAvatarUrl }
+                .ifBlank { buildAvatarFallbackUrl(resolvedName) }
             ChatUser(
                 id = userId,
-                name = userDoc.getString("displayName").orEmpty().ifBlank { fallbackName },
-                avatarUrl = userDoc.getString("photoUrl").orEmpty().ifBlank { fallbackAvatarUrl }
+                name = resolvedName,
+                avatarUrl = resolvedAvatarUrl
             )
         } catch (_: Exception) {
             ChatUser(
                 id = userId,
                 name = fallbackName,
-                avatarUrl = fallbackAvatarUrl
+                avatarUrl = fallbackAvatarUrl.ifBlank { buildAvatarFallbackUrl(fallbackName) }
             )
         }
     }
 
-    private fun mapConversation(doc: DocumentSnapshot, currentUserId: String): Conversation? {
+    private suspend fun getAvatarUrlByUserId(userId: String): String {
+        return try {
+            val userDoc = firestore.collection(USERS_COLLECTION).document(userId).get().await()
+            userDoc.getString("avatarUrl").orEmpty()
+                .ifBlank { userDoc.getString("photoUrl").orEmpty() }
+        } catch (_: Exception) {
+            ""
+        }
+    }
+
+    private suspend fun mapConversation(doc: DocumentSnapshot, currentUserId: String): Conversation? {
         val participantIds = (doc.get("participantIds") as? List<*>)?.mapNotNull { it as? String }.orEmpty()
         if (participantIds.isEmpty()) return null
 
         val otherUserId = participantIds.firstOrNull { it != currentUserId } ?: return null
         val participants = doc.get("participants") as? Map<*, *>
         val otherUserMap = participants?.get(otherUserId) as? Map<*, *>
-        val otherUser = ChatUser(
-            id = otherUserId,
-            name = otherUserMap?.get("name") as? String ?: "User",
-            avatarUrl = otherUserMap?.get("avatarUrl") as? String ?: ""
+        val otherUserName = (otherUserMap?.get("name") as? String).orEmpty().ifBlank { "User" }
+        val otherUserAvatarUrl = (otherUserMap?.get("avatarUrl") as? String).orEmpty()
+        val otherUser = readUserInfoOrFallback(
+            userId = otherUserId,
+            fallbackName = otherUserName,
+            fallbackAvatarUrl = otherUserAvatarUrl.ifBlank {
+                buildAvatarFallbackUrl(otherUserName)
+            }
         )
 
         return Conversation(
@@ -219,6 +250,11 @@ class FirebaseChatRepositoryImpl @Inject constructor(
 
     private fun buildConversationId(productId: String, buyerId: String, sellerId: String): String {
         return "${productId}_${buyerId}_${sellerId}"
+    }
+
+    private fun buildAvatarFallbackUrl(name: String): String {
+        val encodedName = URLEncoder.encode(name.ifBlank { "User" }, StandardCharsets.UTF_8.toString())
+        return "https://ui-avatars.com/api/?name=$encodedName&background=random"
     }
 
     private companion object {

@@ -32,8 +32,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,12 +45,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.rememberAsyncImagePainter
 import com.example.unimarket.domain.model.Conversation
 import com.example.unimarket.presentation.theme.DividerColor
 import com.example.unimarket.presentation.theme.MessageBg
 import com.example.unimarket.presentation.theme.ProfileAvatarBorder
 import com.example.unimarket.presentation.theme.SecondaryBlue
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -61,7 +64,7 @@ fun MessagesScreen(
     onConversationClick: (String) -> Unit,
     viewModel: MessagesViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -78,70 +81,75 @@ fun MessagesScreen(
         },
         containerColor = Color.White
     ) { paddingValues ->
-        Column(
+        PullToRefreshBox(
+            isRefreshing = uiState.isLoading,
+            onRefresh = viewModel::refresh,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Search Bar
-            Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                OutlinedTextField(
-                    value = uiState.searchQuery,
-                    onValueChange = viewModel::updateSearchQuery,
-                    placeholder = { Text("Search conversations...", color = Color.Gray) },
-                    leadingIcon = {
-                        Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.Gray)
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedContainerColor = MessageBg,
-                        focusedContainerColor = MessageBg,
-                        unfocusedBorderColor = Color.Transparent,
-                        focusedBorderColor = Color.Transparent
-                    ),
-                    singleLine = true
-                )
-            }
-
-            when {
-                uiState.isLoading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
+            Column(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    OutlinedTextField(
+                        value = uiState.searchQuery,
+                        onValueChange = viewModel::updateSearchQuery,
+                        placeholder = { Text("Search conversations...", color = Color.Gray) },
+                        leadingIcon = {
+                            Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.Gray)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            unfocusedContainerColor = MessageBg,
+                            focusedContainerColor = MessageBg,
+                            unfocusedBorderColor = Color.Transparent,
+                            focusedBorderColor = Color.Transparent
+                        ),
+                        singleLine = true
+                    )
                 }
 
-                uiState.errorMessage != null && uiState.filteredConversations.isEmpty() -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(uiState.errorMessage ?: "Unable to load messages", color = Color.Gray)
+                when {
+                    uiState.isLoading && uiState.conversations.isEmpty() -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
                     }
-                }
 
-                uiState.filteredConversations.isEmpty() -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("No conversations yet", color = Color.Gray)
+                    uiState.errorMessage != null && uiState.filteredConversations.isEmpty() -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(uiState.errorMessage ?: "Unable to load messages", color = Color.Gray)
+                        }
                     }
-                }
 
-                else -> LazyColumn(
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    items(uiState.filteredConversations, key = { it.id }) { conversation ->
-                        MessageItem(
-                            conversation = conversation,
-                            onClick = { onConversationClick(conversation.id) }
-                        )
+                    uiState.filteredConversations.isEmpty() -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("No conversations yet", color = Color.Gray)
+                        }
+                    }
+
+                    else -> LazyColumn(
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        items(uiState.filteredConversations, key = { it.id }) { conversation ->
+                            MessageItem(
+                                conversation = conversation,
+                                onClick = { onConversationClick(conversation.id) }
+                            )
+                        }
                     }
                 }
             }
@@ -177,7 +185,11 @@ fun MessageItem(
             }
 
             Image(
-                painter = rememberAsyncImagePainter(model = conversation.otherUser.avatarUrl),
+                painter = rememberAsyncImagePainter(
+                    model = conversation.otherUser.avatarUrl.ifBlank {
+                        conversation.otherUser.name.toAvatarFallbackUrl()
+                    }
+                ),
                 contentDescription = conversation.otherUser.name,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
@@ -251,6 +263,11 @@ fun MessageItem(
             thickness = 1.dp
         )
     }
+}
+
+private fun String.toAvatarFallbackUrl(): String {
+    val encodedName = URLEncoder.encode(ifBlank { "User" }, StandardCharsets.UTF_8.toString())
+    return "https://ui-avatars.com/api/?name=$encodedName&background=random"
 }
 
 private fun Long.toConversationTime(): String {

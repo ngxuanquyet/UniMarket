@@ -13,6 +13,7 @@ import com.example.unimarket.presentation.messages.ChatDetailScreen
 import com.example.unimarket.presentation.messages.MessagesScreen
 import com.example.unimarket.presentation.profile.ProfileScreen
 import com.example.unimarket.presentation.sell.SellScreen
+import com.example.unimarket.presentation.sellerprofile.SellerProfileScreen
 
 @Composable
 fun MainNavGraph(navController: NavHostController, rootNavController: NavHostController) {
@@ -91,8 +92,36 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
                 onConversationOpen = { conversationId ->
                     navController.navigate(Screen.ChatDetail.route + "/$conversationId")
                 },
+                onSellerClick = { sellerId, currentProductId ->
+                    navController.navigate(
+                        Screen.SellerProfile.route + "/$sellerId?productId=$currentProductId"
+                    )
+                },
                 onBuyNowClick = { pId, quantity ->
                     navController.navigate(Screen.Checkout.route + "/$pId?quantity=$quantity")
+                }
+            )
+        }
+        composable(
+            route = Screen.SellerProfile.route + "/{sellerId}?productId={productId}",
+            arguments = listOf(
+                androidx.navigation.navArgument("sellerId") {
+                    type = androidx.navigation.NavType.StringType
+                },
+                androidx.navigation.navArgument("productId") {
+                    type = androidx.navigation.NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) {
+            SellerProfileScreen(
+                onBackClick = { navController.popBackStack() },
+                onConversationOpen = { conversationId ->
+                    navController.navigate(Screen.ChatDetail.route + "/$conversationId")
+                },
+                onProductClick = { selectedProductId ->
+                    navController.navigate(Screen.ProductDetail.route + "/$selectedProductId")
                 }
             )
         }
