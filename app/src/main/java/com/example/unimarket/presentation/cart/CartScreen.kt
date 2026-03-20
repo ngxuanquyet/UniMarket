@@ -31,11 +31,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
+import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.LottieConstants
+import com.airbnb.lottie.compose.animateLottieCompositionAsState
+import com.airbnb.lottie.compose.rememberLottieComposition
 import com.example.unimarket.domain.model.CartItem
 import com.example.unimarket.presentation.theme.AccentGreen
 import com.example.unimarket.presentation.theme.PrimaryYellowDark
 import com.example.unimarket.presentation.theme.SecondaryBlue
 import com.example.unimarket.presentation.util.formatVnd
+import com.example.unimarket.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,12 +82,13 @@ fun CartScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = Icons.Default.RemoveShoppingCart,
-                        contentDescription = null,
-                        tint = Color.Gray,
-                        modifier = Modifier.size(48.dp)
-                    )
+//                    Icon(
+//                        imageVector = Icons.Default.RemoveShoppingCart,
+//                        contentDescription = null,
+//                        tint = Color.Gray,
+//                        modifier = Modifier.size(48.dp)
+//                    )
+                    LoadingAminEmptyCart()
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         text = "Your Cart is empty",
@@ -125,8 +132,16 @@ fun CartScreen(
                 ) {
                     Column {
                         Text("North Campus Dorms, Building C", fontWeight = FontWeight.Bold)
-                        Text("Room 304", color = Color.Gray, style = MaterialTheme.typography.bodyMedium)
-                        Text("Contact: John Doe (+1 234-567-8900)", color = Color.Gray, style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            "Room 304",
+                            color = Color.Gray,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            "Contact: John Doe (+1 234-567-8900)",
+                            color = Color.Gray,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
                     }
                 }
 
@@ -201,20 +216,34 @@ fun CartScreen(
                             modifier = Modifier.padding(bottom = 12.dp)
                         )
 
-                        SummaryRow("Subtotal (${uiState.cartItems.size} items)", formatVnd(uiState.subtotal))
+                        SummaryRow(
+                            "Subtotal (${uiState.cartItems.size} items)",
+                            formatVnd(uiState.subtotal)
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
                         SummaryRow("Delivery Fee", formatVnd(uiState.deliveryFee))
                         Spacer(modifier = Modifier.height(8.dp))
-                        SummaryRow("Discount applied", "-${formatVnd(uiState.discount)}", AccentGreen)
+                        SummaryRow(
+                            "Discount applied",
+                            "-${formatVnd(uiState.discount)}",
+                            AccentGreen
+                        )
 
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = DividerColor)
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 12.dp),
+                            color = DividerColor
+                        )
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Total", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                "Total",
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium
+                            )
                             Text(
                                 formatVnd(uiState.total),
                                 fontWeight = FontWeight.Bold,
@@ -257,9 +286,9 @@ fun CartItemRow(
                     .clip(RoundedCornerShape(8.dp))
                     .background(ProfileAvatarBorder)
             )
-            
+
             Spacer(modifier = Modifier.width(12.dp))
-            
+
             Column(modifier = Modifier.weight(1f)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -275,23 +304,30 @@ fun CartItemRow(
                     )
                     IconButton(
                         onClick = onRemove,
-                        modifier = Modifier.size(24.dp).padding(start = 8.dp)
+                        modifier = Modifier
+                            .size(24.dp)
+                            .padding(start = 8.dp)
                     ) {
-                        Icon(Icons.Default.Close, contentDescription = "Remove", tint = Color.Gray, modifier = Modifier.size(16.dp))
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Remove",
+                            tint = Color.Gray,
+                            modifier = Modifier.size(16.dp)
+                        )
                     }
                 }
-                
+
                 Spacer(modifier = Modifier.height(8.dp))
-                
+
                 Text(
                     text = formatVnd(item.product.price),
                     style = MaterialTheme.typography.titleMedium,
                     color = PrimaryYellowDark,
                     fontWeight = FontWeight.Bold
                 )
-                
+
                 Spacer(modifier = Modifier.height(8.dp))
-                
+
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
@@ -301,7 +337,9 @@ fun CartItemRow(
                     Icon(
                         imageVector = Icons.Default.Remove,
                         contentDescription = "Decrease",
-                        modifier = Modifier.size(16.dp).clickable { onDecrease() }
+                        modifier = Modifier
+                            .size(16.dp)
+                            .clickable { onDecrease() }
                     )
                     Text(
                         text = item.quantity.toString(),
@@ -311,7 +349,9 @@ fun CartItemRow(
                     Icon(
                         imageVector = Icons.Default.Add,
                         contentDescription = "Increase",
-                        modifier = Modifier.size(16.dp).clickable { onIncrease() }
+                        modifier = Modifier
+                            .size(16.dp)
+                            .clickable { onIncrease() }
                     )
                 }
             }
@@ -338,11 +378,25 @@ fun SectionCard(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(20.dp))
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(20.dp)
+                )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(title, fontWeight = FontWeight.Medium, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                Text(
+                    title,
+                    fontWeight = FontWeight.Medium,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f)
+                )
                 if (actionText.isNotEmpty()) {
-                    Text(actionText, color = SecondaryBlue, style = MaterialTheme.typography.labelLarge, modifier = Modifier.clickable { })
+                    Text(
+                        actionText,
+                        color = SecondaryBlue,
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.clickable { })
                 }
             }
             Spacer(modifier = Modifier.height(12.dp))
@@ -358,7 +412,11 @@ fun SummaryRow(label: String, value: String, valueColor: Color = Color.Black) {
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(label, color = Color.Gray)
-        Text(value, color = valueColor, fontWeight = if (valueColor != Color.Black) FontWeight.Medium else FontWeight.Normal)
+        Text(
+            value,
+            color = valueColor,
+            fontWeight = if (valueColor != Color.Black) FontWeight.Medium else FontWeight.Normal
+        )
     }
 }
 
@@ -376,7 +434,11 @@ fun CartBottomBar(total: Double, onPlaceOrderClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
-                Text("Total Payment", color = Color.Gray, style = MaterialTheme.typography.labelMedium)
+                Text(
+                    "Total Payment",
+                    color = Color.Gray,
+                    style = MaterialTheme.typography.labelMedium
+                )
                 Text(
                     text = formatVnd(total),
                     style = MaterialTheme.typography.titleLarge,
@@ -384,7 +446,7 @@ fun CartBottomBar(total: Double, onPlaceOrderClick: () -> Unit) {
                     fontWeight = FontWeight.Bold
                 )
             }
-            
+
             Button(
                 onClick = onPlaceOrderClick,
                 colors = ButtonDefaults.buttonColors(containerColor = PrimaryYellowDark),
@@ -402,4 +464,22 @@ fun CartBottomBar(total: Double, onPlaceOrderClick: () -> Unit) {
             }
         }
     }
+}
+
+@Composable
+fun LoadingAminEmptyCart() {
+    val composition by rememberLottieComposition(
+        LottieCompositionSpec.RawRes(R.raw.cart_empty)
+    )
+
+    val progress by animateLottieCompositionAsState(
+        composition,
+        iterations = LottieConstants.IterateForever
+    )
+
+    LottieAnimation(
+        composition = composition,
+        progress = {progress}
+    )
+
 }

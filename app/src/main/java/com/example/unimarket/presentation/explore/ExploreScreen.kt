@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
@@ -48,6 +49,9 @@ fun ExploreScreen(
     viewModel: ExploreViewModel = androidx.hilt.navigation.compose.hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var showFilterSheet by remember { mutableStateOf(false) }
+    val hasActiveFilters = uiState.selectedPriceFilter != ExplorePriceFilter.ALL ||
+        uiState.selectedPriceSort != ExplorePriceSort.RECOMMENDED
 
     Scaffold(
         topBar = {
@@ -109,6 +113,26 @@ fun ExploreScreen(
                         placeholder = { Text("Find second-hand items", color = Color.Gray) },
                         leadingIcon = {
                             Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.Gray)
+                        },
+                        trailingIcon = {
+                            IconButton(
+                                onClick = { showFilterSheet = true },
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (hasActiveFilters) {
+                                            SecondaryBlue.copy(alpha = 0.12f)
+                                        } else {
+                                            Color.Transparent
+                                        }
+                                    )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.FilterList,
+                                    contentDescription = "Filter products",
+                                    tint = if (hasActiveFilters) SecondaryBlue else Color.Gray
+                                )
+                            }
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -212,6 +236,112 @@ fun ExploreScreen(
                 }
             }
         }
+    }
+
+    if (showFilterSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showFilterSheet = false },
+            containerColor = Color.White
+        ) {
+            ExploreFilterSheet(
+                uiState = uiState,
+                onPriceFilterSelected = viewModel::updateSelectedPriceFilter,
+                onPriceSortSelected = viewModel::updateSelectedPriceSort,
+                onDismiss = { showFilterSheet = false }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ExploreFilterSheet(
+    uiState: ExploreUiState,
+    onPriceFilterSelected: (ExplorePriceFilter) -> Unit,
+    onPriceSortSelected: (ExplorePriceSort) -> Unit,
+    onDismiss: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp)
+            .navigationBarsPadding(),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
+    ) {
+        Text(
+            text = "Filter products",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold
+        )
+
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(
+                text = "Price range",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(ExplorePriceFilter.entries.toList()) { priceFilter ->
+                    val isSelected = priceFilter == uiState.selectedPriceFilter
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(if (isSelected) PrimaryYellowDark else MessageBg)
+                            .clickable { onPriceFilterSelected(priceFilter) }
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = priceFilter.label,
+                            color = if (isSelected) Color.White else Color.DarkGray,
+                            fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+            }
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(
+                text = "Sort by price",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            ExplorePriceSort.entries.forEach { sortOption ->
+                val isSelected = sortOption == uiState.selectedPriceSort
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable { onPriceSortSelected(sortOption) },
+                    color = if (isSelected) SecondaryBlue.copy(alpha = 0.12f) else MessageBg,
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text(
+                        text = sortOption.label,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = if (isSelected) SecondaryBlue else Color.DarkGray,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                    )
+                }
+            }
+        }
+
+        Button(
+            onClick = onDismiss,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = SecondaryBlue),
+            shape = RoundedCornerShape(18.dp)
+        ) {
+            Text("Done", color = Color.White, fontWeight = FontWeight.SemiBold)
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
     }
 }
 

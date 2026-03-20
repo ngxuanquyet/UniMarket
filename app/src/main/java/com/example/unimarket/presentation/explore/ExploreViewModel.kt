@@ -2,6 +2,8 @@ package com.example.unimarket.presentation.explore
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.unimarket.domain.model.Category
+import com.example.unimarket.domain.model.Product
 import com.example.unimarket.domain.usecase.explore.GetAllProductsUseCase
 import com.example.unimarket.domain.usecase.product.GetCategoriesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -44,14 +46,11 @@ class ExploreViewModel @Inject constructor(
                 val categories = getCategoriesUseCase().first()
                 val currentState = _uiState.value
 
-                _uiState.value = currentState.copy(
-                    products = products,
-                    categories = categories,
-                    isLoading = false,
-                    filteredProducts = filterProducts(
-                        products,
-                        currentState.searchQuery,
-                        currentState.selectedCategory
+                _uiState.value = updateFilteredProducts(
+                    currentState.copy(
+                        products = products,
+                        categories = categories,
+                        isLoading = false
                     )
                 )
             } catch (error: Exception) {
@@ -65,26 +64,71 @@ class ExploreViewModel @Inject constructor(
 
     fun updateSearchQuery(query: String) {
         val currentState = _uiState.value
-        _uiState.value = currentState.copy(
-            searchQuery = query,
-            filteredProducts = filterProducts(currentState.products, query, currentState.selectedCategory)
-        )
+        _uiState.value = updateFilteredProducts(currentState.copy(searchQuery = query))
     }
 
     fun updateSelectedCategory(categoryName: String) {
         val currentState = _uiState.value
-        _uiState.value = currentState.copy(
-            selectedCategory = categoryName,
-            filteredProducts = filterProducts(currentState.products, currentState.searchQuery, categoryName)
+        _uiState.value = updateFilteredProducts(currentState.copy(selectedCategory = categoryName))
+    }
+
+    fun updateSelectedPriceFilter(priceFilter: ExplorePriceFilter) {
+        val currentState = _uiState.value
+        _uiState.value = updateFilteredProducts(currentState.copy(selectedPriceFilter = priceFilter))
+    }
+
+    fun updateSelectedPriceSort(priceSort: ExplorePriceSort) {
+        val currentState = _uiState.value
+        _uiState.value = updateFilteredProducts(currentState.copy(selectedPriceSort = priceSort))
+    }
+
+    private fun updateFilteredProducts(state: ExploreUiState): ExploreUiState {
+        return state.copy(
+            filteredProducts = filterProducts(
+                products = state.products,
+                query = state.searchQuery,
+                categoryName = state.selectedCategory,
+                categories = state.categories,
+                priceFilter = state.selectedPriceFilter,
+                priceSort = state.selectedPriceSort
+            )
         )
     }
 
-    private fun filterProducts(products: List<com.example.unimarket.domain.model.Product>, query: String, categoryName: String): List<com.example.unimarket.domain.model.Product> {
-        return products.filter { product ->
-            val matchesQuery = query.isBlank() || product.name.contains(query, ignoreCase = true)
-            // Assuming categoryName maps to category id for simplicity in this dataset, or if 'All Items' don't filter
-            val matchesCategory = categoryName == "All Items" || categoryName == "All" || product.categoryId.equals(categoryName, ignoreCase = true) 
-            matchesQuery && matchesCategory
+    private fun filterProducts(
+        products: List<Product>,
+        query: String,
+        categoryName: String,
+        categories: List<Category>,
+        priceFilter: ExplorePriceFilter,
+        priceSort: ExplorePriceSort
+    ): List<Product> {
+        val selectedCategory = categories.firstOrNull { category ->
+            category.name.equals(categoryName, ignoreCase = true) ||
+                category.id.equals(categoryName, ignoreCase = true)
         }
+
+        val filteredProducts = products.filter { product ->
+            val matchesQuery = query.isBlank() || product.name.contains(query, ignoreCase = true)
+            val matchesCategory = isAllCategory(categoryName) ||
+                product.categoryId.equals(categoryName, ignoreCase = true) ||
+                selectedCategory?.let { category ->
+                    product.categoryId.equals(category.id, ignoreCase = true) ||
+                        product.categoryId.equals(category.name, ignoreCase = true)
+                } == true
+            val matchesPrice = priceFilter.matches(product.price)
+            matchesQuery && matchesCategory && matchesPrice
+        }
+
+        return when (priceSort) {
+            ExplorePriceSort.RECOMMENDED -> filteredProducts
+            ExplorePriceSort.PRICE_LOW_TO_HIGH -> filteredProducts.sortedBy { it.price }
+            ExplorePriceSort.PRICE_HIGH_TO_LOW -> filteredProducts.sortedByDescending { it.price }
+        }
+    }
+
+    private fun isAllCategory(categoryName: String): Boolean {
+        return categoryName.equals("All Items", ignoreCase = true) ||
+            categoryName.equals("All", ignoreCase = true)
     }
 }

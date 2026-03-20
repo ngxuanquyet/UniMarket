@@ -3,6 +3,7 @@ package com.example.unimarket.presentation.main
 import com.example.unimarket.presentation.theme.*
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -37,7 +38,8 @@ fun MainScreen(rootNavController: NavHostController) {
     val tabNavController = rememberNavController()
 
     Scaffold(
-        bottomBar = { BottomNavigationBar(navController = tabNavController) }
+        bottomBar = { BottomNavigationBar(navController = tabNavController) },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { innerPadding ->
         Box(modifier = Modifier.padding(innerPadding)) {
             MainNavGraph(navController = tabNavController, rootNavController = rootNavController)
