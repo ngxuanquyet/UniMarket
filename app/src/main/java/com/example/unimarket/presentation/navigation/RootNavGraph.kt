@@ -17,7 +17,11 @@ import com.example.unimarket.presentation.auth.state.AuthState
 import com.example.unimarket.presentation.main.MainScreen
 
 @Composable
-fun RootNavGraph(navController: NavHostController) {
+fun RootNavGraph(
+    navController: NavHostController,
+    pendingConversationId: String? = null,
+    onConversationIntentConsumed: () -> Unit = {}
+) {
     val sessionViewModel: SessionViewModel = hiltViewModel()
     val sessionState = sessionViewModel.uiState.collectAsStateWithLifecycle()
     val currentBackStackEntry = navController.currentBackStackEntryAsState()
@@ -83,7 +87,11 @@ fun RootNavGraph(navController: NavHostController) {
         }
 
         composable(route = Screen.MainGraph.route) {
-            MainScreen(rootNavController = navController)
+            MainScreen(
+                rootNavController = navController,
+                pendingConversationId = pendingConversationId,
+                onConversationIntentConsumed = onConversationIntentConsumed
+            )
         }
     }
 }

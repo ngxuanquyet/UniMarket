@@ -22,6 +22,7 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -38,10 +39,22 @@ import com.example.unimarket.presentation.navigation.SessionViewModel
 import com.example.unimarket.presentation.theme.PrimaryYellowDark
 
 @Composable
-fun MainScreen(rootNavController: NavHostController) {
+fun MainScreen(
+    rootNavController: NavHostController,
+    pendingConversationId: String? = null,
+    onConversationIntentConsumed: () -> Unit = {}
+) {
     val tabNavController = rememberNavController()
     val sessionViewModel: SessionViewModel = hiltViewModel()
     val sessionState by sessionViewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(pendingConversationId) {
+        val conversationId = pendingConversationId ?: return@LaunchedEffect
+        tabNavController.navigate(Screen.ChatDetail.route + "/$conversationId") {
+            launchSingleTop = true
+        }
+        onConversationIntentConsumed()
+    }
 
     Scaffold(
         bottomBar = {

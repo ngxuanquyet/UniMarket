@@ -20,6 +20,11 @@ android {
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField(
+            "String",
+            "NOTIFICATION_SERVER_BASE_URL",
+            "\"https://backend-notification-unimarket.onrender.com/\""
+        )
     }
 
     buildTypes {
@@ -39,6 +44,7 @@ android {
         jvmTarget = "11"
     }
     buildFeatures {
+        buildConfig = true
         compose = true
     }
 }

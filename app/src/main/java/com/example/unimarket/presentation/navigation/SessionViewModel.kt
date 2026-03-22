@@ -2,6 +2,7 @@ package com.example.unimarket.presentation.navigation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.unimarket.data.notification.FcmTokenManager
 import com.example.unimarket.domain.usecase.auth.GetCachedUserUseCase
 import com.example.unimarket.domain.usecase.auth.GetCurrentUserUseCase
 import com.example.unimarket.domain.usecase.auth.ObserveCachedUserUseCase
@@ -29,7 +30,8 @@ class SessionViewModel @Inject constructor(
     private val getCurrentUserUseCase: GetCurrentUserUseCase,
     observeCachedUserUseCase: ObserveCachedUserUseCase,
     private val refreshCurrentUserProfileUseCase: RefreshCurrentUserProfileUseCase,
-    private val observeConversationsUseCase: ObserveConversationsUseCase
+    private val observeConversationsUseCase: ObserveConversationsUseCase,
+    private val fcmTokenManager: FcmTokenManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
@@ -43,6 +45,7 @@ class SessionViewModel @Inject constructor(
     init {
         if (getCurrentUserUseCase() != null) {
             refreshProfileInBackground()
+            syncFcmTokenInBackground()
         }
         observeUnreadMessages()
 
@@ -55,6 +58,9 @@ class SessionViewModel @Inject constructor(
                         unreadMessageCount = if (isAuthenticated) currentState.unreadMessageCount else 0
                     )
                 }
+                if (isAuthenticated) {
+                    syncFcmTokenInBackground()
+                }
                 observeUnreadMessages()
             }
         }
@@ -65,6 +71,13 @@ class SessionViewModel @Inject constructor(
             refreshCurrentUserProfileUseCase()
         }
     }
+
+    private fun syncFcmTokenInBackground() {
+        viewModelScope.launch {
+            runCatching { fcmTokenManager.syncCurrentUserToken() }
+        }
+    }
+
     private fun observeUnreadMessages() {
         val currentUser = getCurrentUserUseCase() as? FirebaseUser
         if (currentUser == null) {

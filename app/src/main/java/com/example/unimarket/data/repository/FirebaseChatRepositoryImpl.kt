@@ -1,5 +1,6 @@
 package com.example.unimarket.data.repository
 
+import com.example.unimarket.data.notification.ChatPushNotificationSender
 import com.example.unimarket.domain.model.ChatMessage
 import com.example.unimarket.domain.model.ChatUser
 import com.example.unimarket.domain.model.Conversation
@@ -22,7 +23,8 @@ import javax.inject.Inject
 
 class FirebaseChatRepositoryImpl @Inject constructor(
     private val auth: FirebaseAuth,
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val chatPushNotificationSender: ChatPushNotificationSender
 ) : ChatRepository {
 
     override fun observeConversations(currentUserId: String): Flow<List<Conversation>> = callbackFlow {
@@ -181,6 +183,11 @@ class FirebaseChatRepositoryImpl @Inject constructor(
                 )
                 batch.update(conversationRef, unreadCountUpdates)
             }.await()
+
+            chatPushNotificationSender.notifyNewMessage(
+                conversationId = conversationId,
+                text = trimmedText
+            )
 
             Result.success(Unit)
         } catch (e: Exception) {

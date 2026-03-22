@@ -1,6 +1,8 @@
 package com.example.unimarket.di
 
+import com.example.unimarket.BuildConfig
 import com.example.unimarket.data.api.ImageApiService
+import com.example.unimarket.data.api.NotificationApiService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -14,7 +16,7 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
-    private const val BASE_URL = "https://api.imgbb.com/1/"
+    private const val IMAGE_BASE_URL = "https://api.imgbb.com/1/"
 
     @Provides
     @Singleton
@@ -28,9 +30,9 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
+    fun provideImageRetrofit(okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            .baseUrl(BASE_URL)
+            .baseUrl(IMAGE_BASE_URL)
             .addConverterFactory(GsonConverterFactory.create())
             .client(okHttpClient)
             .build()
@@ -40,5 +42,16 @@ object NetworkModule {
     @Singleton
     fun provideImageApiService(retrofit: Retrofit): ImageApiService {
         return retrofit.create(ImageApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideNotificationApiService(okHttpClient: OkHttpClient): NotificationApiService {
+        return Retrofit.Builder()
+            .baseUrl(BuildConfig.NOTIFICATION_SERVER_BASE_URL)
+            .addConverterFactory(GsonConverterFactory.create())
+            .client(okHttpClient)
+            .build()
+            .create(NotificationApiService::class.java)
     }
 }

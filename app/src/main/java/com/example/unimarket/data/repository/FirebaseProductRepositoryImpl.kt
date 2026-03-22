@@ -9,6 +9,7 @@ import com.example.unimarket.domain.repository.ProductRepository
 import com.example.unimarket.presentation.util.toRelativeTimeLabel
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
@@ -33,9 +34,16 @@ class FirebaseProductRepositoryImpl @Inject constructor(
     }
 
     override fun getRecommendedProducts(): Flow<List<Product>> = flow {
-        val snapshot = firestore.collection("products")
-            .get(Source.SERVER)
-            .await()
+        val snapshot = try {
+            firestore.collection("products")
+                .get(Source.SERVER)
+                .await()
+        } catch (error: FirebaseFirestoreException) {
+            Log.w("FirebaseProductRepo", "Server fetch failed, falling back to cache", error)
+            firestore.collection("products")
+                .get(Source.CACHE)
+                .await()
+        }
         emit(snapshot.documents.mapNotNull(::mapProduct))
     }
 
