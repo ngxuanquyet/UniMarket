@@ -99,12 +99,12 @@ class SellerProfileViewModel @Inject constructor(
                     .ifBlank { "Student Seller" }
 
                 val avatarUrl = userDoc?.getString("avatarUrl").orEmpty()
-                    .ifBlank { userDoc?.getString("photoUrl").orEmpty() }
                     .ifBlank { buildAvatarFallbackUrl(sellerName) }
 
                 val ratingSource = sellerProducts.map { it.rating }.filter { it > 0 }
                 val averageRating = if (ratingSource.isNotEmpty()) ratingSource.average() else 4.9
-                val soldCount = sellerProducts.count { it.quantityAvailable <= 0 }
+                val soldCount = userDoc?.getLong("soldCount")?.toInt()
+                    ?: sellerProducts.count { it.quantityAvailable <= 0 }
 
                 _uiState.value = SellerProfileUiState(
                     isLoading = false,

@@ -2,26 +2,47 @@ package com.example.unimarket.presentation.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navigation
 import com.example.unimarket.presentation.auth.AuthViewModel
 import com.example.unimarket.presentation.auth.LoginScreen
 import com.example.unimarket.presentation.auth.SignUpScreen
 import com.example.unimarket.presentation.auth.state.AuthState
 import com.example.unimarket.presentation.main.MainScreen
-import com.google.firebase.auth.FirebaseAuth
 
 @Composable
 fun RootNavGraph(navController: NavHostController) {
-    val startDestination = if (FirebaseAuth.getInstance().currentUser != null) {
+    val sessionViewModel: SessionViewModel = hiltViewModel()
+    val sessionState = sessionViewModel.uiState.collectAsStateWithLifecycle()
+    val currentBackStackEntry = navController.currentBackStackEntryAsState()
+
+    val startDestination = if (sessionState.value.isAuthenticated) {
         Screen.MainGraph.route
     } else {
         Screen.AuthGraph.route
+    }
+
+    LaunchedEffect(sessionState.value.isAuthenticated, currentBackStackEntry.value) {
+        val currentDestination = currentBackStackEntry.value?.destination ?: return@LaunchedEffect
+        val targetRoute = if (sessionState.value.isAuthenticated) {
+            Screen.MainGraph.route
+        } else {
+            Screen.AuthGraph.route
+        }
+
+        val isAlreadyOnTarget = currentDestination.hierarchy.any { it.route == targetRoute }
+        if (!isAlreadyOnTarget) {
+            navController.navigate(targetRoute) {
+                popUpTo(0) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
     }
 
     NavHost(
@@ -35,34 +56,19 @@ fun RootNavGraph(navController: NavHostController) {
         ) {
             composable(Screen.Login.route) { 
                 val viewModel: AuthViewModel = hiltViewModel()
-                val authState by viewModel.authState.collectAsState()
-
-                LaunchedEffect(authState) {
-                    if (authState is AuthState.Success) {
-                        navController.navigate(Screen.MainGraph.route) {
-                            popUpTo(Screen.AuthGraph.route) { inclusive = true }
-                        }
-                    }
-                }
+                val authState = viewModel.authState.collectAsStateWithLifecycle()
 
                 LoginScreen(
                     onLoginClick = { email, password -> viewModel.login(email, password) },
                     onGoogleLoginClick = { idToken -> viewModel.loginWithGoogle(idToken) },
                     onNavigateToSignUp = { navController.navigate(Screen.SignUp.route) },
-                    isLoading = authState is AuthState.Loading,
-                    errorMessage = (authState as? AuthState.Error)?.message
+                    isLoading = authState.value is AuthState.Loading,
+                    errorMessage = (authState.value as? AuthState.Error)?.message
                 ) 
             }
             composable(Screen.SignUp.route) { 
                 val viewModel: AuthViewModel = hiltViewModel()
-                val authState by viewModel.authState.collectAsState()
-
-                LaunchedEffect(authState) {
-                    if (authState is AuthState.Success) {
-                        navController.popBackStack()
-                        viewModel.resetState()
-                    }
-                }
+                val authState = viewModel.authState.collectAsStateWithLifecycle()
 
                 SignUpScreen(
                     onSignUpClick = { name, email, password ->
@@ -70,8 +76,8 @@ fun RootNavGraph(navController: NavHostController) {
                     },
                     onNavigateBack = { navController.navigateUp() },
                     onNavigateToLogin = { navController.popBackStack() },
-                    isLoading = authState is AuthState.Loading,
-                    errorMessage = (authState as? AuthState.Error)?.message
+                    isLoading = authState.value is AuthState.Loading,
+                    errorMessage = (authState.value as? AuthState.Error)?.message
                 ) 
             }
         }

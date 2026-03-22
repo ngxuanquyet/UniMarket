@@ -15,6 +15,7 @@ import com.example.unimarket.domain.usecase.explore.GetAllProductsUseCase
 import com.example.unimarket.domain.usecase.image.UploadImageUseCase
 import com.example.unimarket.domain.usecase.product.AddProductUseCase
 import com.example.unimarket.domain.usecase.product.UpdateProductUseCase
+import com.example.unimarket.presentation.util.toRelativeTimeLabel
 import com.google.firebase.auth.FirebaseUser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -82,6 +83,7 @@ class SellViewModel @Inject constructor(
                         rating = 0.0,
                         location = "",
                         timeAgo = "Draft",
+                        postedAt = 0L,
                         isFavorite = false,
                         isNegotiable = draft.isNegotiable,
                         quantityAvailable = draft.quantityAvailable ?: 1,
@@ -198,6 +200,8 @@ class SellViewModel @Inject constructor(
             
             // 2. Determine ID
             val productId = editingProductId ?: UUID.randomUUID().toString()
+            val postedAt = initialProduct?.postedAt?.takeIf { it > 0L } ?: System.currentTimeMillis()
+            val timeAgo = postedAt.toRelativeTimeLabel()
 
             // 3. Save product to Firestore
             val product = Product(
@@ -211,7 +215,8 @@ class SellViewModel @Inject constructor(
                 sellerName = sellerName,
                 rating = initialProduct?.rating ?: 0.0,
                 location = initialProduct?.location ?: "Unknown",
-                timeAgo = initialProduct?.timeAgo ?: "Just now",
+                timeAgo = timeAgo,
+                postedAt = postedAt,
                 isFavorite = initialProduct?.isFavorite ?: false,
                 isNegotiable = isNegotiable,
                 quantityAvailable = quantityAvailable,

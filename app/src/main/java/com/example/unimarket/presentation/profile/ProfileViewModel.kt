@@ -7,24 +7,24 @@ import androidx.lifecycle.viewModelScope
 import com.example.unimarket.domain.model.UserAddress
 import com.example.unimarket.domain.usecase.auth.AddUserAddressUseCase
 import com.example.unimarket.domain.usecase.auth.DeleteUserAddressUseCase
-import com.example.unimarket.domain.usecase.auth.UpdateProfileUseCase
-import com.example.unimarket.domain.usecase.auth.GetCurrentUserUseCase
 import com.example.unimarket.domain.usecase.auth.GetUserAddressesUseCase
 import com.example.unimarket.domain.usecase.auth.LogoutUseCase
+import com.example.unimarket.domain.usecase.auth.ObserveCachedUserUseCase
+import com.example.unimarket.domain.usecase.auth.RefreshCurrentUserProfileUseCase
+import com.example.unimarket.domain.usecase.auth.UpdateProfileUseCase
 import com.example.unimarket.domain.usecase.auth.UpdateUserAddressUseCase
 import com.example.unimarket.domain.usecase.image.UploadImageUseCase
-import com.google.firebase.auth.FirebaseUser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
-    private val getCurrentUserUseCase: GetCurrentUserUseCase,
+    observeCachedUserUseCase: ObserveCachedUserUseCase,
+    private val refreshCurrentUserProfileUseCase: RefreshCurrentUserProfileUseCase,
     private val updateProfileUseCase: UpdateProfileUseCase,
     private val getUserAddressesUseCase: GetUserAddressesUseCase,
     private val addUserAddressUseCase: AddUserAddressUseCase,
@@ -38,23 +38,45 @@ class ProfileViewModel @Inject constructor(
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
 
     init {
-        loadUserProfile()
+        viewModelScope.launch {
+            observeCachedUserUseCase().collect { cachedUser ->
+                if (cachedUser != null) {
+                    _uiState.value = _uiState.value.copy(
+                        displayName = cachedUser.displayName,
+                        email = cachedUser.email,
+                        avatarUrl = cachedUser.avatarUrl,
+                        boughtCount = cachedUser.boughtCount,
+                        soldCount = cachedUser.soldCount
+                    )
+                }
+            }
+        }
+
+        refreshUserProfile(showLoading = false)
         loadAddresses()
     }
 
     fun refresh() {
-        loadUserProfile()
+        refreshUserProfile(showLoading = true)
         loadAddresses()
     }
 
-    private fun loadUserProfile() {
-        val currentUser = getCurrentUserUseCase() as? FirebaseUser
-        if (currentUser != null) {
-            _uiState.value = _uiState.value.copy(
-                displayName = currentUser.displayName ?: "User",
-                email = currentUser.email ?: "",
-                photoUrl = currentUser.photoUrl?.toString() ?: ""
-            )
+    private fun refreshUserProfile(showLoading: Boolean) {
+        if (showLoading) {
+            _uiState.value = _uiState.value.copy(isRefreshingProfile = true, errorMessage = null)
+        }
+
+        viewModelScope.launch {
+            refreshCurrentUserProfileUseCase()
+                .onFailure { error ->
+                    _uiState.value = _uiState.value.copy(
+                        errorMessage = error.message ?: "Failed to refresh profile"
+                    )
+                }
+
+            if (showLoading) {
+                _uiState.value = _uiState.value.copy(isRefreshingProfile = false)
+            }
         }
     }
 
@@ -80,11 +102,9 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             val result = uploadImageUseCase(uri)
             result.onSuccess { remoteUrl ->
-                // Update Firebase Auth profile
-                val updateResult = updateProfileUseCase(name = null, photoUrl = remoteUrl)
+                val updateResult = updateProfileUseCase(name = null, avatarUrl = remoteUrl)
                 updateResult.onSuccess {
                     _uiState.value = _uiState.value.copy(
-                        photoUrl = remoteUrl,
                         isUploading = false,
                         successMessage = "Avatar updated successfully"
                     )
@@ -112,10 +132,9 @@ class ProfileViewModel @Inject constructor(
         
         _uiState.value = _uiState.value.copy(isUploading = true, errorMessage = null)
         viewModelScope.launch {
-            val updateResult = updateProfileUseCase(name = newName, photoUrl = null)
+            val updateResult = updateProfileUseCase(name = newName, avatarUrl = null)
             updateResult.onSuccess {
                 _uiState.value = _uiState.value.copy(
-                    displayName = newName,
                     isUploading = false,
                     successMessage = "Display name updated successfully"
                 )

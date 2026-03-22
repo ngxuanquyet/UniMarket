@@ -58,9 +58,6 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
             ProfileScreen(
                 onLogoutClick = {
                     authViewModel.logout()
-                    rootNavController.navigate(Screen.AuthGraph.route) {
-                        popUpTo(0) { inclusive = true }
-                    }
                 },
                 onBack = { navController.popBackStack() }
             )

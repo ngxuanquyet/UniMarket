@@ -1,15 +1,27 @@
 package com.example.unimarket.domain.repository
 
+import com.example.unimarket.domain.model.UserProfile
 import com.example.unimarket.domain.model.UserAddress
+import kotlinx.coroutines.flow.Flow
 
 interface AuthRepository {
     suspend fun login(email: String, password: String): Result<Unit>
-    suspend fun signUp(name: String, email: String, studentId: String, password: String): Result<Unit>
+    suspend fun signUp(
+        name: String,
+        email: String,
+        studentId: String,
+        password: String
+    ): Result<Unit>
+
     fun logout()
     fun getCurrentUser(): Any? // Can be mapped to a domain User model later if needed
+    fun getCachedUser(): UserProfile?
+    fun observeCachedUser(): Flow<UserProfile?>
+    suspend fun refreshCurrentUserProfile(): Result<UserProfile>
 
-    suspend fun updateProfile(name: String?, photoUrl: String?): Result<Unit>
+    suspend fun updateProfile(name: String?, avatarUrl: String?): Result<Unit>
     suspend fun getUserAddresses(): Result<List<UserAddress>>
+    suspend fun getUserAvatarUrl(id: String): Result<String>
     suspend fun getAddressesByUserId(userId: String): Result<List<UserAddress>>
     suspend fun addUserAddress(address: UserAddress): Result<Unit>
     suspend fun updateUserAddress(address: UserAddress): Result<Unit>

@@ -1,12 +1,13 @@
 package com.example.unimarket.domain.usecase.auth
 
+import com.example.unimarket.domain.model.UserProfile
 import com.example.unimarket.domain.repository.AuthRepository
 import javax.inject.Inject
 
-class UpdateProfileUseCase @Inject constructor(
+class GetCachedUserUseCase @Inject constructor(
     private val authRepository: AuthRepository
 ) {
-    suspend operator fun invoke(name: String?, avatarUrl: String?): Result<Unit> {
-        return authRepository.updateProfile(name, avatarUrl)
+    operator fun invoke(): UserProfile? {
+        return authRepository.getCachedUser()
     }
 }

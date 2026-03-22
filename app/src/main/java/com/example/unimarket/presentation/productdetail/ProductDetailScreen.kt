@@ -1,5 +1,6 @@
 package com.example.unimarket.presentation.productdetail
 
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -16,7 +17,6 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Message
-import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.LocationOn
@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,13 +34,16 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
 import com.example.unimarket.domain.model.DeliveryMethod
 import com.example.unimarket.presentation.theme.*
 import com.example.unimarket.presentation.util.formatVnd
+import com.example.unimarket.presentation.util.toRelativeTimeLabel
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 
@@ -55,9 +59,10 @@ fun ProductDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
-
     val context = LocalContext.current
     val auth = FirebaseAuth.getInstance()
+    val product = uiState.product
+    val isInitialLoading = uiState.isLoading && product == null
 
     LaunchedEffect(productId) {
         if (productId != null) {
@@ -65,17 +70,9 @@ fun ProductDetailScreen(
         }
     }
 
-    if (uiState.isLoading) {
+    if (isInitialLoading) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator(color = SecondaryBlue)
-        }
-        return
-    }
-
-    val product = uiState.product
-    if (product == null) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("Product not found", color = Color.Gray, fontSize = 16.sp)
         }
         return
     }
@@ -95,14 +92,14 @@ fun ProductDetailScreen(
         }
     }
 
-    var isFavorite by remember { mutableStateOf(product.isFavorite) }
-
-    val pagerState =
-        rememberPagerState(pageCount = { product.imageUrls.takeIf { it.isNotEmpty() }?.size ?: 1 })
+    val pagerState = rememberPagerState(
+        pageCount = { product?.imageUrls?.takeIf { it.isNotEmpty() }?.size ?: 1 }
+    )
     val coroutineScope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var isFavorite by remember(product?.id) { mutableStateOf(product?.isFavorite ?: false) }
     var purchaseAction by remember { mutableStateOf<PurchaseAction?>(null) }
-    var selectedQuantity by remember(product.id) { mutableIntStateOf(1) }
+    var selectedQuantity by remember(product?.id) { mutableIntStateOf(1) }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -155,410 +152,456 @@ fun ProductDetailScreen(
             )
         },
         bottomBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shadowElevation = 8.dp,
-                color = Color.White
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+            if (product != null) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shadowElevation = 8.dp,
+                    color = Color.White
                 ) {
-                    OutlinedButton(
-                        onClick = {
-                            if (auth.uid != product.userId) {
-                                viewModel.startConversation(product)
-                            } else {
-                                Toast.makeText(
-                                    context,
-                                    "You cannot chat with yourself",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        },
+                    Row(
                         modifier = Modifier
-                            .weight(0.5f)
-                            .height(50.dp),
-                        shape = RoundedCornerShape(24.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Black)
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
+                        OutlinedButton(
+                            onClick = {
+                                if (auth.uid != product.userId) {
+                                    viewModel.startConversation(product)
+                                } else {
+                                    Toast.makeText(
+                                        context,
+                                        "You cannot chat with yourself",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            },
+                            modifier = Modifier
+                                .weight(0.5f)
+                                .height(50.dp),
+                            shape = RoundedCornerShape(24.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Black)
                         ) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.Message,
-                                contentDescription = "Chat",
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.Message,
+                                    contentDescription = "Chat",
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    "Chat Now",
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                if (auth.uid != product.userId) {
+                                    selectedQuantity = 1
+                                    purchaseAction = PurchaseAction.AddToCart
+                                } else {
+                                    Toast.makeText(
+                                        context,
+                                        "You cannot add your own product to cart",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            },
+                            modifier = Modifier
+                                .weight(0.5f)
+                                .height(50.dp),
+                            shape = RoundedCornerShape(24.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Black)
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.ShoppingCart,
+                                    contentDescription = "Cart",
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    "Add to Cart",
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+
+                        Button(
+                            onClick = {
+                                if (auth.uid != product.userId) {
+                                    selectedQuantity = 1
+                                    purchaseAction = PurchaseAction.BuyNow
+                                } else {
+                                    Toast.makeText(
+                                        context,
+                                        "You cannot buy your own product",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            },
+                            modifier = Modifier
+                                .weight(0.5f)
+                                .height(50.dp),
+                            shape = RoundedCornerShape(24.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryYellowDark)
+                        ) {
                             Text(
-                                "Chat Now",
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 12.sp
+                                "Buy Now",
+                                color = Color.Black,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
                             )
                         }
-                    }
-
-                    // Add to Cart Button (Outlined)
-                    OutlinedButton(
-                        onClick = {
-                            if (auth.uid != product.userId) {
-                                selectedQuantity = 1
-                                purchaseAction = PurchaseAction.AddToCart
-                            } else {
-                                Toast.makeText(
-                                    context,
-                                    "You cannot add your own product to cart",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        },
-                        modifier = Modifier
-                            .weight(0.5f)
-                            .height(50.dp),
-                        shape = RoundedCornerShape(24.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Black)
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                Icons.Default.ShoppingCart,
-                                contentDescription = "Cart",
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Add to Cart", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
-                        }
-                    }
-
-                    // Buy Now Button (Solid)
-                    Button(
-                        onClick = {
-                            if (auth.uid != product.userId) {
-                                selectedQuantity = 1
-                                purchaseAction = PurchaseAction.BuyNow
-                            } else {
-                                Toast.makeText(
-                                    context,
-                                    "You cannot buy your own product",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        },
-                        modifier = Modifier
-                            .weight(0.5f)
-                            .height(50.dp),
-                        shape = RoundedCornerShape(24.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryYellowDark)
-                    ) {
-                        Text(
-                            "Buy Now",
-                            color = Color.Black,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp
-                        )
                     }
                 }
             }
         }
     ) { paddingValues ->
-        Column(
+        PullToRefreshBox(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .verticalScroll(scrollState)
+                .padding(paddingValues),
+            isRefreshing = uiState.isLoading,
+            onRefresh = {
+                productId?.let(viewModel::loadProduct)
+            }
         ) {
-            // Product Image (Square crop & Thumbnails)
-            Column(modifier = Modifier.fillMaxWidth()) {
+            if (product == null) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1f)
-                        .background(Color.LightGray)
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
                 ) {
-                    if (product.imageUrls.isNotEmpty()) {
-                        HorizontalPager(
-                            state = pagerState,
-                            modifier = Modifier.fillMaxSize()
-                        ) { page ->
-                            Image(
-                                painter = rememberAsyncImagePainter(model = product.imageUrls[page]),
-                                contentDescription = "${product.name} image ${page + 1}",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
-                    } else {
-                        Image(
-                            painter = rememberAsyncImagePainter(model = "https://via.placeholder.com/400"),
-                            contentDescription = product.name,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-
-                    // Condition Pill
-                    Box(
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color.Black.copy(alpha = 0.7f))
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = product.condition,
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
+                    Text(
+                        text = uiState.errorMessage ?: "Product not found",
+                        color = Color.Gray,
+                        fontSize = 16.sp
+                    )
                 }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(scrollState)
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(1f)
+                                .background(Color.LightGray)
+                        ) {
+                            if (product.imageUrls.isNotEmpty()) {
+                                HorizontalPager(
+                                    state = pagerState,
+                                    modifier = Modifier.fillMaxSize()
+                                ) { page ->
+                                    Image(
+                                        painter = rememberAsyncImagePainter(model = product.imageUrls[page]),
+                                        contentDescription = "${product.name} image ${page + 1}",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+                            } else {
+                                Image(
+                                    painter = rememberAsyncImagePainter(model = "https://via.placeholder.com/400"),
+                                    contentDescription = product.name,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
 
-                // Thumbnails
-                if (product.imageUrls.size > 1) {
-                    LazyRow(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 12.dp, horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(count = product.imageUrls.size) { index ->
-                            val isSelected = pagerState.currentPage == index
                             Box(
                                 modifier = Modifier
-                                    .size(64.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .clickable {
-                                        coroutineScope.launch {
-                                            pagerState.animateScrollToPage(index)
-                                        }
-                                    }
-                                    .border(
-                                        width = if (isSelected) 2.dp else 1.dp,
-                                        color = if (isSelected) SecondaryBlue else Color.LightGray,
-                                        shape = RoundedCornerShape(8.dp)
-                                    )
+                                    .padding(16.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color.Black.copy(alpha = 0.7f))
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                                contentAlignment = Alignment.Center
                             ) {
+                                Text(
+                                    text = product.condition,
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+
+                        if (product.imageUrls.size > 1) {
+                            LazyRow(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 12.dp, horizontal = 16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(count = product.imageUrls.size) { index ->
+                                    val isSelected = pagerState.currentPage == index
+                                    Box(
+                                        modifier = Modifier
+                                            .size(64.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .clickable {
+                                                coroutineScope.launch {
+                                                    pagerState.animateScrollToPage(index)
+                                                }
+                                            }
+                                            .border(
+                                                width = if (isSelected) 2.dp else 1.dp,
+                                                color = if (isSelected) SecondaryBlue else Color.LightGray,
+                                                shape = RoundedCornerShape(8.dp)
+                                            )
+                                    ) {
+                                        Image(
+                                            painter = rememberAsyncImagePainter(model = product.imageUrls[index]),
+                                            contentDescription = "Thumbnail ${index + 1}",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Text(
+                            text = product.name,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.Black,
+                            lineHeight = 28.sp
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = formatVnd(product.price),
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = SecondaryBlue
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = formatVnd(product.price * 1.1),
+                                fontSize = 14.sp,
+                                color = Color.Gray,
+                                textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
+                            )
+                            Spacer(modifier = Modifier.weight(1f))
+                            if (product.isNegotiable) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color(0xFFE8F5E9))
+                                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        "Negotiable",
+                                        color = Color(0xFF4CAF50),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "Available: ${product.quantityAvailable}",
+                            fontSize = 14.sp,
+                            color = if (product.quantityAvailable > 0) Color.Gray else RedDanger,
+                            fontWeight = FontWeight.Medium
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                Icons.Default.LocationOn,
+                                contentDescription = "Location",
+                                tint = Color.Gray,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = product.location.ifBlank { "Campus Library meet-up" },
+                                fontSize = 12.sp,
+                                color = Color.Gray
+                            )
+                            Spacer(modifier = Modifier.weight(1f))
+                            Text(
+                                text = "Posted ${
+                                    product.postedAt.toRelativeTimeLabel()
+                                        .ifBlank { product.timeAgo.ifBlank { "Recently listed" } }
+                                }",
+                                fontSize = 12.sp,
+                                color = Color.Gray
+                            )
+                        }
+
+                        if (product.deliveryMethodsAvailable.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Delivery Methods Available",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                color = Color.Black
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            DeliveryMethodChips(product.deliveryMethodsAvailable)
+                        }
+                    }
+
+                    HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp)
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSellerClick(product.userId, product.id) }
+                            .padding(20.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val sellerAvatarPainter = rememberAsyncImagePainter(
+                            model = uiState.sellerAvatarUrl.ifBlank {
+                                "https://ui-avatars.com/api/?name=${product.sellerName.replace(" ", "+")}&background=random"
+                            }
+                        )
+                        val sellerInitial = product.sellerName
+                            .trim()
+                            .split("\\s+".toRegex())
+                            .filter { it.isNotBlank() }
+                            .take(2)
+                            .joinToString("") { it.first().uppercase() }
+                            .ifBlank { "U" }
+
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(ProfileAvatarBorder),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (sellerAvatarPainter.state !is AsyncImagePainter.State.Success) {
+                                Text(
+                                    text = sellerInitial,
+                                    color = SecondaryBlue,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+
+                            if (sellerAvatarPainter.state !is AsyncImagePainter.State.Error) {
                                 Image(
-                                    painter = rememberAsyncImagePainter(model = product.imageUrls[index]),
-                                    contentDescription = "Thumbnail ${index + 1}",
+                                    painter = sellerAvatarPainter,
+                                    contentDescription = "Seller Avatar",
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize()
                                 )
                             }
                         }
-                    }
-                }
-            }
+                        Log.d("check_avatar", "sellerAvatarUrl=${uiState.sellerAvatarUrl}")
 
-            // Top Info Section
-            Column(modifier = Modifier.padding(20.dp)) {
-                Text(
-                    text = product.name,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color.Black,
-                    lineHeight = 28.sp
-                )
+                        Spacer(modifier = Modifier.width(12.dp))
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = formatVnd(product.price),
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = SecondaryBlue
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = formatVnd(product.price * 1.1), // Mock original price
-                        fontSize = 14.sp,
-                        color = Color.Gray,
-                        textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    if (product.isNegotiable) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFFE8F5E9)) // Light green
-                                .padding(horizontal = 10.dp, vertical = 4.dp)
-                        ) {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                "Negotiable",
-                                color = Color(0xFF4CAF50),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold
+                                text = product.sellerName.ifBlank { "Anonymous Seller" },
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            )
+                            Text(
+                                text = "Verified Student",
+                                color = Color.Gray,
+                                fontSize = 12.sp
+                            )
+                        }
+
+                        Column(horizontalAlignment = Alignment.End) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.Star,
+                                    contentDescription = "Rating",
+                                    tint = PrimaryYellowDark,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (product.rating > 0) product.rating.toString() else "4.9",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp
+                                )
+                            }
+                            Text(
+                                text = "(24 sold)",
+                                color = Color.Gray,
+                                fontSize = 12.sp
                             )
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = "Available: ${product.quantityAvailable}",
-                    fontSize = 14.sp,
-                    color = if (product.quantityAvailable > 0) Color.Gray else RedDanger,
-                    fontWeight = FontWeight.Medium
-                )
+                    HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp)
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        Icons.Default.LocationOn,
-                        contentDescription = "Location",
-                        tint = Color.Gray,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = product.location.ifBlank { "Campus Library meet-up" },
-                        fontSize = 12.sp,
-                        color = Color.Gray
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    Text(
-                        text = "Posted ${product.timeAgo.ifBlank { "2 days ago" }}",
-                        fontSize = 12.sp,
-                        color = Color.Gray
-                    )
-                }
-
-                if (product.deliveryMethodsAvailable.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "Delivery Methods Available",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        color = Color.Black
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    DeliveryMethodChips(product.deliveryMethodsAvailable)
-                }
-            }
-
-            HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp)
-
-            // Seller Section
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onSellerClick(product.userId, product.id) }
-                    .padding(20.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Seller Avatar Mock
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .background(Color.LightGray)
-                ) {
-                    Image(
-                        painter = rememberAsyncImagePainter(model = "https://i.pravatar.cc/150?u=${product.sellerName}"),
-                        contentDescription = "Seller Avatar",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = product.sellerName.ifBlank { "Anonymous Seller" },
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
-                    Text(
-                        text = "Verified Student",
-                        color = Color.Gray,
-                        fontSize = 12.sp
-                    )
-                }
-
-                Column(horizontalAlignment = Alignment.End) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.Star,
-                            contentDescription = "Rating",
-                            tint = PrimaryYellowDark,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
+                    Column(modifier = Modifier.padding(20.dp)) {
                         Text(
-                            text = if (product.rating > 0) product.rating.toString() else "4.9",
+                            text = "Description",
                             fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
+                            fontSize = 18.sp,
+                            color = Color.Black
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = product.description.ifBlank {
+                                "No description provided for this item. Please contact the seller for more details."
+                            },
+                            fontSize = 14.sp,
+                            color = Color.DarkGray,
+                            lineHeight = 22.sp
                         )
                     }
-                    Text(
-                        text = "(24 sold)",
-                        color = Color.Gray,
-                        fontSize = 12.sp
-                    )
-                }
-            }
 
-            HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp)
+                    HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp)
 
-            // Description Section
-            Column(modifier = Modifier.padding(20.dp)) {
-                Text(
-                    text = "Description",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    color = Color.Black
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = product.description.ifBlank {
-                        "No description provided for this item. Please contact the seller for more details."
-                    },
-                    fontSize = 14.sp,
-                    color = Color.DarkGray,
-                    lineHeight = 22.sp
-                )
-            }
+                    if (product.specifications.isNotEmpty()) {
+                        Column(modifier = Modifier.padding(20.dp)) {
+                            Text(
+                                text = "Specifications",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                                color = Color.Black
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
 
-            HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp)
-
-            // Specifications Section
-            if (product.specifications.isNotEmpty()) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text(
-                        text = "Specifications",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                        color = Color.Black
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    product.specifications.forEach { (key, value) ->
-                        SpecRow(key, value)
+                            product.specifications.forEach { (key, value) ->
+                                SpecRow(key, value)
+                            }
+                        }
                     }
+
+                    Spacer(modifier = Modifier.height(20.dp))
                 }
             }
-
-            Spacer(modifier = Modifier.height(20.dp))
         }
     }
 
-    if (purchaseAction != null) {
+    if (purchaseAction != null && product != null) {
         ModalBottomSheet(
             onDismissRequest = { purchaseAction = null },
             sheetState = sheetState,

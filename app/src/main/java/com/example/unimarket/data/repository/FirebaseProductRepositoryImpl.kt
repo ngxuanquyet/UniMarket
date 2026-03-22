@@ -6,6 +6,7 @@ import com.example.unimarket.domain.model.deliveryMethodsFromStorage
 import com.example.unimarket.domain.model.Product
 import com.example.unimarket.domain.model.toStorageValue
 import com.example.unimarket.domain.repository.ProductRepository
+import com.example.unimarket.presentation.util.toRelativeTimeLabel
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
@@ -51,6 +52,7 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                 "rating" to product.rating,
                 "location" to product.location,
                 "timeAgo" to product.timeAgo,
+                "postedAt" to product.postedAt,
                 "isFavorite" to product.isFavorite,
                 "isNegotiable" to product.isNegotiable,
                 "quantityAvailable" to product.quantityAvailable,
@@ -87,6 +89,7 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                 "rating" to product.rating,
                 "location" to product.location,
                 "timeAgo" to product.timeAgo,
+                "postedAt" to product.postedAt,
                 "isFavorite" to product.isFavorite,
                 "isNegotiable" to product.isNegotiable,
                 "quantityAvailable" to product.quantityAvailable,
@@ -104,6 +107,7 @@ class FirebaseProductRepositoryImpl @Inject constructor(
 
     private fun mapProduct(doc: DocumentSnapshot): Product? {
         return try {
+            val postedAt = doc.getLong("postedAt") ?: 0L
             Product(
                 id = doc.id,
                 name = doc.getString("name") ?: "",
@@ -115,7 +119,8 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                 sellerName = doc.getString("sellerName") ?: "",
                 rating = doc.getDouble("rating") ?: 0.0,
                 location = doc.getString("location") ?: "",
-                timeAgo = doc.getString("timeAgo") ?: "",
+                timeAgo = postedAt.toRelativeTimeLabel().ifBlank { doc.getString("timeAgo") ?: "" },
+                postedAt = postedAt,
                 isFavorite = doc.getBoolean("isFavorite") ?: false,
                 isNegotiable = doc.getBoolean("isNegotiable") ?: false,
                 quantityAvailable = doc.getLong("quantityAvailable")?.toInt()?.coerceAtLeast(1) ?: 1,

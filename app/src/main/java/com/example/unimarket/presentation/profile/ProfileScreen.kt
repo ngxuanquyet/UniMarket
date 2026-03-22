@@ -79,7 +79,7 @@ fun ProfileScreen(
         containerColor = Color.White
     ) { paddingValues ->
         PullToRefreshBox(
-            isRefreshing = uiState.isLoadingAddresses || uiState.isUploading,
+            isRefreshing = uiState.isLoadingAddresses || uiState.isUploading || uiState.isRefreshingProfile,
             onRefresh = viewModel::refresh,
             modifier = Modifier
                 .fillMaxSize()
@@ -101,7 +101,10 @@ fun ProfileScreen(
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
-                ProfileStatsRow()
+                ProfileStatsRow(
+                    soldCount = uiState.soldCount,
+                    boughtCount = uiState.boughtCount
+                )
 
                 Spacer(modifier = Modifier.height(24.dp))
                 AddressSection(
@@ -185,7 +188,7 @@ fun ProfileHeader(
     ) {
         // Profile Picture with Edit Icon
         Box(contentAlignment = Alignment.BottomEnd) {
-            val imageUrl = uiState.photoUrl.ifEmpty { "https://ui-avatars.com/api/?name=${uiState.displayName.replace(" ", "+")}&background=random" }
+            val imageUrl = uiState.avatarUrl.ifEmpty { "https://ui-avatars.com/api/?name=${uiState.displayName.replace(" ", "+")}&background=random" }
             
             val painter = rememberAsyncImagePainter(
                 model = ImageRequest.Builder(LocalContext.current)
@@ -299,16 +302,19 @@ fun ProfileHeader(
 }
 
 @Composable
-fun ProfileStatsRow() {
+fun ProfileStatsRow(
+    soldCount: Int,
+    boughtCount: Int
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        StatCard(value = "15", label = "Items Sold", modifier = Modifier.weight(1f))
+        StatCard(value = soldCount.toString(), label = "Items Sold", modifier = Modifier.weight(1f))
         Spacer(modifier = Modifier.width(16.dp))
-        StatCard(value = "8", label = "Bought", modifier = Modifier.weight(1f))
+        StatCard(value = boughtCount.toString(), label = "Bought", modifier = Modifier.weight(1f))
         Spacer(modifier = Modifier.width(16.dp))
         StatCard(
             value = "4.8", 

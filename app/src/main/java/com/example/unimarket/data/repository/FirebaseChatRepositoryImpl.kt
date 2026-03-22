@@ -76,7 +76,7 @@ class FirebaseChatRepositoryImpl @Inject constructor(
             val buyerInfo = readUserInfoOrFallback(
                 userId = buyer.uid,
                 fallbackName = buyer.displayName ?: "Buyer",
-                fallbackAvatarUrl = buyer.photoUrl?.toString().orEmpty().ifBlank {
+                fallbackAvatarUrl = buyer.authAvatarUrl().ifBlank {
                     buildAvatarFallbackUrl(buyer.displayName ?: "Buyer")
                 }
             )
@@ -127,7 +127,7 @@ class FirebaseChatRepositoryImpl @Inject constructor(
             val senderInfo = readUserInfoOrFallback(
                 userId = currentUser.uid,
                 fallbackName = currentUser.displayName ?: "User",
-                fallbackAvatarUrl = currentUser.photoUrl?.toString().orEmpty().ifBlank {
+                fallbackAvatarUrl = currentUser.authAvatarUrl().ifBlank {
                     buildAvatarFallbackUrl(currentUser.displayName ?: "User")
                 }
             )
@@ -173,7 +173,6 @@ class FirebaseChatRepositoryImpl @Inject constructor(
                 .ifBlank { userDoc.getString("displayName").orEmpty() }
                 .ifBlank { fallbackName }
             val resolvedAvatarUrl = userDoc.getString("avatarUrl").orEmpty()
-                .ifBlank { userDoc.getString("photoUrl").orEmpty() }
                 .ifBlank { fallbackAvatarUrl }
                 .ifBlank { buildAvatarFallbackUrl(resolvedName) }
             ChatUser(
@@ -194,7 +193,6 @@ class FirebaseChatRepositoryImpl @Inject constructor(
         return try {
             val userDoc = firestore.collection(USERS_COLLECTION).document(userId).get().await()
             userDoc.getString("avatarUrl").orEmpty()
-                .ifBlank { userDoc.getString("photoUrl").orEmpty() }
         } catch (_: Exception) {
             ""
         }
@@ -255,6 +253,10 @@ class FirebaseChatRepositoryImpl @Inject constructor(
     private fun buildAvatarFallbackUrl(name: String): String {
         val encodedName = URLEncoder.encode(name.ifBlank { "User" }, StandardCharsets.UTF_8.toString())
         return "https://ui-avatars.com/api/?name=$encodedName&background=random"
+    }
+
+    private fun com.google.firebase.auth.FirebaseUser.authAvatarUrl(): String {
+        return photoUrl?.toString().orEmpty()
     }
 
     private companion object {

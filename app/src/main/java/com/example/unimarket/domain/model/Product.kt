@@ -12,6 +12,7 @@ data class Product(
     val rating: Double,
     val location: String,
     val timeAgo: String,
+    val postedAt: Long = 0L,
     val isFavorite: Boolean = false,
     val isNegotiable: Boolean = false,
     val quantityAvailable: Int = 1,
