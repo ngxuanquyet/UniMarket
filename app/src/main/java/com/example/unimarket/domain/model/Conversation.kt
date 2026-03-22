@@ -9,5 +9,6 @@ data class Conversation(
     val otherUser: ChatUser,
     val lastMessage: String = "",
     val lastMessageAt: Long = 0L,
-    val lastSenderId: String = ""
+    val lastSenderId: String = "",
+    val unreadCount: Int = 0
 )

@@ -1,4 +1,5 @@
 package com.example.unimarket.data.repository
+
 import com.example.unimarket.domain.model.ChatMessage
 import com.example.unimarket.domain.model.ChatUser
 import com.example.unimarket.domain.model.Conversation
@@ -107,6 +108,10 @@ class FirebaseChatRepositoryImpl @Inject constructor(
                 "lastMessage" to "",
                 "lastMessageAt" to createdAt,
                 "lastSenderId" to "",
+                "unreadCountByUser" to mapOf(
+                    buyer.uid to 0,
+                    product.userId to 0
+                ),
                 "createdAt" to createdAt
             )
             conversationRef.set(conversationData, com.google.firebase.firestore.SetOptions.merge()).await()
@@ -116,7 +121,11 @@ class FirebaseChatRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun sendMessage(conversationId: String, text: String): Result<Unit> {
+    override suspend fun sendMessage(
+        conversationId: String,
+        text: String,
+        clientMessageId: String
+    ): Result<Unit> {
         return try {
             val currentUser = auth.currentUser ?: return Result.failure(Exception("Please log in to send messages"))
             val trimmedText = text.trim()
@@ -132,7 +141,22 @@ class FirebaseChatRepositoryImpl @Inject constructor(
                 }
             )
             val messageRef = messagesCollection(conversationId).document()
+            val conversationRef = firestore.collection(CONVERSATIONS_COLLECTION).document(conversationId)
+            val conversationSnapshot = conversationRef.get().await()
+            val participantIds = (conversationSnapshot.get("participantIds") as? List<*>)
+                ?.mapNotNull { it as? String }
+                .orEmpty()
+            if (participantIds.isEmpty()) {
+                return Result.failure(Exception("Conversation not found"))
+            }
             val sentAt = Date()
+            val unreadCountUpdates = participantIds.associate { participantId ->
+                val currentUnreadCount = conversationSnapshot.getLong("$UNREAD_COUNT_BY_USER_FIELD.$participantId")
+                    ?.toInt()
+                    ?: 0
+                val nextUnreadCount = if (participantId == currentUser.uid) 0 else currentUnreadCount + 1
+                "$UNREAD_COUNT_BY_USER_FIELD.$participantId" to nextUnreadCount
+            }
 
             firestore.runBatch { batch ->
                 batch.set(
@@ -142,11 +166,12 @@ class FirebaseChatRepositoryImpl @Inject constructor(
                         "senderName" to senderInfo.name,
                         "senderAvatarUrl" to senderInfo.avatarUrl,
                         "text" to trimmedText,
-                        "createdAt" to sentAt
+                        "createdAt" to sentAt,
+                        "clientMessageId" to clientMessageId
                     )
                 )
                 batch.update(
-                    firestore.collection(CONVERSATIONS_COLLECTION).document(conversationId),
+                    conversationRef,
                     mapOf(
                         "lastMessage" to trimmedText,
                         "lastMessageAt" to sentAt,
@@ -154,8 +179,27 @@ class FirebaseChatRepositoryImpl @Inject constructor(
                         "updatedAt" to FieldValue.serverTimestamp()
                     )
                 )
+                batch.update(conversationRef, unreadCountUpdates)
             }.await()
 
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun markConversationAsSeen(conversationId: String): Result<Unit> {
+        return try {
+            val currentUser = auth.currentUser ?: return Result.failure(Exception("Please log in to view messages"))
+            firestore.collection(CONVERSATIONS_COLLECTION)
+                .document(conversationId)
+                .update(
+                    mapOf(
+                        "$UNREAD_COUNT_BY_USER_FIELD.${currentUser.uid}" to 0,
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    )
+                )
+                .await()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -224,7 +268,8 @@ class FirebaseChatRepositoryImpl @Inject constructor(
             otherUser = otherUser,
             lastMessage = doc.getString("lastMessage").orEmpty(),
             lastMessageAt = doc.getDate("lastMessageAt")?.time ?: 0L,
-            lastSenderId = doc.getString("lastSenderId").orEmpty()
+            lastSenderId = doc.getString("lastSenderId").orEmpty(),
+            unreadCount = doc.getLong("$UNREAD_COUNT_BY_USER_FIELD.$currentUserId")?.toInt() ?: 0
         )
     }
 
@@ -239,7 +284,8 @@ class FirebaseChatRepositoryImpl @Inject constructor(
             senderName = doc.getString("senderName").orEmpty(),
             senderAvatarUrl = doc.getString("senderAvatarUrl").orEmpty(),
             text = doc.getString("text").orEmpty(),
-            createdAt = doc.getDate("createdAt")?.time ?: 0L
+            createdAt = doc.getDate("createdAt")?.time ?: 0L,
+            clientMessageId = doc.getString("clientMessageId").orEmpty()
         )
     }
 
@@ -263,5 +309,6 @@ class FirebaseChatRepositoryImpl @Inject constructor(
         const val CONVERSATIONS_COLLECTION = "conversations"
         const val MESSAGES_COLLECTION = "messages"
         const val USERS_COLLECTION = "users"
+        const val UNREAD_COUNT_BY_USER_FIELD = "unreadCountByUser"
     }
 }

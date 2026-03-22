@@ -9,5 +9,6 @@ interface ChatRepository {
     fun observeConversations(currentUserId: String): Flow<List<Conversation>>
     fun observeMessages(conversationId: String): Flow<List<ChatMessage>>
     suspend fun createOrGetConversation(product: Product): Result<String>
-    suspend fun sendMessage(conversationId: String, text: String): Result<Unit>
+    suspend fun sendMessage(conversationId: String, text: String, clientMessageId: String = ""): Result<Unit>
+    suspend fun markConversationAsSeen(conversationId: String): Result<Unit>
 }

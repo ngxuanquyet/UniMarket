@@ -66,6 +66,7 @@ dependencies {
     implementation(libs.okhttp.logging)
     implementation(libs.firebase.firestore)
     implementation(libs.androidx.room.common.jvm)
+    implementation(libs.firebase.messaging)
     ksp(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.androidx.navigation.compose)

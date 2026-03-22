@@ -6,7 +6,11 @@ import javax.inject.Inject
 class SendMessageUseCase @Inject constructor(
     private val chatRepository: ChatRepository
 ) {
-    suspend operator fun invoke(conversationId: String, text: String): Result<Unit> {
-        return chatRepository.sendMessage(conversationId, text)
+    suspend operator fun invoke(
+        conversationId: String,
+        text: String,
+        clientMessageId: String = ""
+    ): Result<Unit> {
+        return chatRepository.sendMessage(conversationId, text, clientMessageId)
     }
 }

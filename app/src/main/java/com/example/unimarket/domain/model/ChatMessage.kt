@@ -7,5 +7,6 @@ data class ChatMessage(
     val senderName: String,
     val senderAvatarUrl: String = "",
     val text: String,
-    val createdAt: Long
+    val createdAt: Long,
+    val clientMessageId: String = ""
 )

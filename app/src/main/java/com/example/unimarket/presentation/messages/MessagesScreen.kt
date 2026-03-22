@@ -174,7 +174,7 @@ fun MessageItem(
                 modifier = Modifier.size(12.dp),
                 contentAlignment = Alignment.Center
             ) {
-                if (conversation.lastMessage.isNotBlank()) {
+                if (conversation.unreadCount > 0) {
                     Box(
                         modifier = Modifier
                             .size(8.dp)
