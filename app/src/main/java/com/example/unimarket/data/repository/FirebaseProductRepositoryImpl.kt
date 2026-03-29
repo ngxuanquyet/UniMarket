@@ -131,7 +131,7 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                 postedAt = postedAt,
                 isFavorite = doc.getBoolean("isFavorite") ?: false,
                 isNegotiable = doc.getBoolean("isNegotiable") ?: false,
-                quantityAvailable = doc.getLong("quantityAvailable")?.toInt()?.coerceAtLeast(1) ?: 1,
+                quantityAvailable = doc.getLong("quantityAvailable")?.toInt()?.coerceAtLeast(0) ?: 0,
                 userId = doc.getString("userId") ?: "",
                 specifications = (doc.get("specifications") as? Map<String, String>) ?: emptyMap(),
                 deliveryMethodsAvailable = deliveryMethodsFromStorage(

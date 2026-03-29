@@ -42,6 +42,8 @@ import com.example.unimarket.presentation.theme.PrimaryYellowDark
 fun ProfileScreen(
     onBack: () -> Unit = {},
     onLogoutClick: () -> Unit,
+    onMyPurchasesClick: () -> Unit = {},
+    onSellerOrdersClick: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val scrollState = rememberScrollState()
@@ -123,7 +125,10 @@ fun ProfileScreen(
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))
-                ProfileActionsList()
+                ProfileActionsList(
+                    onMyPurchasesClick = onMyPurchasesClick,
+                    onSellerOrdersClick = onSellerOrdersClick
+                )
 
                 Spacer(modifier = Modifier.height(32.dp))
                 LogoutButton(onClick = onLogoutClick)
@@ -360,7 +365,10 @@ fun StatCard(value: String, label: String, modifier: Modifier = Modifier, showSt
 }
 
 @Composable
-fun ProfileActionsList() {
+fun ProfileActionsList(
+    onMyPurchasesClick: () -> Unit = {},
+    onSellerOrdersClick: () -> Unit = {}
+) {
     Column(modifier = Modifier.padding(horizontal = 24.dp)) {
         ActionRowItem(
             title = "My Listings",
@@ -369,10 +377,18 @@ fun ProfileActionsList() {
             iconColor = BlueReview
         )
         ActionRowItem(
+            title = "Seller Orders",
+            icon = Icons.Default.Inventory2,
+            iconBgColor = LightBlueReviewBg,
+            iconColor = BlueReview,
+            onClick = onSellerOrdersClick
+        )
+        ActionRowItem(
             title = "My Purchases",
             icon = Icons.Default.ShoppingBag,
             iconBgColor = LightBlueReviewBg,
-            iconColor = BlueReview
+            iconColor = BlueReview,
+            onClick = onMyPurchasesClick
         )
         ActionRowItem(
             title = "Saved Items",

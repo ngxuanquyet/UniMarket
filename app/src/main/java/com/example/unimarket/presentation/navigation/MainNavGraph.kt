@@ -11,8 +11,10 @@ import com.example.unimarket.presentation.checkout.CheckoutScreen
 import com.example.unimarket.presentation.explore.ExploreScreen
 import com.example.unimarket.presentation.messages.ChatDetailScreen
 import com.example.unimarket.presentation.messages.MessagesScreen
+import com.example.unimarket.presentation.mypurchases.MyPurchasesScreen
 import com.example.unimarket.presentation.profile.ProfileScreen
 import com.example.unimarket.presentation.sell.SellScreen
+import com.example.unimarket.presentation.sellerorders.SellerOrdersScreen
 import com.example.unimarket.presentation.sellerprofile.SellerProfileScreen
 
 @Composable
@@ -59,7 +61,23 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
                 onLogoutClick = {
                     authViewModel.logout()
                 },
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onMyPurchasesClick = {
+                    navController.navigate(Screen.MyPurchases.route)
+                },
+                onSellerOrdersClick = {
+                    navController.navigate(Screen.SellerOrders.route)
+                }
+            )
+        }
+        composable(Screen.MyPurchases.route) {
+            MyPurchasesScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.SellerOrders.route) {
+            SellerOrdersScreen(
+                onBackClick = { navController.popBackStack() }
             )
         }
         composable(Screen.Cart.route) {
@@ -146,7 +164,13 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
             CheckoutScreen(
                 productId = productId,
                 quantity = quantity,
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                onPurchaseCompleted = {
+                    navController.navigate(Screen.Explore.route) {
+                        popUpTo(Screen.Explore.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                }
             )
         }
     }

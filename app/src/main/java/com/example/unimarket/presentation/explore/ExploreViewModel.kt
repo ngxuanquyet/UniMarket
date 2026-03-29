@@ -4,8 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.unimarket.domain.model.Category
 import com.example.unimarket.domain.model.Product
+import com.example.unimarket.domain.usecase.auth.GetCurrentUserUseCase
 import com.example.unimarket.domain.usecase.explore.GetAllProductsUseCase
 import com.example.unimarket.domain.usecase.product.GetCategoriesUseCase
+import com.google.firebase.auth.FirebaseUser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
@@ -18,12 +20,14 @@ import javax.inject.Inject
 @HiltViewModel
 class ExploreViewModel @Inject constructor(
     private val getAllProductsUseCase: GetAllProductsUseCase,
+    getCurrentUserUseCase: GetCurrentUserUseCase,
     private val getCategoriesUseCase: GetCategoriesUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ExploreUiState(isLoading = true))
     val uiState: StateFlow<ExploreUiState> = _uiState.asStateFlow()
     private var loadJob: Job? = null
+    private val currentUserId = (getCurrentUserUseCase() as? FirebaseUser)?.uid.orEmpty()
 
     init {
         loadData()
@@ -109,6 +113,8 @@ class ExploreViewModel @Inject constructor(
         }
 
         val filteredProducts = products.filter { product ->
+            val inStock = product.quantityAvailable > 0
+            val isOwnProduct = currentUserId.isNotBlank() && product.userId == currentUserId
             val matchesQuery = query.isBlank() || product.name.contains(query, ignoreCase = true)
             val matchesCategory = isAllCategory(categoryName) ||
                 product.categoryId.equals(categoryName, ignoreCase = true) ||
@@ -117,7 +123,7 @@ class ExploreViewModel @Inject constructor(
                         product.categoryId.equals(category.name, ignoreCase = true)
                 } == true
             val matchesPrice = priceFilter.matches(product.price)
-            matchesQuery && matchesCategory && matchesPrice
+            inStock && !isOwnProduct && matchesQuery && matchesCategory && matchesPrice
         }
 
         return when (priceSort) {

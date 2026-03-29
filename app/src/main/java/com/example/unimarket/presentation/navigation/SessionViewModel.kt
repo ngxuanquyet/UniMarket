@@ -1,7 +1,9 @@
 package com.example.unimarket.presentation.navigation
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.unimarket.BuildConfig
 import com.example.unimarket.data.notification.FcmTokenManager
 import com.example.unimarket.domain.usecase.auth.GetCachedUserUseCase
 import com.example.unimarket.domain.usecase.auth.GetCurrentUserUseCase
@@ -17,6 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 data class SessionUiState(
@@ -46,6 +49,7 @@ class SessionViewModel @Inject constructor(
         if (getCurrentUserUseCase() != null) {
             refreshProfileInBackground()
             syncFcmTokenInBackground()
+            logIdTokenInBackground()
         }
         observeUnreadMessages()
 
@@ -60,6 +64,7 @@ class SessionViewModel @Inject constructor(
                 }
                 if (isAuthenticated) {
                     syncFcmTokenInBackground()
+                    logIdTokenInBackground()
                 }
                 observeUnreadMessages()
             }
@@ -75,6 +80,22 @@ class SessionViewModel @Inject constructor(
     private fun syncFcmTokenInBackground() {
         viewModelScope.launch {
             runCatching { fcmTokenManager.syncCurrentUserToken() }
+        }
+    }
+
+    private fun logIdTokenInBackground() {
+        if (!BuildConfig.DEBUG) return
+
+        val currentUser = getCurrentUserUseCase() as? FirebaseUser ?: return
+        viewModelScope.launch {
+            runCatching {
+                val token = currentUser.getIdToken(false).await().token.orEmpty()
+                if (token.isNotBlank()) {
+                    Log.d(TAG, "firebase_id_token=${token}")
+                }
+            }.onFailure { error ->
+                Log.w(TAG, "Failed to log Firebase ID token", error)
+            }
         }
     }
 
@@ -100,5 +121,9 @@ class SessionViewModel @Inject constructor(
                     }
                 }
         }
+    }
+
+    private companion object {
+        const val TAG = "SessionViewModel"
     }
 }

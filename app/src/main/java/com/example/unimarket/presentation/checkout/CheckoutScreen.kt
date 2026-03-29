@@ -41,13 +41,20 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -74,16 +81,56 @@ fun CheckoutScreen(
     productId: String,
     quantity: Int,
     onBackClick: () -> Unit,
+    onPurchaseCompleted: () -> Unit = {},
     viewModel: CheckoutViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    var completedOrderId by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(productId) {
         viewModel.loadProduct(productId)
     }
 
+    LaunchedEffect(viewModel.uiEvent) {
+        viewModel.uiEvent.collect { event ->
+            when (event) {
+                is CheckoutViewModel.UiEvent.ShowSnackbar -> {
+                    snackbarHostState.showSnackbar(event.message)
+                }
+
+                is CheckoutViewModel.UiEvent.PurchaseCompleted -> {
+                    completedOrderId = event.orderId
+                }
+            }
+        }
+    }
+
+    if (completedOrderId != null) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text("Purchase confirmed") },
+            text = {
+                Text(
+                    "Your order #${completedOrderId?.takeLast(6)?.uppercase().orEmpty()} has been created successfully."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        completedOrderId = null
+                        onPurchaseCompleted()
+                    }
+                ) {
+                    Text("Continue shopping")
+                }
+            }
+        )
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Checkout", fontWeight = FontWeight.Bold) },
@@ -243,7 +290,8 @@ fun CheckoutScreen(
                 Spacer(modifier = Modifier.height(32.dp))
 
                 Button(
-                    onClick = { },
+                    onClick = { viewModel.confirmPurchase(quantity) },
+                    enabled = !uiState.isSubmitting,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
@@ -251,9 +299,34 @@ fun CheckoutScreen(
                     shape = RoundedCornerShape(28.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = SecondaryBlue)
                 ) {
-                    Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.White)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Confirm Purchase", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
+                    if (uiState.isSubmitting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            "Processing...",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = Color.White
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.Lock,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = Color.White
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "Confirm Purchase",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = Color.White
+                        )
+                    }
                 }
 
                 Text(

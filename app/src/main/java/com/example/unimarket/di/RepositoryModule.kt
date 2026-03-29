@@ -1,11 +1,15 @@
 package com.example.unimarket.di
 
 import com.example.unimarket.data.repository.InMemoryCartRepositoryImpl
+import com.example.unimarket.data.repository.FirebaseCheckoutRepositoryImpl
 import com.example.unimarket.data.repository.FirebaseChatRepositoryImpl
+import com.example.unimarket.data.repository.FirebaseOrderRepositoryImpl
 import com.example.unimarket.domain.repository.AuthRepository
 import com.example.unimarket.domain.repository.CartRepository
 import com.example.unimarket.domain.repository.ChatRepository
+import com.example.unimarket.domain.repository.CheckoutRepository
 import com.example.unimarket.domain.repository.ImageRepository
+import com.example.unimarket.domain.repository.OrderRepository
 import com.example.unimarket.domain.repository.ProductRepository
 import dagger.Binds
 import dagger.Module
@@ -33,9 +37,21 @@ abstract class RepositoryModule {
 
     @Binds
     @Singleton
+    abstract fun bindCheckoutRepository(
+        firebaseCheckoutRepositoryImpl: FirebaseCheckoutRepositoryImpl
+    ): CheckoutRepository
+
+    @Binds
+    @Singleton
     abstract fun bindChatRepository(
         firebaseChatRepositoryImpl: FirebaseChatRepositoryImpl
     ): ChatRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindOrderRepository(
+        firebaseOrderRepositoryImpl: FirebaseOrderRepositoryImpl
+    ): OrderRepository
 
     @Binds
     @Singleton

@@ -1,0 +1,597 @@
+package com.example.unimarket.presentation.mypurchases
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material.icons.filled.Straighten
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
+import com.example.unimarket.domain.model.Order
+import com.example.unimarket.domain.model.OrderStatus
+import com.example.unimarket.presentation.theme.BackgroundLight
+import com.example.unimarket.presentation.theme.BlueReview
+import com.example.unimarket.presentation.theme.BorderLightGray
+import com.example.unimarket.presentation.theme.GreenBadge
+import com.example.unimarket.presentation.theme.GreenBadgeBg
+import com.example.unimarket.presentation.theme.LightBlueReviewBg
+import com.example.unimarket.presentation.theme.OrangeBadge
+import com.example.unimarket.presentation.theme.OrangeBadgeBg
+import com.example.unimarket.presentation.theme.ProfileAvatarBorder
+import com.example.unimarket.presentation.theme.RedDanger
+import com.example.unimarket.presentation.theme.RedDangerBg
+import com.example.unimarket.presentation.theme.SecondaryBlue
+import com.example.unimarket.presentation.theme.SurfaceWhite
+import com.example.unimarket.presentation.theme.TagBlueBg
+import com.example.unimarket.presentation.theme.TextDarkBlack
+import com.example.unimarket.presentation.theme.TextGray
+import com.example.unimarket.presentation.util.formatVnd
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MyPurchasesScreen(
+    onBackClick: () -> Unit,
+    viewModel: MyPurchasesViewModel = hiltViewModel()
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
+    val selectedTab = PurchaseOrderTab.entries[selectedTabIndex]
+    val filteredOrders = remember(uiState.orders, selectedTabIndex) {
+        uiState.orders.filter { selectedTab.matches(it.status) }
+    }
+
+    LaunchedEffect(uiState.errorMessage) {
+        uiState.errorMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            viewModel.clearError()
+        }
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = "Orders",
+                        fontWeight = FontWeight.Bold,
+                        color = TextDarkBlack
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = TextDarkBlack
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = {}) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search orders",
+                            tint = TextDarkBlack
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceWhite)
+            )
+        },
+        containerColor = Color.Transparent
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(Color(0xFFF8FAFF), BackgroundLight)
+                    )
+                )
+                .padding(paddingValues)
+        ) {
+            PurchaseTabBar(
+                selectedTab = selectedTab,
+                onTabSelected = { selectedTabIndex = it.ordinal }
+            )
+
+            PullToRefreshBox(
+                isRefreshing = uiState.isLoading,
+                onRefresh = viewModel::refresh,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                when {
+                    uiState.isLoading && uiState.orders.isEmpty() -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = SecondaryBlue)
+                        }
+                    }
+
+                    filteredOrders.isEmpty() -> {
+                        EmptyPurchasesState(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 20.dp),
+                            title = if (uiState.orders.isEmpty()) {
+                                "You have no purchases yet"
+                            } else {
+                                "No orders in this tab yet"
+                            },
+                            subtitle = if (uiState.orders.isEmpty()) {
+                                "Orders created for this account will appear here."
+                            } else {
+                                "Try a different status tab or pull to refresh."
+                            }
+                        )
+                    }
+
+                    else -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                                start = 12.dp,
+                                end = 12.dp,
+                                top = 16.dp,
+                                bottom = 32.dp
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            items(filteredOrders, key = { it.documentPath.ifBlank { it.id } }) { order ->
+                                PurchaseOrderCard(order = order)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PurchaseTabBar(
+    selectedTab: PurchaseOrderTab,
+    onTabSelected: (PurchaseOrderTab) -> Unit
+) {
+    val scrollState = rememberScrollState()
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(SurfaceWhite)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(scrollState)
+                .padding(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(18.dp)
+        ) {
+            PurchaseOrderTab.entries.forEach { tab ->
+                val isSelected = tab == selectedTab
+                Column(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable { onTabSelected(tab) }
+                        .padding(top = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = tab.label,
+                        color = if (isSelected) SecondaryBlue else TextGray,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        fontSize = 13.sp,
+                        maxLines = 1
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(3.dp)
+                            .background(
+                                color = if (isSelected) SecondaryBlue else Color.Transparent,
+                                shape = RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp)
+                            )
+                    )
+                }
+            }
+        }
+
+        HorizontalDivider(color = BorderLightGray)
+    }
+}
+
+@Composable
+private fun PurchaseOrderCard(
+    order: Order
+) {
+    val totalAmount = if (order.totalAmount > 0) order.totalAmount else order.unitPrice * order.quantity
+
+    Surface(
+        color = SurfaceWhite,
+        shape = RoundedCornerShape(24.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, BorderLightGray, RoundedCornerShape(24.dp))
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(22.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(LightBlueReviewBg),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Storefront,
+                            contentDescription = null,
+                            tint = BlueReview,
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = order.storeName,
+                        color = TextDarkBlack,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                StatusBadge(
+                    status = order.status,
+                    statusLabel = order.statusLabel
+                )
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top
+            ) {
+                PurchaseProductImage(
+                    order = order,
+                    modifier = Modifier.size(84.dp)
+                )
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = order.productName,
+                        color = TextDarkBlack,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (order.productDetail.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = order.productDetail,
+                            color = TextGray,
+                            fontSize = 12.sp,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = formatVnd(order.unitPrice),
+                        color = TextDarkBlack,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp
+                    )
+                }
+
+                Text(
+                    text = "Qty:${order.quantity}",
+                    color = TextGray,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (order.quantity == 1) "1 item" else "${order.quantity} items",
+                    color = TextGray,
+                    fontSize = 12.sp
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Order Total:",
+                        color = TextGray,
+                        fontSize = 12.sp
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = formatVnd(totalAmount),
+                        color = SecondaryBlue,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedButton(
+                    onClick = {},
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TextDarkBlack)
+                ) {
+                    Text(
+                        text = "Contact Seller",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp
+                    )
+                }
+
+                Button(
+                    onClick = {},
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = SecondaryBlue)
+                ) {
+                    Text(
+                        text = "Track Order",
+                        color = SurfaceWhite,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PurchaseProductImage(
+    order: Order,
+    modifier: Modifier = Modifier
+) {
+    if (order.productImageUrl.isNotBlank()) {
+        AsyncImage(
+            model = order.productImageUrl,
+            contentDescription = order.productName,
+            contentScale = ContentScale.Crop,
+            modifier = modifier
+                .clip(RoundedCornerShape(16.dp))
+                .background(ProfileAvatarBorder)
+        )
+        return
+    }
+
+    val placeholderArtwork = resolvePlaceholderArtwork(order.productName, order.productDetail)
+    val (icon, background, tint) = when (placeholderArtwork) {
+        PlaceholderArtwork.BOOK -> Triple(Icons.AutoMirrored.Filled.MenuBook, Color(0xFFF9E7C9), Color(0xFFB88A44))
+        PlaceholderArtwork.CALCULATOR -> Triple(Icons.Default.Calculate, Color(0xFFE5E7EB), Color(0xFF5B6473))
+        PlaceholderArtwork.DRAFTING_KIT -> Triple(Icons.Default.Straighten, Color(0xFFEAF6E9), Color(0xFF4F8A4E))
+        PlaceholderArtwork.PACKAGE -> Triple(Icons.Default.Inventory2, Color(0xFFE8F1FE), Color(0xFF4E7ED8))
+        PlaceholderArtwork.BAG -> Triple(Icons.Default.ShoppingBag, Color(0xFFFDEDE5), Color(0xFFCE7B40))
+    }
+
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(background),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.size(38.dp)
+        )
+    }
+}
+
+@Composable
+private fun StatusBadge(
+    status: OrderStatus,
+    statusLabel: String
+) {
+    val (background, contentColor) = when (status) {
+        OrderStatus.WAITING_CONFIRMATION -> OrangeBadgeBg to OrangeBadge
+        OrderStatus.WAITING_PICKUP -> TagBlueBg to SecondaryBlue
+        OrderStatus.SHIPPING -> Color(0xFFFCE9F8) to Color(0xFFC457A8)
+        OrderStatus.IN_TRANSIT -> LightBlueReviewBg to BlueReview
+        OrderStatus.OUT_FOR_DELIVERY -> GreenBadgeBg to GreenBadge
+        OrderStatus.DELIVERED -> Color(0xFFE7F8EF) to Color(0xFF249B5B)
+        OrderStatus.CANCELLED -> RedDangerBg to RedDanger
+        OrderStatus.UNKNOWN -> ProfileAvatarBorder to TextGray
+    }
+
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(background)
+            .padding(horizontal = 10.dp, vertical = 5.dp)
+    ) {
+        Text(
+            text = statusLabel,
+            color = contentColor,
+            fontWeight = FontWeight.Bold,
+            fontSize = 10.sp
+        )
+    }
+}
+
+@Composable
+private fun EmptyPurchasesState(
+    modifier: Modifier = Modifier,
+    title: String,
+    subtitle: String
+) {
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(
+                modifier = Modifier
+                    .size(78.dp)
+                    .clip(CircleShape)
+                    .background(ProfileAvatarBorder),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Inventory2,
+                    contentDescription = null,
+                    tint = TextGray,
+                    modifier = Modifier.size(36.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = title,
+                color = TextDarkBlack,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = subtitle,
+                color = TextGray,
+                fontSize = 14.sp
+            )
+        }
+    }
+}
+
+private enum class PurchaseOrderTab(val label: String) {
+    ALL("All"),
+    WAIT_FOR_CONFIRMATION("Wait for Confirmation"),
+    WAIT_FOR_PICKUP("Wait for Pickup"),
+    SHIPPING("Shipping"),
+    DELIVERED("Đã giao"),
+    CANCELLED("Hủy");
+
+    fun matches(status: OrderStatus): Boolean {
+        return when (this) {
+            ALL -> true
+            WAIT_FOR_CONFIRMATION -> status == OrderStatus.WAITING_CONFIRMATION
+            WAIT_FOR_PICKUP -> status == OrderStatus.WAITING_PICKUP
+            SHIPPING -> status in setOf(
+                OrderStatus.SHIPPING,
+                OrderStatus.IN_TRANSIT,
+                OrderStatus.OUT_FOR_DELIVERY
+            )
+            DELIVERED -> status == OrderStatus.DELIVERED
+            CANCELLED -> status == OrderStatus.CANCELLED
+        }
+    }
+}
+
+private enum class PlaceholderArtwork {
+    BOOK,
+    CALCULATOR,
+    DRAFTING_KIT,
+    PACKAGE,
+    BAG
+}
+
+private fun resolvePlaceholderArtwork(
+    productName: String,
+    productDetail: String
+): PlaceholderArtwork {
+    val haystack = "$productName $productDetail".uppercase()
+
+    return when {
+        "BOOK" in haystack || "CHEM" in haystack || "TEXT" in haystack -> PlaceholderArtwork.BOOK
+        "CALCULATOR" in haystack || "MATH" in haystack -> PlaceholderArtwork.CALCULATOR
+        "DRAFT" in haystack || "COMPASS" in haystack || "SCALE" in haystack -> PlaceholderArtwork.DRAFTING_KIT
+        "BAG" in haystack || "HOODIE" in haystack -> PlaceholderArtwork.BAG
+        else -> PlaceholderArtwork.PACKAGE
+    }
+}
