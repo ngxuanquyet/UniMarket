@@ -1,5 +1,6 @@
 package com.example.unimarket.presentation.messages
 
+import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -8,6 +9,7 @@ import com.example.unimarket.domain.usecase.chat.MarkConversationAsSeenUseCase
 import com.example.unimarket.domain.usecase.chat.ObserveConversationsUseCase
 import com.example.unimarket.domain.usecase.chat.ObserveMessagesUseCase
 import com.example.unimarket.domain.usecase.chat.SendMessageUseCase
+import com.example.unimarket.domain.usecase.image.UploadImageUseCase
 import com.google.firebase.auth.FirebaseUser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -29,7 +31,8 @@ class ChatViewModel @Inject constructor(
     private val markConversationAsSeenUseCase: MarkConversationAsSeenUseCase,
     private val observeConversationsUseCase: ObserveConversationsUseCase,
     private val observeMessagesUseCase: ObserveMessagesUseCase,
-    private val sendMessageUseCase: SendMessageUseCase
+    private val sendMessageUseCase: SendMessageUseCase,
+    private val uploadImageUseCase: UploadImageUseCase
 ) : ViewModel() {
 
     private val conversationId: String = savedStateHandle.get<String>("conversationId").orEmpty()
@@ -63,10 +66,19 @@ class ChatViewModel @Inject constructor(
         _uiState.update { it.copy(messageText = value) }
     }
 
+    fun updateSelectedImage(uri: Uri?) {
+        _uiState.update { it.copy(selectedImageUri = uri, errorMessage = null) }
+    }
+
+    fun clearSelectedImage() {
+        _uiState.update { it.copy(selectedImageUri = null) }
+    }
+
     fun sendMessage() {
         if (conversationId.isBlank()) return
         val text = _uiState.value.messageText.trim()
-        if (text.isBlank()) return
+        val selectedImageUri = _uiState.value.selectedImageUri
+        if (text.isBlank() && selectedImageUri == null) return
 
         val user = currentUser ?: return
         val clientMessageId = UUID.randomUUID().toString()
@@ -77,6 +89,7 @@ class ChatViewModel @Inject constructor(
             senderName = user.displayName ?: "You",
             senderAvatarUrl = user.photoUrl?.toString().orEmpty(),
             text = text,
+            imageUrl = selectedImageUri?.toString().orEmpty(),
             createdAt = System.currentTimeMillis(),
             clientMessageId = clientMessageId
         )
@@ -85,20 +98,45 @@ class ChatViewModel @Inject constructor(
         _uiState.update {
             it.copy(
                 messageText = "",
+                selectedImageUri = null,
+                isSending = true,
                 errorMessage = null,
                 messages = mergeMessages(syncedMessages, pendingMessages)
             )
         }
 
         viewModelScope.launch {
-            sendMessageUseCase(conversationId, text, clientMessageId)
-                .onSuccess { }
+            val uploadedImageUrl = if (selectedImageUri != null) {
+                uploadImageUseCase(selectedImageUri)
+                    .getOrElse { error ->
+                        pendingMessages = pendingMessages.filterNot {
+                            it.clientMessageId == clientMessageId
+                        }
+                        _uiState.update {
+                            it.copy(
+                                isSending = false,
+                                messages = mergeMessages(syncedMessages, pendingMessages),
+                                errorMessage = error.message ?: "Failed to upload image"
+                            )
+                        }
+                        _events.emit(error.message ?: "Failed to upload image")
+                        return@launch
+                    }
+            } else {
+                ""
+            }
+
+            sendMessageUseCase(conversationId, text, uploadedImageUrl, clientMessageId)
+                .onSuccess {
+                    _uiState.update { it.copy(isSending = false) }
+                }
                 .onFailure { error ->
                     pendingMessages = pendingMessages.filterNot {
                         it.clientMessageId == clientMessageId
                     }
                     _uiState.update {
                         it.copy(
+                            isSending = false,
                             messages = mergeMessages(syncedMessages, pendingMessages),
                             errorMessage = error.message ?: "Failed to send message"
                         )
@@ -165,6 +203,7 @@ class ChatViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
+                            isSending = false,
                             messages = mergeMessages(syncedMessages, pendingMessages),
                             errorMessage = null
                         )

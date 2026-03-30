@@ -4,6 +4,7 @@ import android.util.Log
 import com.example.unimarket.domain.model.Category
 import com.example.unimarket.domain.model.deliveryMethodsFromStorage
 import com.example.unimarket.domain.model.Product
+import com.example.unimarket.domain.model.UserAddress
 import com.example.unimarket.domain.model.toStorageValue
 import com.example.unimarket.domain.repository.ProductRepository
 import com.example.unimarket.presentation.util.toRelativeTimeLabel
@@ -66,7 +67,8 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                 "quantityAvailable" to product.quantityAvailable,
                 "userId" to product.userId,
                 "specifications" to product.specifications,
-                "deliveryMethodsAvailable" to product.deliveryMethodsAvailable.map { it.toStorageValue() }
+                "deliveryMethodsAvailable" to product.deliveryMethodsAvailable.map { it.toStorageValue() },
+                "sellerPickupAddress" to product.sellerPickupAddress?.toMap()
             )
             firestore.collection("products").add(productMap).await()
             Result.success(Unit)
@@ -103,7 +105,8 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                 "quantityAvailable" to product.quantityAvailable,
                 "userId" to product.userId,
                 "specifications" to product.specifications,
-                "deliveryMethodsAvailable" to product.deliveryMethodsAvailable.map { it.toStorageValue() }
+                "deliveryMethodsAvailable" to product.deliveryMethodsAvailable.map { it.toStorageValue() },
+                "sellerPickupAddress" to product.sellerPickupAddress?.toMap()
             )
             // Using set() to overwrite or create if not exists
             firestore.collection("products").document(product.id).set(productMap).await()
@@ -136,11 +139,33 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                 specifications = (doc.get("specifications") as? Map<String, String>) ?: emptyMap(),
                 deliveryMethodsAvailable = deliveryMethodsFromStorage(
                     (doc.get("deliveryMethodsAvailable") as? List<String>) ?: emptyList()
-                )
+                ),
+                sellerPickupAddress = mapAddress(doc.get("sellerPickupAddress"))
             )
         } catch (e: Exception) {
             Log.w("FirebaseProductRepo", "Failed to map product ${doc.id}", e)
             null
         }
+    }
+
+    private fun mapAddress(value: Any?): UserAddress? {
+        val map = value as? Map<*, *> ?: return null
+        return UserAddress(
+            id = map["id"] as? String ?: "",
+            recipientName = map["recipientName"] as? String ?: "",
+            phoneNumber = map["phoneNumber"] as? String ?: "",
+            addressLine = map["addressLine"] as? String ?: "",
+            isDefault = map["isDefault"] as? Boolean ?: false
+        )
+    }
+
+    private fun UserAddress.toMap(): Map<String, Any?> {
+        return mapOf(
+            "id" to id,
+            "recipientName" to recipientName,
+            "phoneNumber" to phoneNumber,
+            "addressLine" to addressLine,
+            "isDefault" to isDefault
+        )
     }
 }

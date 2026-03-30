@@ -14,11 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.RemoveShoppingCart
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.CreditCard
-import androidx.compose.material.icons.filled.LocalOffer
-import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -37,9 +33,6 @@ import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.animateLottieCompositionAsState
 import com.airbnb.lottie.compose.rememberLottieComposition
 import com.example.unimarket.domain.model.CartItem
-import com.example.unimarket.presentation.theme.AccentGreen
-import com.example.unimarket.presentation.theme.PrimaryYellowDark
-import com.example.unimarket.presentation.theme.SecondaryBlue
 import com.example.unimarket.presentation.util.formatVnd
 import com.example.unimarket.R
 
@@ -47,15 +40,18 @@ import com.example.unimarket.R
 @Composable
 fun CartScreen(
     onBackClick: () -> Unit,
+    onCheckoutClick: (List<String>) -> Unit,
     viewModel: CartViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
+    val allSelected = uiState.cartItems.isNotEmpty() &&
+        uiState.selectedCartItemIds.size == uiState.cartItems.size
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Your Cart") },
+                title = { Text("My Cart") },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -67,8 +63,12 @@ fun CartScreen(
         bottomBar = {
             if (uiState.cartItems.isNotEmpty()) {
                 CartBottomBar(
-                    total = uiState.total,
-                    onPlaceOrderClick = { /* Handle checkout */ }
+                    total = uiState.selectedSubtotal,
+                    selectedCount = uiState.selectedCartItemIds.size,
+                    enabled = uiState.selectedCartItemIds.isNotEmpty(),
+                    onPlaceOrderClick = {
+                        onCheckoutClick(uiState.selectedCartItemIds.toList())
+                    }
                 )
             }
         },
@@ -91,7 +91,7 @@ fun CartScreen(
                     LoadingAminEmptyCart()
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "Your Cart is empty",
+                        text = "My Cart is empty",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -105,102 +105,38 @@ fun CartScreen(
                     .verticalScroll(scrollState)
                     .padding(horizontal = 16.dp)
             ) {
-                Text(
-                    text = "Selected Items",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(vertical = 12.dp)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Products",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = allSelected,
+                            onCheckedChange = { viewModel.selectAll(it) }
+                        )
+                        Text("Select all")
+                    }
+                }
 
                 uiState.cartItems.forEach { item ->
                     CartItemRow(
                         item = item,
+                        isSelected = item.id in uiState.selectedCartItemIds,
+                        onSelectionChange = { viewModel.toggleSelection(item.id, it) },
                         onIncrease = { viewModel.updateQuantity(item.id, item.quantity + 1) },
                         onDecrease = { viewModel.updateQuantity(item.id, item.quantity - 1) },
                         onRemove = { viewModel.removeItem(item.id) }
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                 }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                SectionCard(
-                    title = "Delivery Address",
-                    icon = Icons.Default.LocationOn,
-                    iconTint = PrimaryYellowDark,
-                    actionText = "Change"
-                ) {
-                    Column {
-                        Text("North Campus Dorms, Building C", fontWeight = FontWeight.Bold)
-                        Text(
-                            "Room 304",
-                            color = Color.Gray,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            "Contact: John Doe (+1 234-567-8900)",
-                            color = Color.Gray,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                SectionCard(
-                    title = "Payment Method",
-                    icon = Icons.Default.CreditCard,
-                    iconTint = PrimaryYellowDark,
-                    actionText = "Select"
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.CreditCard,
-                            contentDescription = null,
-                            tint = Color.Gray,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Campus Wallet Balance: ", color = Color.Gray)
-                        Text(formatVnd(120.50), fontWeight = FontWeight.Bold)
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                SectionCard(
-                    title = "Student Discount",
-                    icon = Icons.Default.LocalOffer,
-                    iconTint = PrimaryYellowDark,
-                    actionText = ""
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedTextField(
-                            value = "",
-                            onValueChange = {},
-                            placeholder = { Text("Enter code") },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(50.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                unfocusedContainerColor = ProfileAvatarBorder,
-                                unfocusedBorderColor = Color.Transparent,
-                                focusedBorderColor = PrimaryYellowDark
-                            ),
-                            shape = RoundedCornerShape(8.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Button(
-                            onClick = { },
-                            colors = ButtonDefaults.buttonColors(containerColor = DividerColor),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text("Apply", color = Color.Black)
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
 
                 Card(
                     colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -210,23 +146,15 @@ fun CartScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = "Order Summary",
+                            text = "Selection Summary",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(bottom = 12.dp)
                         )
 
                         SummaryRow(
-                            "Subtotal (${uiState.cartItems.size} items)",
-                            formatVnd(uiState.subtotal)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        SummaryRow("Delivery Fee", formatVnd(uiState.deliveryFee))
-                        Spacer(modifier = Modifier.height(8.dp))
-                        SummaryRow(
-                            "Discount applied",
-                            "-${formatVnd(uiState.discount)}",
-                            AccentGreen
+                            "Selected items (${uiState.selectedCartItemIds.size})",
+                            formatVnd(uiState.selectedSubtotal)
                         )
 
                         HorizontalDivider(
@@ -240,14 +168,14 @@ fun CartScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                "Total",
+                                "Selected total",
                                 fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.titleMedium
                             )
                             Text(
-                                formatVnd(uiState.total),
+                                formatVnd(uiState.selectedSubtotal),
                                 fontWeight = FontWeight.Bold,
-                                color = PrimaryYellowDark,
+                                color = SecondaryBlue,
                                 style = MaterialTheme.typography.titleLarge
                             )
                         }
@@ -263,6 +191,8 @@ fun CartScreen(
 @Composable
 fun CartItemRow(
     item: CartItem,
+    isSelected: Boolean,
+    onSelectionChange: (Boolean) -> Unit,
     onIncrease: () -> Unit,
     onDecrease: () -> Unit,
     onRemove: () -> Unit
@@ -277,6 +207,13 @@ fun CartItemRow(
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            Checkbox(
+                checked = isSelected,
+                onCheckedChange = onSelectionChange
+            )
+
+            Spacer(modifier = Modifier.width(8.dp))
+
             Image(
                 painter = rememberAsyncImagePainter(model = item.product.imageUrls.firstOrNull()),
                 contentDescription = item.product.name,
@@ -322,8 +259,16 @@ fun CartItemRow(
                 Text(
                     text = formatVnd(item.product.price),
                     style = MaterialTheme.typography.titleMedium,
-                    color = PrimaryYellowDark,
+                    color = SecondaryBlue,
                     fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "Item total: ${formatVnd(item.product.price * item.quantity)}",
+                    color = Color.Gray,
+                    style = MaterialTheme.typography.bodySmall
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -360,52 +305,6 @@ fun CartItemRow(
 }
 
 @Composable
-fun SectionCard(
-    title: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    iconTint: Color,
-    actionText: String,
-    content: @Composable () -> Unit
-) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(
-                    icon,
-                    contentDescription = null,
-                    tint = iconTint,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    title,
-                    fontWeight = FontWeight.Medium,
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f)
-                )
-                if (actionText.isNotEmpty()) {
-                    Text(
-                        actionText,
-                        color = SecondaryBlue,
-                        style = MaterialTheme.typography.labelLarge,
-                        modifier = Modifier.clickable { })
-                }
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-            content()
-        }
-    }
-}
-
-@Composable
 fun SummaryRow(label: String, value: String, valueColor: Color = Color.Black) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -421,7 +320,12 @@ fun SummaryRow(label: String, value: String, valueColor: Color = Color.Black) {
 }
 
 @Composable
-fun CartBottomBar(total: Double, onPlaceOrderClick: () -> Unit) {
+fun CartBottomBar(
+    total: Double,
+    selectedCount: Int,
+    enabled: Boolean,
+    onPlaceOrderClick: () -> Unit
+) {
     Surface(
         color = Color.White,
         shadowElevation = 8.dp
@@ -449,16 +353,17 @@ fun CartBottomBar(total: Double, onPlaceOrderClick: () -> Unit) {
 
             Button(
                 onClick = onPlaceOrderClick,
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryYellowDark),
+                enabled = enabled,
+                colors = ButtonDefaults.buttonColors(containerColor = SecondaryBlue),
                 shape = RoundedCornerShape(24.dp),
                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
             ) {
-                Text("Place Order", color = Color.Black, fontWeight = FontWeight.Bold)
+                Text("Checkout ($selectedCount)", color = Color.White, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.width(8.dp))
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = null,
-                    tint = Color.Black,
+                    tint = Color.White,
                     modifier = Modifier.size(18.dp)
                 )
             }

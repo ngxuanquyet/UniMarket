@@ -21,6 +21,7 @@ data class DraftProduct(
     val isNegotiable: Boolean,
     val specifications: Map<String, String>,
     val deliveryMethodsAvailable: List<DeliveryMethod>,
+    val sellerPickupAddress: com.example.unimarket.domain.model.UserAddress? = null,
     val lastModified: Long = System.currentTimeMillis()
 )
 
@@ -69,6 +70,21 @@ class Converters {
             gson.fromJson(value, listType) ?: emptyList()
         } catch (e: Exception) {
             emptyList()
+        }
+    }
+
+    @TypeConverter
+    fun fromUserAddress(value: com.example.unimarket.domain.model.UserAddress?): String {
+        return gson.toJson(value)
+    }
+
+    @TypeConverter
+    fun toUserAddress(value: String?): com.example.unimarket.domain.model.UserAddress? {
+        if (value.isNullOrBlank() || value == "null") return null
+        return try {
+            gson.fromJson(value, com.example.unimarket.domain.model.UserAddress::class.java)
+        } catch (e: Exception) {
+            null
         }
     }
 }

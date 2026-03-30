@@ -126,12 +126,14 @@ class FirebaseChatRepositoryImpl @Inject constructor(
     override suspend fun sendMessage(
         conversationId: String,
         text: String,
+        imageUrl: String,
         clientMessageId: String
     ): Result<Unit> {
         return try {
             val currentUser = auth.currentUser ?: return Result.failure(Exception("Please log in to send messages"))
             val trimmedText = text.trim()
-            if (trimmedText.isBlank()) {
+            val trimmedImageUrl = imageUrl.trim()
+            if (trimmedText.isBlank() && trimmedImageUrl.isBlank()) {
                 return Result.failure(Exception("Message cannot be empty"))
             }
 
@@ -152,6 +154,7 @@ class FirebaseChatRepositoryImpl @Inject constructor(
                 return Result.failure(Exception("Conversation not found"))
             }
             val sentAt = Date()
+            val conversationPreview = trimmedText.ifBlank { IMAGE_MESSAGE_PREVIEW }
             val unreadCountUpdates = participantIds.associate { participantId ->
                 val currentUnreadCount = conversationSnapshot.getLong("$UNREAD_COUNT_BY_USER_FIELD.$participantId")
                     ?.toInt()
@@ -168,6 +171,7 @@ class FirebaseChatRepositoryImpl @Inject constructor(
                         "senderName" to senderInfo.name,
                         "senderAvatarUrl" to senderInfo.avatarUrl,
                         "text" to trimmedText,
+                        "imageUrl" to trimmedImageUrl,
                         "createdAt" to sentAt,
                         "clientMessageId" to clientMessageId
                     )
@@ -175,7 +179,7 @@ class FirebaseChatRepositoryImpl @Inject constructor(
                 batch.update(
                     conversationRef,
                     mapOf(
-                        "lastMessage" to trimmedText,
+                        "lastMessage" to conversationPreview,
                         "lastMessageAt" to sentAt,
                         "lastSenderId" to currentUser.uid,
                         "updatedAt" to FieldValue.serverTimestamp()
@@ -186,7 +190,7 @@ class FirebaseChatRepositoryImpl @Inject constructor(
 
             chatPushNotificationSender.notifyNewMessage(
                 conversationId = conversationId,
-                text = trimmedText
+                text = conversationPreview
             )
 
             Result.success(Unit)
@@ -291,6 +295,7 @@ class FirebaseChatRepositoryImpl @Inject constructor(
             senderName = doc.getString("senderName").orEmpty(),
             senderAvatarUrl = doc.getString("senderAvatarUrl").orEmpty(),
             text = doc.getString("text").orEmpty(),
+            imageUrl = doc.getString("imageUrl").orEmpty(),
             createdAt = doc.getDate("createdAt")?.time ?: 0L,
             clientMessageId = doc.getString("clientMessageId").orEmpty()
         )
@@ -317,5 +322,6 @@ class FirebaseChatRepositoryImpl @Inject constructor(
         const val MESSAGES_COLLECTION = "messages"
         const val USERS_COLLECTION = "users"
         const val UNREAD_COUNT_BY_USER_FIELD = "unreadCountByUser"
+        const val IMAGE_MESSAGE_PREVIEW = "[Image]"
     }
 }

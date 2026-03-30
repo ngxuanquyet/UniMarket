@@ -6,8 +6,10 @@ import com.example.unimarket.domain.model.DeliveryMethod
 import com.example.unimarket.domain.model.Product
 import com.example.unimarket.domain.model.PurchaseRequest
 import com.example.unimarket.domain.model.UserAddress
-import com.example.unimarket.domain.usecase.auth.RefreshCurrentUserProfileUseCase
 import com.example.unimarket.domain.usecase.auth.GetUserAddressesUseCase
+import com.example.unimarket.domain.usecase.auth.RefreshCurrentUserProfileUseCase
+import com.example.unimarket.domain.usecase.cart.GetCartItemsUseCase
+import com.example.unimarket.domain.usecase.cart.RemoveFromCartUseCase
 import com.example.unimarket.domain.usecase.checkout.ConfirmBuyNowPurchaseUseCase
 import com.example.unimarket.domain.usecase.explore.GetAllProductsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -17,21 +19,47 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-data class CheckoutUiState(
-    val product: Product? = null,
+private const val DEFAULT_PAYMENT_METHOD = "Cash on delivery"
+private const val PLATFORM_FEE = 1500.0
+private const val SHIPPING_FEE = 30000.0
+
+data class CheckoutOrderUiState(
+    val id: String,
+    val cartItemId: String? = null,
+    val product: Product,
+    val quantity: Int,
     val availableDeliveryMethods: List<DeliveryMethod> = emptyList(),
-    val buyerAddresses: List<UserAddress> = emptyList(),
     val sellerAddresses: List<UserAddress> = emptyList(),
-    val selectedBuyerAddressId: String? = null,
     val selectedSellerAddressId: String? = null,
     val selectedDeliveryMethod: DeliveryMethod? = null,
     val meetingPoint: String = "",
-    val paymentMethod: String = "Cash on delivery",
+    val paymentMethod: String = DEFAULT_PAYMENT_METHOD
+) {
+    val selectedSellerAddress: UserAddress?
+        get() = sellerAddresses.firstOrNull { it.id == selectedSellerAddressId }
+
+    val subtotal: Double
+        get() = product.price * quantity
+
+    val platformFee: Double
+        get() = PLATFORM_FEE
+
+    val deliveryFee: Double
+        get() = if (selectedDeliveryMethod == DeliveryMethod.SHIPPING) SHIPPING_FEE else 0.0
+
+    val total: Double
+        get() = subtotal + platformFee + deliveryFee
+}
+
+data class CheckoutUiState(
+    val orders: List<CheckoutOrderUiState> = emptyList(),
+    val buyerAddresses: List<UserAddress> = emptyList(),
+    val selectedBuyerAddressId: String? = null,
     val isLoading: Boolean = false,
     val isSubmitting: Boolean = false,
     val errorMessage: String? = null
@@ -39,16 +67,27 @@ data class CheckoutUiState(
     val selectedBuyerAddress: UserAddress?
         get() = buyerAddresses.firstOrNull { it.id == selectedBuyerAddressId }
 
-    val selectedSellerAddress: UserAddress?
-        get() = sellerAddresses.firstOrNull { it.id == selectedSellerAddressId }
+    val grandSubtotal: Double
+        get() = orders.sumOf { it.subtotal }
+
+    val grandPlatformFee: Double
+        get() = orders.sumOf { it.platformFee }
+
+    val grandDeliveryFee: Double
+        get() = orders.sumOf { it.deliveryFee }
+
+    val grandTotal: Double
+        get() = orders.sumOf { it.total }
 }
 
 @HiltViewModel
 class CheckoutViewModel @Inject constructor(
     private val getAllProductsUseCase: GetAllProductsUseCase,
+    private val getCartItemsUseCase: GetCartItemsUseCase,
     private val getUserAddressesUseCase: GetUserAddressesUseCase,
     private val confirmBuyNowPurchaseUseCase: ConfirmBuyNowPurchaseUseCase,
-    private val refreshCurrentUserProfileUseCase: RefreshCurrentUserProfileUseCase
+    private val refreshCurrentUserProfileUseCase: RefreshCurrentUserProfileUseCase,
+    private val removeFromCartUseCase: RemoveFromCartUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CheckoutUiState(isLoading = true))
@@ -59,164 +98,280 @@ class CheckoutViewModel @Inject constructor(
 
     sealed class UiEvent {
         data class ShowSnackbar(val message: String) : UiEvent()
-        data class PurchaseCompleted(val orderId: String) : UiEvent()
+        data class PurchaseCompleted(
+            val orderIds: List<String>,
+            val requestedCount: Int
+        ) : UiEvent()
     }
 
-    fun loadProduct(productId: String) {
+    fun loadProduct(productId: String, quantity: Int) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+            _uiState.value = CheckoutUiState(isLoading = true)
 
-            // Reusing GetAllProductsUseCase due to lack of GetProductByIdUseCase yet
-            getAllProductsUseCase()
-                .catch { error ->
-                    _uiState.value = _uiState.value.copy(
+            runCatching {
+                getAllProductsUseCase().first()
+            }.onSuccess { products ->
+                val product = products.find { it.id == productId }
+                if (product == null) {
+                    _uiState.value = CheckoutUiState(
                         isLoading = false,
-                        errorMessage = error.message ?: "Failed to load product"
+                        errorMessage = "Product not found"
                     )
+                    return@onSuccess
                 }
-                .collect { products ->
-                    val product = products.find { it.id == productId }
-                    if (product != null) {
-                        val availableMethods = product.deliveryMethodsAvailable
-                        _uiState.value = _uiState.value.copy(
-                            product = product,
-                            availableDeliveryMethods = availableMethods,
-                            selectedDeliveryMethod = availableMethods.firstOrNull(),
-                            isLoading = false
-                        )
-                        loadAddresses(product.userId)
-                    } else {
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = false,
-                            errorMessage = "Product not found"
-                        )
-                    }
-                }
+
+                val baseOrder = createOrderState(
+                    id = "buy_now_${product.id}",
+                    cartItemId = null,
+                    product = product,
+                    quantity = quantity
+                )
+                loadCheckoutData(listOf(baseOrder))
+            }.onFailure { error ->
+                _uiState.value = CheckoutUiState(
+                    isLoading = false,
+                    errorMessage = error.message ?: "Failed to load product"
+                )
+            }
         }
     }
 
-    private fun loadAddresses(sellerUserId: String) {
+    fun loadCartItems(cartItemIds: List<String>) {
         viewModelScope.launch {
-            val buyerResult = getUserAddressesUseCase()
-            val sellerResult = getUserAddressesUseCase(sellerUserId)
+            _uiState.value = CheckoutUiState(isLoading = true)
 
-            val buyerAddresses = buyerResult.getOrDefault(emptyList())
-            val sellerAddresses = sellerResult.getOrDefault(emptyList())
+            if (cartItemIds.isEmpty()) {
+                _uiState.value = CheckoutUiState(
+                    isLoading = false,
+                    errorMessage = "No cart items selected"
+                )
+                return@launch
+            }
 
-            _uiState.value = _uiState.value.copy(
-                buyerAddresses = buyerAddresses,
+            runCatching {
+                getCartItemsUseCase().first()
+            }.onSuccess { cartItems ->
+                val selectedItems = cartItems.filter { it.id in cartItemIds }
+                if (selectedItems.isEmpty()) {
+                    _uiState.value = CheckoutUiState(
+                        isLoading = false,
+                        errorMessage = "Selected cart items were not found"
+                    )
+                    return@onSuccess
+                }
+
+                val orders = selectedItems.map { cartItem ->
+                    createOrderState(
+                        id = cartItem.id,
+                        cartItemId = cartItem.id,
+                        product = cartItem.product,
+                        quantity = cartItem.quantity
+                    )
+                }
+                loadCheckoutData(orders)
+            }.onFailure { error ->
+                _uiState.value = CheckoutUiState(
+                    isLoading = false,
+                    errorMessage = error.message ?: "Failed to load cart items"
+                )
+            }
+        }
+    }
+
+    private suspend fun loadCheckoutData(baseOrders: List<CheckoutOrderUiState>) {
+        val buyerResult = getUserAddressesUseCase()
+        val buyerAddresses = buyerResult.getOrDefault(emptyList())
+
+        val sellerAddressMap = mutableMapOf<String, List<UserAddress>>()
+        val sellerErrorMessages = mutableListOf<String>()
+
+        baseOrders.map { it.product.userId }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .forEach { sellerUserId ->
+                val sellerResult = getUserAddressesUseCase(sellerUserId)
+                sellerAddressMap[sellerUserId] = sellerResult.getOrDefault(emptyList())
+                sellerResult.exceptionOrNull()?.message?.let(sellerErrorMessages::add)
+            }
+
+        val ordersWithAddresses = baseOrders.map { order ->
+            val sellerAddresses = order.product.sellerPickupAddress?.let { listOf(it) }
+                ?: sellerAddressMap[order.product.userId].orEmpty()
+            order.copy(
                 sellerAddresses = sellerAddresses,
-                selectedBuyerAddressId = buyerAddresses.firstOrNull { it.isDefault }?.id ?: buyerAddresses.firstOrNull()?.id,
-                selectedSellerAddressId = sellerAddresses.firstOrNull { it.isDefault }?.id ?: sellerAddresses.firstOrNull()?.id,
-                errorMessage = buyerResult.exceptionOrNull()?.message ?: sellerResult.exceptionOrNull()?.message
+                selectedSellerAddressId = sellerAddresses.firstOrNull { it.isDefault }?.id
+                    ?: sellerAddresses.firstOrNull()?.id
+            )
+        }
+
+        _uiState.value = CheckoutUiState(
+            orders = ordersWithAddresses,
+            buyerAddresses = buyerAddresses,
+            selectedBuyerAddressId = buyerAddresses.firstOrNull { it.isDefault }?.id
+                ?: buyerAddresses.firstOrNull()?.id,
+            isLoading = false,
+            errorMessage = buyerResult.exceptionOrNull()?.message ?: sellerErrorMessages.firstOrNull()
+        )
+    }
+
+    fun selectDeliveryMethod(orderId: String, method: DeliveryMethod) {
+        _uiState.update { state ->
+            state.copy(
+                orders = state.orders.map { order ->
+                    if (order.id == orderId && order.availableDeliveryMethods.contains(method)) {
+                        order.copy(selectedDeliveryMethod = method)
+                    } else {
+                        order
+                    }
+                }
             )
         }
     }
 
-    fun selectDeliveryMethod(method: DeliveryMethod) {
-        if (_uiState.value.availableDeliveryMethods.contains(method)) {
-            _uiState.value = _uiState.value.copy(selectedDeliveryMethod = method)
+    fun selectBuyerAddress(addressId: String) {
+        _uiState.update { it.copy(selectedBuyerAddressId = addressId) }
+    }
+
+    fun selectSellerAddress(orderId: String, addressId: String) {
+        _uiState.update { state ->
+            state.copy(
+                orders = state.orders.map { order ->
+                    if (order.id == orderId) {
+                        order.copy(selectedSellerAddressId = addressId)
+                    } else {
+                        order
+                    }
+                }
+            )
         }
     }
 
-    fun selectBuyerAddress(addressId: String) {
-        _uiState.value = _uiState.value.copy(selectedBuyerAddressId = addressId)
+    fun updateMeetingPoint(orderId: String, value: String) {
+        _uiState.update { state ->
+            state.copy(
+                orders = state.orders.map { order ->
+                    if (order.id == orderId) {
+                        order.copy(meetingPoint = value)
+                    } else {
+                        order
+                    }
+                }
+            )
+        }
     }
 
-    fun selectSellerAddress(addressId: String) {
-        _uiState.value = _uiState.value.copy(selectedSellerAddressId = addressId)
+    fun selectPaymentMethod(orderId: String, value: String) {
+        _uiState.update { state ->
+            state.copy(
+                orders = state.orders.map { order ->
+                    if (order.id == orderId) {
+                        order.copy(paymentMethod = value)
+                    } else {
+                        order
+                    }
+                }
+            )
+        }
     }
 
-    fun updateMeetingPoint(value: String) {
-        _uiState.value = _uiState.value.copy(meetingPoint = value)
-    }
-
-    fun selectPaymentMethod(value: String) {
-        _uiState.value = _uiState.value.copy(paymentMethod = value)
-    }
-
-    fun confirmPurchase(quantity: Int) {
+    fun confirmPurchase() {
         val state = _uiState.value
         if (state.isSubmitting) return
 
-        val product = state.product
-        if (product == null) {
-            emitSnackbar("Product not found")
+        if (state.orders.isEmpty()) {
+            emitSnackbar("No order selected for checkout")
             return
         }
 
-        val validationError = validateCheckoutState(state, product, quantity)
+        val validationError = state.orders.firstNotNullOfOrNull { order ->
+            validateOrder(state, order)
+        }
         if (validationError != null) {
             emitSnackbar(validationError)
             return
         }
 
-        val selectedDeliveryMethod = state.selectedDeliveryMethod ?: return
-
         viewModelScope.launch {
             _uiState.update { it.copy(isSubmitting = true) }
 
-            val purchaseResult = confirmBuyNowPurchaseUseCase(
-                PurchaseRequest(
-                    productId = product.id,
-                    quantity = quantity,
-                    deliveryMethod = selectedDeliveryMethod,
-                    paymentMethod = state.paymentMethod,
-                    meetingPoint = state.meetingPoint.trim(),
-                    buyerAddress = state.selectedBuyerAddress,
-                    sellerAddress = state.selectedSellerAddress
-                )
-            )
+            val createdOrderIds = mutableListOf<String>()
+            val failedMessages = mutableListOf<String>()
 
-            val confirmation = purchaseResult.getOrNull()
-            if (confirmation != null) {
-                _uiState.update {
-                    it.copy(
-                        isSubmitting = false,
-                        product = product.copy(quantityAvailable = confirmation.remainingQuantity)
+            state.orders.forEach { order ->
+                val selectedDeliveryMethod = order.selectedDeliveryMethod ?: return@forEach
+                val result = confirmBuyNowPurchaseUseCase(
+                    PurchaseRequest(
+                        productId = order.product.id,
+                        quantity = order.quantity,
+                        deliveryMethod = selectedDeliveryMethod,
+                        paymentMethod = order.paymentMethod,
+                        meetingPoint = order.meetingPoint.trim(),
+                        buyerAddress = state.selectedBuyerAddress,
+                        sellerAddress = order.selectedSellerAddress
                     )
+                )
+
+                val confirmation = result.getOrNull()
+                if (confirmation != null) {
+                    createdOrderIds += confirmation.orderId
+                    order.cartItemId?.let { cartItemId ->
+                        removeFromCartUseCase(cartItemId)
+                    }
+                } else {
+                    failedMessages += "${order.product.name}: ${result.exceptionOrNull()?.message ?: "Failed to confirm purchase"}"
                 }
+            }
+
+            _uiState.update { it.copy(isSubmitting = false) }
+
+            if (createdOrderIds.isNotEmpty()) {
                 refreshCurrentUserProfileUseCase()
-                _uiEvent.emit(UiEvent.PurchaseCompleted(confirmation.orderId))
+                _uiEvent.emit(
+                    UiEvent.PurchaseCompleted(
+                        orderIds = createdOrderIds,
+                        requestedCount = state.orders.size
+                    )
+                )
+                if (failedMessages.isNotEmpty()) {
+                    _uiEvent.emit(UiEvent.ShowSnackbar(failedMessages.joinToString(separator = "\n")))
+                }
             } else {
-                _uiState.update { it.copy(isSubmitting = false) }
                 _uiEvent.emit(
                     UiEvent.ShowSnackbar(
-                        purchaseResult.exceptionOrNull()?.message ?: "Failed to confirm purchase"
+                        failedMessages.firstOrNull() ?: "Failed to confirm purchase"
                     )
                 )
             }
         }
     }
 
-    private fun validateCheckoutState(
+    private fun validateOrder(
         state: CheckoutUiState,
-        product: Product,
-        quantity: Int
+        order: CheckoutOrderUiState
     ): String? {
-        if (quantity <= 0) return "Invalid quantity selected"
-        if (product.userId.isBlank()) return "Seller information is missing"
-        if (product.quantityAvailable <= 0) return "This product is out of stock"
-        if (quantity > product.quantityAvailable) {
-            return "Only ${product.quantityAvailable} item(s) left in stock"
+        if (order.quantity <= 0) return "Invalid quantity selected for ${order.product.name}"
+        if (order.product.userId.isBlank()) return "Seller information is missing for ${order.product.name}"
+        if (order.product.quantityAvailable <= 0) return "${order.product.name} is out of stock"
+        if (order.quantity > order.product.quantityAvailable) {
+            return "Only ${order.product.quantityAvailable} item(s) left for ${order.product.name}"
         }
-        if (state.availableDeliveryMethods.isEmpty()) {
-            return "This seller has not configured any delivery method yet"
+        if (order.availableDeliveryMethods.isEmpty()) {
+            return "${order.product.name} has no delivery method configured"
         }
 
-        return when (state.selectedDeliveryMethod) {
-            null -> "Please select a delivery method"
+        return when (order.selectedDeliveryMethod) {
+            null -> "Please select a delivery method for ${order.product.name}"
             DeliveryMethod.DIRECT_MEET -> {
-                if (state.meetingPoint.isBlank()) {
-                    "Please enter a meeting point"
+                if (order.meetingPoint.isBlank()) {
+                    "Please enter a meeting point for ${order.product.name}"
                 } else {
                     null
                 }
             }
 
             DeliveryMethod.BUYER_TO_SELLER -> {
-                if (state.selectedSellerAddress == null) {
-                    "Please choose a seller pickup address"
+                if (order.selectedSellerAddress == null) {
+                    "Please choose a seller pickup address for ${order.product.name}"
                 } else {
                     null
                 }
@@ -231,6 +386,23 @@ class CheckoutViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    private fun createOrderState(
+        id: String,
+        cartItemId: String?,
+        product: Product,
+        quantity: Int
+    ): CheckoutOrderUiState {
+        val availableMethods = product.deliveryMethodsAvailable
+        return CheckoutOrderUiState(
+            id = id,
+            cartItemId = cartItemId,
+            product = product,
+            quantity = quantity,
+            availableDeliveryMethods = availableMethods,
+            selectedDeliveryMethod = availableMethods.firstOrNull()
+        )
     }
 
     private fun emitSnackbar(message: String) {

@@ -9,8 +9,9 @@ class SendMessageUseCase @Inject constructor(
     suspend operator fun invoke(
         conversationId: String,
         text: String,
+        imageUrl: String = "",
         clientMessageId: String = ""
     ): Result<Unit> {
-        return chatRepository.sendMessage(conversationId, text, clientMessageId)
+        return chatRepository.sendMessage(conversationId, text, imageUrl, clientMessageId)
     }
 }

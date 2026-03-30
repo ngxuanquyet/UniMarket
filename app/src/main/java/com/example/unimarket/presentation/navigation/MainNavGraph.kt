@@ -1,5 +1,6 @@
 package com.example.unimarket.presentation.navigation
 
+import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
@@ -28,6 +29,9 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
             ExploreScreen(
                 onProductClick = { productId ->
                     navController.navigate(Screen.ProductDetail.route + "/$productId")
+                },
+                onSellerClick = { sellerId ->
+                    navController.navigate(Screen.SellerProfile.route + "/$sellerId?productId=")
                 },
                 onCartClick = { 
                     navController.navigate(Screen.Cart.route)
@@ -81,7 +85,13 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
             )
         }
         composable(Screen.Cart.route) {
-            CartScreen(onBackClick = { navController.popBackStack() })
+            CartScreen(
+                onBackClick = { navController.popBackStack() },
+                onCheckoutClick = { selectedCartItemIds ->
+                    val encodedIds = Uri.encode(selectedCartItemIds.joinToString(","))
+                    navController.navigate(Screen.CartCheckout.route + "?cartItemIds=$encodedIds")
+                }
+            )
         }
         composable(Screen.MyListings.route) {
             com.example.unimarket.presentation.mylistings.MyListingsScreen(
@@ -164,6 +174,31 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
             CheckoutScreen(
                 productId = productId,
                 quantity = quantity,
+                onBackClick = { navController.popBackStack() },
+                onPurchaseCompleted = {
+                    navController.navigate(Screen.Explore.route) {
+                        popUpTo(Screen.Explore.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
+        composable(
+            route = Screen.CartCheckout.route + "?cartItemIds={cartItemIds}",
+            arguments = listOf(androidx.navigation.navArgument("cartItemIds") {
+                type = androidx.navigation.NavType.StringType
+                defaultValue = ""
+            })
+        ) { backStackEntry ->
+            val cartItemIds = backStackEntry.arguments
+                ?.getString("cartItemIds")
+                .orEmpty()
+                .split(",")
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+
+            CheckoutScreen(
+                cartItemIds = cartItemIds,
                 onBackClick = { navController.popBackStack() },
                 onPurchaseCompleted = {
                     navController.navigate(Screen.Explore.route) {

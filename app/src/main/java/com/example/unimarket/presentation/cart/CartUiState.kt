@@ -4,11 +4,12 @@ import com.example.unimarket.domain.model.CartItem
 
 data class CartUiState(
     val cartItems: List<CartItem> = emptyList(),
-    val subtotal: Double = 0.0,
-    val deliveryFee: Double = 2.00,
-    val discount: Double = 5.00,
+    val selectedCartItemIds: Set<String> = emptySet(),
     val isLoading: Boolean = false
 ) {
-    val total: Double
-        get() = (subtotal + deliveryFee - discount).coerceAtLeast(0.0)
+    val selectedItems: List<CartItem>
+        get() = cartItems.filter { it.id in selectedCartItemIds }
+
+    val selectedSubtotal: Double
+        get() = selectedItems.sumOf { it.product.price * it.quantity }
 }

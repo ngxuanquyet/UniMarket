@@ -4,11 +4,13 @@ import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.unimarket.domain.model.Product
 import com.example.unimarket.domain.model.AiListingInput
 import com.example.unimarket.domain.model.DeliveryMethod
+import com.example.unimarket.domain.model.Product
+import com.example.unimarket.domain.model.UserAddress
 import com.example.unimarket.data.local.DraftProduct
 import com.example.unimarket.domain.usecase.auth.GetCurrentUserUseCase
+import com.example.unimarket.domain.usecase.auth.GetUserAddressesUseCase
 import com.example.unimarket.domain.usecase.ai.GenerateListingSuggestionUseCase
 import com.example.unimarket.domain.usecase.draft.DeleteDraftUseCase
 import com.example.unimarket.domain.usecase.draft.GetDraftByIdUseCase
@@ -35,6 +37,7 @@ class SellViewModel @Inject constructor(
     private val updateProductUseCase: UpdateProductUseCase,
     private val uploadImageUseCase: UploadImageUseCase,
     private val getCurrentUserUseCase: GetCurrentUserUseCase,
+    private val getUserAddressesUseCase: GetUserAddressesUseCase,
     private val generateListingSuggestionUseCase: GenerateListingSuggestionUseCase,
     private val getAllProductsUseCase: GetAllProductsUseCase,
     private val saveDraftUseCase: SaveDraftUseCase,
@@ -50,6 +53,24 @@ class SellViewModel @Inject constructor(
         private set
     var initialProduct: Product? = null
         private set
+
+    init {
+        loadMyAddresses()
+    }
+
+    private fun loadMyAddresses() {
+        viewModelScope.launch {
+            getUserAddressesUseCase()
+                .onSuccess { addresses ->
+                    _uiState.value = _uiState.value.copy(myAddresses = addresses)
+                }
+                .onFailure { error ->
+                    _uiState.value = _uiState.value.copy(
+                        errorMessage = error.message ?: "Failed to load addresses"
+                    )
+                }
+        }
+    }
 
     fun setEditProductId(id: String?) {
         if (id == null || editingProductId == id) return
@@ -92,7 +113,8 @@ class SellViewModel @Inject constructor(
                         quantityAvailable = draft.quantityAvailable ?: 1,
                         userId = draft.userId,
                         specifications = draft.specifications,
-                        deliveryMethodsAvailable = draft.deliveryMethodsAvailable
+                        deliveryMethodsAvailable = draft.deliveryMethodsAvailable,
+                        sellerPickupAddress = draft.sellerPickupAddress
                     )
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
@@ -190,7 +212,8 @@ class SellViewModel @Inject constructor(
         quantityStr: String,
         isNegotiable: Boolean,
         specifications: Map<String, String>,
-        deliveryMethodsAvailable: List<DeliveryMethod>
+        deliveryMethodsAvailable: List<DeliveryMethod>,
+        sellerPickupAddress: UserAddress?
     ) {
         val uris = _uiState.value.selectedImageUris
         if (uris.isEmpty()) {
@@ -205,6 +228,13 @@ class SellViewModel @Inject constructor(
 
         if (deliveryMethodsAvailable.isEmpty()) {
             _uiState.value = _uiState.value.copy(errorMessage = "Please select at least one delivery method")
+            return
+        }
+
+        if (deliveryMethodsAvailable.contains(DeliveryMethod.BUYER_TO_SELLER) && sellerPickupAddress == null) {
+            _uiState.value = _uiState.value.copy(
+                errorMessage = "Please choose or enter a pickup address for buyer pickup"
+            )
             return
         }
 
@@ -281,7 +311,8 @@ class SellViewModel @Inject constructor(
                 quantityAvailable = quantityAvailable,
                 userId = userId,
                 specifications = specifications,
-                deliveryMethodsAvailable = deliveryMethodsAvailable
+                deliveryMethodsAvailable = deliveryMethodsAvailable,
+                sellerPickupAddress = sellerPickupAddress
             )
 
             val saveResult = if (editingProductId != null && !isEditingDraft) {
@@ -323,6 +354,7 @@ class SellViewModel @Inject constructor(
         isNegotiable: Boolean,
         specifications: Map<String, String>,
         deliveryMethodsAvailable: List<DeliveryMethod>,
+        sellerPickupAddress: UserAddress?,
         onDraftSaved: () -> Unit
     ) {
         val currentUser = getCurrentUserUseCase() as? FirebaseUser ?: return
@@ -357,7 +389,8 @@ class SellViewModel @Inject constructor(
                 quantityAvailable = quantityAvailable,
                 isNegotiable = isNegotiable,
                 specifications = specifications,
-                deliveryMethodsAvailable = deliveryMethodsAvailable
+                deliveryMethodsAvailable = deliveryMethodsAvailable,
+                sellerPickupAddress = sellerPickupAddress
             )
 
             try {

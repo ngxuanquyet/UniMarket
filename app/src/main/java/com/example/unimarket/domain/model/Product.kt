@@ -18,5 +18,6 @@ data class Product(
     val quantityAvailable: Int = 1,
     val userId: String,
     val specifications: Map<String, String> = emptyMap(),
-    val deliveryMethodsAvailable: List<DeliveryMethod> = emptyList()
+    val deliveryMethodsAvailable: List<DeliveryMethod> = emptyList(),
+    val sellerPickupAddress: UserAddress? = null
 )

@@ -6,6 +6,7 @@ import com.example.unimarket.domain.model.Category
 import com.example.unimarket.domain.model.Product
 import com.example.unimarket.domain.usecase.auth.GetCurrentUserUseCase
 import com.example.unimarket.domain.usecase.explore.GetAllProductsUseCase
+import com.example.unimarket.domain.usecase.image.GetUserAvatarUrl
 import com.example.unimarket.domain.usecase.product.GetCategoriesUseCase
 import com.google.firebase.auth.FirebaseUser
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,19 +16,24 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 import javax.inject.Inject
 
 @HiltViewModel
 class ExploreViewModel @Inject constructor(
     private val getAllProductsUseCase: GetAllProductsUseCase,
     getCurrentUserUseCase: GetCurrentUserUseCase,
-    private val getCategoriesUseCase: GetCategoriesUseCase
+    private val getCategoriesUseCase: GetCategoriesUseCase,
+    private val getUserAvatarUrl: GetUserAvatarUrl
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ExploreUiState(isLoading = true))
     val uiState: StateFlow<ExploreUiState> = _uiState.asStateFlow()
     private var loadJob: Job? = null
     private val currentUserId = (getCurrentUserUseCase() as? FirebaseUser)?.uid.orEmpty()
+    private val sellerAvatarCache = mutableMapOf<String, String>()
+    private val loadingSellerAvatarIds = mutableSetOf<String>()
 
     init {
         loadData()
@@ -87,15 +93,24 @@ class ExploreViewModel @Inject constructor(
     }
 
     private fun updateFilteredProducts(state: ExploreUiState): ExploreUiState {
+        val filteredProducts = filterProducts(
+            products = state.products,
+            query = state.searchQuery,
+            categoryName = state.selectedCategory,
+            categories = state.categories,
+            priceFilter = state.selectedPriceFilter,
+            priceSort = state.selectedPriceSort
+        )
+        val matchedSellers = buildSellerPreviews(
+            filteredProducts = filteredProducts,
+            query = state.searchQuery
+        )
+        matchedSellers.forEach { seller ->
+            preloadSellerAvatar(seller.sellerId, seller.sellerName)
+        }
         return state.copy(
-            filteredProducts = filterProducts(
-                products = state.products,
-                query = state.searchQuery,
-                categoryName = state.selectedCategory,
-                categories = state.categories,
-                priceFilter = state.selectedPriceFilter,
-                priceSort = state.selectedPriceSort
-            )
+            filteredProducts = filteredProducts,
+            matchedSellers = matchedSellers
         )
     }
 
@@ -107,6 +122,7 @@ class ExploreViewModel @Inject constructor(
         priceFilter: ExplorePriceFilter,
         priceSort: ExplorePriceSort
     ): List<Product> {
+        val normalizedQuery = query.trim()
         val selectedCategory = categories.firstOrNull { category ->
             category.name.equals(categoryName, ignoreCase = true) ||
                 category.id.equals(categoryName, ignoreCase = true)
@@ -115,7 +131,10 @@ class ExploreViewModel @Inject constructor(
         val filteredProducts = products.filter { product ->
             val inStock = product.quantityAvailable > 0
             val isOwnProduct = currentUserId.isNotBlank() && product.userId == currentUserId
-            val matchesQuery = query.isBlank() || product.name.contains(query, ignoreCase = true)
+            val matchesQuery = normalizedQuery.isBlank() ||
+                product.name.contains(normalizedQuery, ignoreCase = true) ||
+                product.description.contains(normalizedQuery, ignoreCase = true) ||
+                product.sellerName.contains(normalizedQuery, ignoreCase = true)
             val matchesCategory = isAllCategory(categoryName) ||
                 product.categoryId.equals(categoryName, ignoreCase = true) ||
                 selectedCategory?.let { category ->
@@ -131,6 +150,58 @@ class ExploreViewModel @Inject constructor(
             ExplorePriceSort.PRICE_LOW_TO_HIGH -> filteredProducts.sortedBy { it.price }
             ExplorePriceSort.PRICE_HIGH_TO_LOW -> filteredProducts.sortedByDescending { it.price }
         }
+    }
+
+    private fun buildSellerPreviews(
+        filteredProducts: List<Product>,
+        query: String
+    ): List<ExploreSellerPreview> {
+        val normalizedQuery = query.trim()
+        if (normalizedQuery.isBlank()) return emptyList()
+
+        return filteredProducts
+            .filter { it.sellerName.contains(normalizedQuery, ignoreCase = true) }
+            .groupBy { it.userId }
+            .mapNotNull { (sellerId, sellerProducts) ->
+                val firstProduct = sellerProducts.firstOrNull() ?: return@mapNotNull null
+                ExploreSellerPreview(
+                    sellerId = sellerId,
+                    sellerName = firstProduct.sellerName,
+                    avatarUrl = sellerAvatarCache[sellerId].orEmpty().ifBlank {
+                        buildAvatarFallbackUrl(firstProduct.sellerName)
+                    },
+                    previewProducts = sellerProducts
+                        .sortedByDescending { it.postedAt }
+                        .take(4),
+                    totalListings = sellerProducts.size
+                )
+            }
+            .sortedBy { it.sellerName.lowercase() }
+    }
+
+    private fun preloadSellerAvatar(sellerId: String, sellerName: String) {
+        if (sellerId.isBlank() || sellerAvatarCache.containsKey(sellerId) || sellerId in loadingSellerAvatarIds) {
+            return
+        }
+
+        loadingSellerAvatarIds += sellerId
+        viewModelScope.launch {
+            val avatarUrl = getUserAvatarUrl(sellerId)
+                .getOrNull()
+                .orEmpty()
+                .ifBlank { buildAvatarFallbackUrl(sellerName) }
+            sellerAvatarCache[sellerId] = avatarUrl
+            loadingSellerAvatarIds -= sellerId
+            _uiState.value = updateFilteredProducts(_uiState.value)
+        }
+    }
+
+    private fun buildAvatarFallbackUrl(name: String): String {
+        val encodedName = URLEncoder.encode(
+            name.ifBlank { "Student Seller" },
+            StandardCharsets.UTF_8.toString()
+        )
+        return "https://ui-avatars.com/api/?name=$encodedName&background=random"
     }
 
     private fun isAllCategory(categoryName: String): Boolean {

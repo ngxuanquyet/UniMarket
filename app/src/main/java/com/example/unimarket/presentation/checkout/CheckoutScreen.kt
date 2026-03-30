@@ -21,15 +21,15 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountBalance
-import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Handshake
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Handshake
 import androidx.compose.material.icons.filled.Money
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.RadioButtonChecked
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -41,7 +41,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -78,8 +77,9 @@ import com.example.unimarket.presentation.util.formatVnd
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CheckoutScreen(
-    productId: String,
-    quantity: Int,
+    productId: String? = null,
+    quantity: Int = 1,
+    cartItemIds: List<String> = emptyList(),
     onBackClick: () -> Unit,
     onPurchaseCompleted: () -> Unit = {},
     viewModel: CheckoutViewModel = hiltViewModel()
@@ -87,10 +87,16 @@ fun CheckoutScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
-    var completedOrderId by remember { mutableStateOf<String?>(null) }
+    var completedOrderInfo by remember {
+        mutableStateOf<Pair<List<String>, Int>?>(null)
+    }
 
-    LaunchedEffect(productId) {
-        viewModel.loadProduct(productId)
+    LaunchedEffect(productId, quantity, cartItemIds) {
+        if (cartItemIds.isNotEmpty()) {
+            viewModel.loadCartItems(cartItemIds)
+        } else if (!productId.isNullOrBlank()) {
+            viewModel.loadProduct(productId, quantity)
+        }
     }
 
     LaunchedEffect(viewModel.uiEvent) {
@@ -101,29 +107,38 @@ fun CheckoutScreen(
                 }
 
                 is CheckoutViewModel.UiEvent.PurchaseCompleted -> {
-                    completedOrderId = event.orderId
+                    completedOrderInfo = event.orderIds to event.requestedCount
                 }
             }
         }
     }
 
-    if (completedOrderId != null) {
+    completedOrderInfo?.let { (orderIds, requestedCount) ->
+        val completedCount = orderIds.size
+        val isFullSuccess = completedCount == requestedCount
+
         AlertDialog(
             onDismissRequest = {},
-            title = { Text("Purchase confirmed") },
+            title = {
+                Text(if (isFullSuccess) "Purchase confirmed" else "Partial purchase completed")
+            },
             text = {
                 Text(
-                    "Your order #${completedOrderId?.takeLast(6)?.uppercase().orEmpty()} has been created successfully."
+                    if (isFullSuccess) {
+                        "Created $completedCount order(s) successfully."
+                    } else {
+                        "Created $completedCount/$requestedCount order(s). Check the snackbar for failed orders."
+                    }
                 )
             },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        completedOrderId = null
+                        completedOrderInfo = null
                         onPurchaseCompleted()
                     }
                 ) {
-                    Text("Continue shopping")
+                    Text("Continue")
                 }
             }
         )
@@ -144,199 +159,294 @@ fun CheckoutScreen(
         },
         containerColor = Color.White
     ) { paddingValues ->
-        if (uiState.isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = SecondaryBlue)
+        when {
+            uiState.isLoading -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = SecondaryBlue)
+                }
             }
-        } else if (uiState.product == null) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(uiState.errorMessage ?: "Product not found", color = Color.Gray)
+
+            uiState.orders.isEmpty() -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(uiState.errorMessage ?: "No order found", color = Color.Gray)
+                }
             }
-        } else {
-            val product = requireNotNull(uiState.product)
-            val deliveryFee = if (uiState.selectedDeliveryMethod == DeliveryMethod.SHIPPING) 30000.0 else 0.0
-            val platformFee = 1500.0
-            val subtotal = product.price * quantity
-            val total = subtotal + platformFee + deliveryFee
 
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .verticalScroll(scrollState)
-            ) {
-                SectionTitle("ITEM SUMMARY")
-
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = BackgroundLight),
-                    shape = RoundedCornerShape(24.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            else -> {
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .verticalScroll(scrollState)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Image(
-                            painter = rememberAsyncImagePainter(model = product.imageUrls.firstOrNull()),
-                            contentDescription = product.name,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(64.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(ProfileAvatarBorder)
+                    SectionTitle("ORDER DETAILS")
+
+                    uiState.orders.forEachIndexed { index, order ->
+                        CheckoutOrderCard(
+                            orderIndex = index + 1,
+                            order = order,
+                            buyerAddresses = uiState.buyerAddresses,
+                            selectedBuyerAddressId = uiState.selectedBuyerAddressId,
+                            onSelectDeliveryMethod = { method ->
+                                viewModel.selectDeliveryMethod(order.id, method)
+                            },
+                            onSelectBuyerAddress = viewModel::selectBuyerAddress,
+                            onSelectSellerAddress = { addressId ->
+                                viewModel.selectSellerAddress(order.id, addressId)
+                            },
+                            onMeetingPointChange = { value ->
+                                viewModel.updateMeetingPoint(order.id, value)
+                            },
+                            onSelectPaymentMethod = { method ->
+                                viewModel.selectPaymentMethod(order.id, method)
+                            }
                         )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column {
-                            Text(product.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                            Text("Condition: ${product.condition}", color = Color.Gray, fontSize = 12.sp)
-                            Text("Quantity: $quantity", color = Color.Gray, fontSize = 12.sp)
-                            Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+
+                    OverallSummaryCard(uiState = uiState)
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Button(
+                        onClick = viewModel::confirmPurchase,
+                        enabled = !uiState.isSubmitting,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .height(56.dp),
+                        shape = RoundedCornerShape(28.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = SecondaryBlue)
+                    ) {
+                        if (uiState.isSubmitting) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
                             Text(
-                                formatVnd(product.price),
-                                color = SecondaryBlue,
+                                "Processing...",
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp
+                                fontSize = 16.sp,
+                                color = Color.White
+                            )
+                        } else {
+                            Icon(
+                                Icons.Default.Lock,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = Color.White
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Confirm ${uiState.orders.size} Order(s)",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                color = Color.White
                             )
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                SectionTitle("DELIVERY METHOD")
-
-                if (uiState.availableDeliveryMethods.isEmpty()) {
                     Text(
-                        text = "Nguoi ban chua thiet lap phuong thuc giao nhan.",
+                        "SECURE CAMPUS TRANSACTION",
+                        fontSize = 10.sp,
                         color = Color.Gray,
-                        modifier = Modifier.padding(horizontal = 16.dp)
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .padding(top = 16.dp, bottom = 32.dp)
                     )
-                } else {
-                    uiState.availableDeliveryMethods.forEach { method ->
-                        DeliveryOptionCard(
-                            title = method.title,
-                            subtitle = method.subtitle,
-                            isSelected = uiState.selectedDeliveryMethod == method,
-                            icon = method.icon(),
-                            onClick = { viewModel.selectDeliveryMethod(method) }
-                        ) {
-                            if (uiState.selectedDeliveryMethod == method) {
-                                DeliveryMethodDetails(
-                                    method = method,
-                                    buyerAddresses = uiState.buyerAddresses,
-                                    sellerAddresses = uiState.sellerAddresses,
-                                    selectedBuyerAddressId = uiState.selectedBuyerAddressId,
-                                    selectedSellerAddressId = uiState.selectedSellerAddressId,
-                                    meetingPoint = uiState.meetingPoint,
-                                    onBuyerAddressClick = viewModel::selectBuyerAddress,
-                                    onSellerAddressClick = viewModel::selectSellerAddress,
-                                    onMeetingPointChange = viewModel::updateMeetingPoint
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
                 }
+            }
+        }
+    }
+}
 
-                Spacer(modifier = Modifier.height(24.dp))
+@Composable
+private fun CheckoutOrderCard(
+    orderIndex: Int,
+    order: CheckoutOrderUiState,
+    buyerAddresses: List<UserAddress>,
+    selectedBuyerAddressId: String?,
+    onSelectDeliveryMethod: (DeliveryMethod) -> Unit,
+    onSelectBuyerAddress: (String) -> Unit,
+    onSelectSellerAddress: (String) -> Unit,
+    onMeetingPointChange: (String) -> Unit,
+    onSelectPaymentMethod: (String) -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = BackgroundLight),
+        shape = RoundedCornerShape(24.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Order $orderIndex",
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp
+            )
 
-                SectionTitle("PAYMENT METHOD")
+            Spacer(modifier = Modifier.height(12.dp))
 
-                PaymentOptionCard(
-                    title = "Cash on delivery",
-                    isSelected = uiState.paymentMethod == "Cash on delivery",
-                    icon = Icons.Default.Money,
-                    onClick = { viewModel.selectPaymentMethod("Cash on delivery") }
-                )
+            OrderItemSummary(order = order)
 
-                Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-                PaymentOptionCard(
-                    title = "Bank Transfer",
-                    isSelected = uiState.paymentMethod == "Bank Transfer",
-                    icon = Icons.Default.AccountBalance,
-                    onClick = { viewModel.selectPaymentMethod("Bank Transfer") }
-                )
+            Text("Delivery Method", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.Gray)
+            Spacer(modifier = Modifier.height(8.dp))
 
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Column(modifier = Modifier.padding(horizontal = 24.dp)) {
-                    SummaryRow("Subtotal", formatVnd(subtotal))
-                    Spacer(modifier = Modifier.height(12.dp))
-                    SummaryRow("Platform Fee", formatVnd(platformFee))
-                    Spacer(modifier = Modifier.height(12.dp))
-                    SummaryRow("Delivery", formatVnd(deliveryFee))
-
-                    HorizontalDivider(color = DividerColor, modifier = Modifier.padding(vertical = 16.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Total", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                        Text(
-                            formatVnd(total),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp,
-                            color = SecondaryBlue
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                Button(
-                    onClick = { viewModel.confirmPurchase(quantity) },
-                    enabled = !uiState.isSubmitting,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .height(56.dp),
-                    shape = RoundedCornerShape(28.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = SecondaryBlue)
-                ) {
-                    if (uiState.isSubmitting) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            color = Color.White,
-                            strokeWidth = 2.dp
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            "Processing...",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            color = Color.White
-                        )
-                    } else {
-                        Icon(
-                            Icons.Default.Lock,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = Color.White
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            "Confirm Purchase",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            color = Color.White
-                        )
-                    }
-                }
-
+            if (order.availableDeliveryMethods.isEmpty()) {
                 Text(
-                    "SECURE CAMPUS TRANSACTION",
-                    fontSize = 10.sp,
-                    color = Color.Gray,
+                    text = "Người bán chưa thiết lập phương thức giao nhận.",
+                    color = Color.Gray
+                )
+            } else {
+                order.availableDeliveryMethods.forEach { method ->
+                    DeliveryOptionCard(
+                        title = method.title,
+                        subtitle = method.subtitle,
+                        isSelected = order.selectedDeliveryMethod == method,
+                        icon = method.icon(),
+                        onClick = { onSelectDeliveryMethod(method) }
+                    ) {
+                        if (order.selectedDeliveryMethod == method) {
+                            DeliveryMethodDetails(
+                                method = method,
+                                buyerAddresses = buyerAddresses,
+                                sellerAddresses = order.sellerAddresses,
+                                selectedBuyerAddressId = selectedBuyerAddressId,
+                                selectedSellerAddressId = order.selectedSellerAddressId,
+                                meetingPoint = order.meetingPoint,
+                                onBuyerAddressClick = onSelectBuyerAddress,
+                                onSellerAddressClick = onSelectSellerAddress,
+                                onMeetingPointChange = onMeetingPointChange
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Text("Payment Method", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.Gray)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            PaymentOptionCard(
+                title = "Cash on delivery",
+                isSelected = order.paymentMethod == "Cash on delivery",
+                icon = Icons.Default.Money,
+                onClick = { onSelectPaymentMethod("Cash on delivery") }
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            PaymentOptionCard(
+                title = "Bank Transfer",
+                isSelected = order.paymentMethod == "Bank Transfer",
+                icon = Icons.Default.AccountBalance,
+                onClick = { onSelectPaymentMethod("Bank Transfer") }
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Text("Order Total", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.Gray)
+            Spacer(modifier = Modifier.height(8.dp))
+            SummaryRow("Subtotal", formatVnd(order.subtotal))
+            Spacer(modifier = Modifier.height(8.dp))
+            SummaryRow("Platform Fee", formatVnd(order.platformFee))
+            Spacer(modifier = Modifier.height(8.dp))
+            SummaryRow("Delivery", formatVnd(order.deliveryFee))
+
+            HorizontalDivider(color = DividerColor, modifier = Modifier.padding(vertical = 16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Total", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text(
+                    formatVnd(order.total),
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(top = 16.dp, bottom = 32.dp)
+                    fontSize = 20.sp,
+                    color = SecondaryBlue
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun OrderItemSummary(order: CheckoutOrderUiState) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Image(
+            painter = rememberAsyncImagePainter(model = order.product.imageUrls.firstOrNull()),
+            contentDescription = order.product.name,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .size(72.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(ProfileAvatarBorder)
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Column {
+            Text(order.product.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Text("Condition: ${order.product.condition}", color = Color.Gray, fontSize = 12.sp)
+            Text("Quantity: ${order.quantity}", color = Color.Gray, fontSize = 12.sp)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                formatVnd(order.product.price),
+                color = SecondaryBlue,
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun OverallSummaryCard(uiState: CheckoutUiState) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(24.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Overall Summary",
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            SummaryRow("Orders", uiState.orders.size.toString())
+            Spacer(modifier = Modifier.height(8.dp))
+            SummaryRow("Items subtotal", formatVnd(uiState.grandSubtotal))
+            Spacer(modifier = Modifier.height(8.dp))
+            SummaryRow("Platform fees", formatVnd(uiState.grandPlatformFee))
+            Spacer(modifier = Modifier.height(8.dp))
+            SummaryRow("Delivery fees", formatVnd(uiState.grandDeliveryFee))
+
+            HorizontalDivider(color = DividerColor, modifier = Modifier.padding(vertical = 16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Grand total", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text(
+                    formatVnd(uiState.grandTotal),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp,
+                    color = SecondaryBlue
                 )
             }
         }
@@ -373,8 +483,8 @@ private fun DeliveryMethodDetails(
                 value = meetingPoint,
                 onValueChange = onMeetingPointChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Diem gap truc tiep") },
-                placeholder = { Text("VD: Cong truong, canteen, san truong...") },
+                label = { Text("Điểm gặp trực tiếp") },
+                placeholder = { Text("VD: Cổng trường, canteen, sân trường...") },
                 shape = RoundedCornerShape(14.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     unfocusedBorderColor = Color.LightGray,
@@ -385,30 +495,30 @@ private fun DeliveryMethodDetails(
 
         DeliveryMethod.BUYER_TO_SELLER -> {
             AddressSelector(
-                title = "Dia chi nguoi ban",
+                title = "Địa chỉ người bán",
                 addresses = sellerAddresses,
                 selectedAddressId = selectedSellerAddressId,
-                emptyState = "Nguoi ban chua co dia chi de ban den nhan hang.",
+                emptyState = "Người bán chưa có địa chỉ để bạn đến nhận hàng.",
                 onAddressClick = onSellerAddressClick
             )
         }
 
         DeliveryMethod.SELLER_TO_BUYER -> {
             AddressSelector(
-                title = "Dia chi nguoi mua",
+                title = "Địa chỉ người mua",
                 addresses = buyerAddresses,
                 selectedAddressId = selectedBuyerAddressId,
-                emptyState = "Ban chua co dia chi. Hay them dia chi trong Profile.",
+                emptyState = "Bạn chưa có địa chỉ. Hãy thêm địa chỉ trong Profile.",
                 onAddressClick = onBuyerAddressClick
             )
         }
 
         DeliveryMethod.SHIPPING -> {
             AddressSelector(
-                title = "Dia chi nhan hang",
+                title = "Địa chỉ nhận hàng",
                 addresses = buyerAddresses,
                 selectedAddressId = selectedBuyerAddressId,
-                emptyState = "Ban chua co dia chi giao hang. Hay them dia chi trong Profile.",
+                emptyState = "Bạn chưa có địa chỉ giao hàng. Hãy thêm địa chỉ trong Profile.",
                 onAddressClick = onBuyerAddressClick
             )
         }
@@ -456,8 +566,8 @@ private fun AddressSelector(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = buildString {
-                                append("Dia chi")
-                                if (address.isDefault) append(" • Mac dinh")
+                                append("Địa chỉ")
+                                if (address.isDefault) append(" • Mặc định")
                             },
                             fontWeight = FontWeight.SemiBold
                         )
@@ -474,7 +584,7 @@ private fun AddressSelector(
 }
 
 @Composable
-fun DeliveryOptionCard(
+private fun DeliveryOptionCard(
     title: String,
     subtitle: String,
     isSelected: Boolean,
@@ -485,7 +595,6 @@ fun DeliveryOptionCard(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
             .clip(RoundedCornerShape(24.dp))
             .border(
                 width = if (isSelected) 2.dp else 1.dp,
@@ -498,7 +607,12 @@ fun DeliveryOptionCard(
     ) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(icon, contentDescription = null, tint = if (isSelected) SecondaryBlue else Color.Gray, modifier = Modifier.size(24.dp))
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = if (isSelected) SecondaryBlue else Color.Gray,
+                    modifier = Modifier.size(24.dp)
+                )
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp)
@@ -516,7 +630,7 @@ fun DeliveryOptionCard(
 }
 
 @Composable
-fun PaymentOptionCard(
+private fun PaymentOptionCard(
     title: String,
     subtitle: String? = null,
     isSelected: Boolean,
@@ -526,7 +640,6 @@ fun PaymentOptionCard(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
             .clip(RoundedCornerShape(24.dp))
             .border(
                 width = 1.dp,
@@ -544,7 +657,12 @@ fun PaymentOptionCard(
                 tint = if (isSelected) SecondaryBlue else Color.LightGray
             )
             Spacer(modifier = Modifier.width(16.dp))
-            Icon(icon, contentDescription = null, tint = if (isSelected) SecondaryBlue else Color.Gray, modifier = Modifier.size(24.dp))
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = if (isSelected) SecondaryBlue else Color.Gray,
+                modifier = Modifier.size(24.dp)
+            )
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp)
@@ -557,7 +675,7 @@ fun PaymentOptionCard(
 }
 
 @Composable
-fun SummaryRow(label: String, value: String) {
+private fun SummaryRow(label: String, value: String) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween

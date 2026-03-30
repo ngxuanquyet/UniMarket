@@ -6,6 +6,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,6 +38,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -44,6 +46,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -76,6 +79,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.example.unimarket.domain.model.DeliveryMethod
+import com.example.unimarket.domain.model.UserAddress
 import com.example.unimarket.presentation.theme.AppBlue
 import com.example.unimarket.presentation.theme.BorderLightBlue
 import com.example.unimarket.presentation.theme.DashColor
@@ -143,6 +147,13 @@ fun SellScreen(
             addAll(initialProduct?.deliveryMethodsAvailable ?: emptyList())
         }
     }
+    var pickupAddressSource by remember(initialProduct?.id) {
+        mutableStateOf(PickupAddressSource.MY_ADDRESSES)
+    }
+    var selectedPickupAddressId by remember(initialProduct?.id) { mutableStateOf("") }
+    var customPickupRecipientName by remember(initialProduct?.id) { mutableStateOf("") }
+    var customPickupPhoneNumber by remember(initialProduct?.id) { mutableStateOf("") }
+    var customPickupAddressLine by remember(initialProduct?.id) { mutableStateOf("") }
 
     var pickingIndex by remember { mutableIntStateOf(-1) }
 
@@ -179,6 +190,13 @@ fun SellScreen(
                 specCounter = 0
                 specifications.clear()
                 selectedDeliveryMethods.clear()
+                pickupAddressSource = PickupAddressSource.MY_ADDRESSES
+                selectedPickupAddressId = uiState.myAddresses.firstOrNull { it.isDefault }?.id
+                    ?: uiState.myAddresses.firstOrNull()?.id
+                    ?: ""
+                customPickupRecipientName = ""
+                customPickupPhoneNumber = ""
+                customPickupAddressLine = ""
             }
             viewModel.clearMessages()
         }
@@ -206,6 +224,54 @@ fun SellScreen(
         }
     }
 
+    LaunchedEffect(initialProduct?.id, uiState.myAddresses) {
+        val initialPickupAddress = initialProduct?.sellerPickupAddress
+        val matchedProfileAddressId = initialPickupAddress?.id
+            ?.takeIf { addressId -> uiState.myAddresses.any { it.id == addressId } }
+            .orEmpty()
+
+        pickupAddressSource = when {
+            initialPickupAddress == null -> PickupAddressSource.MY_ADDRESSES
+            matchedProfileAddressId.isNotBlank() -> PickupAddressSource.MY_ADDRESSES
+            else -> PickupAddressSource.OTHER_ADDRESS
+        }
+
+        selectedPickupAddressId = matchedProfileAddressId.ifBlank {
+            uiState.myAddresses.firstOrNull { it.isDefault }?.id
+                ?: uiState.myAddresses.firstOrNull()?.id
+                ?: ""
+        }
+
+        customPickupRecipientName = if (matchedProfileAddressId.isBlank()) {
+            initialPickupAddress?.recipientName.orEmpty()
+        } else {
+            ""
+        }
+        customPickupPhoneNumber = if (matchedProfileAddressId.isBlank()) {
+            initialPickupAddress?.phoneNumber.orEmpty()
+        } else {
+            ""
+        }
+        customPickupAddressLine = if (matchedProfileAddressId.isBlank()) {
+            initialPickupAddress?.addressLine.orEmpty()
+        } else {
+            ""
+        }
+    }
+
+    val selectedMyPickupAddress = uiState.myAddresses.firstOrNull { it.id == selectedPickupAddressId }
+    val resolvedSellerPickupAddress = when {
+        !selectedDeliveryMethods.contains(DeliveryMethod.BUYER_TO_SELLER) -> null
+        pickupAddressSource == PickupAddressSource.MY_ADDRESSES -> selectedMyPickupAddress
+        customPickupRecipientName.isBlank() || customPickupPhoneNumber.isBlank() || customPickupAddressLine.isBlank() -> null
+        else -> UserAddress(
+            recipientName = customPickupRecipientName.trim(),
+            phoneNumber = customPickupPhoneNumber.trim(),
+            addressLine = customPickupAddressLine.trim(),
+            isDefault = false
+        )
+    }
+
     var showDraftDialog by remember { mutableStateOf(false) }
 
     val hasUnsavedChanges = if (initialProduct != null && viewModel.isEditingDraft) {
@@ -220,6 +286,7 @@ fun SellScreen(
         condition != initialProduct.condition ||
         isNegotiable != initialProduct.isNegotiable ||
         selectedDeliveryMethods.toList() != initialProduct.deliveryMethodsAvailable ||
+        resolvedSellerPickupAddress != initialProduct.sellerPickupAddress ||
         currentUris != initialUris ||
         specifications.associate { it.key to it.value } != initialProduct.specifications
     } else if (initialProduct == null) {
@@ -264,6 +331,7 @@ fun SellScreen(
                         isNegotiable = isNegotiable,
                         specifications = specifications.filter { it.key.isNotBlank() }.associate { it.key to it.value },
                         deliveryMethodsAvailable = selectedDeliveryMethods.toList(),
+                        sellerPickupAddress = resolvedSellerPickupAddress,
                         onDraftSaved = { onBackClick() }
                     )
                 }) {
@@ -331,7 +399,8 @@ fun SellScreen(
                             quantity,
                             isNegotiable,
                             specifications.filter { it.key.isNotBlank() }.associate { it.key to it.value },
-                            selectedDeliveryMethods.toList()
+                            selectedDeliveryMethods.toList(),
+                            resolvedSellerPickupAddress
                         )
                     },
                     modifier = Modifier
@@ -725,6 +794,93 @@ fun SellScreen(
                 }
             }
 
+            if (selectedDeliveryMethods.contains(DeliveryMethod.BUYER_TO_SELLER)) {
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    "Pickup Address",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                    color = TextDarkBlack
+                )
+                Text(
+                    "Neu chon Nguoi mua den lay, ban can khai bao dia chi nhan hang cho bai dang nay.",
+                    color = TextGray,
+                    fontSize = 13.sp
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    PickupAddressOptionChip(
+                        title = "My addresses",
+                        selected = pickupAddressSource == PickupAddressSource.MY_ADDRESSES,
+                        onClick = { pickupAddressSource = PickupAddressSource.MY_ADDRESSES },
+                        modifier = Modifier.weight(1f)
+                    )
+                    PickupAddressOptionChip(
+                        title = "Other address",
+                        selected = pickupAddressSource == PickupAddressSource.OTHER_ADDRESS,
+                        onClick = { pickupAddressSource = PickupAddressSource.OTHER_ADDRESS },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                if (pickupAddressSource == PickupAddressSource.MY_ADDRESSES) {
+                    if (uiState.myAddresses.isEmpty()) {
+                        Text(
+                            text = "Ban chua co dia chi trong My addresses. Hay chon Other address de nhap dia chi cho bai dang nay.",
+                            color = TextGray,
+                            fontSize = 13.sp
+                        )
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            uiState.myAddresses.forEach { address ->
+                                PickupAddressSelectionCard(
+                                    address = address,
+                                    isSelected = selectedPickupAddressId == address.id,
+                                    onClick = { selectedPickupAddressId = address.id }
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        CustomTextField(
+                            value = customPickupRecipientName,
+                            onValueChange = { customPickupRecipientName = it },
+                            placeholder = "Recipient name"
+                        )
+                        CustomTextField(
+                            value = customPickupPhoneNumber,
+                            onValueChange = { customPickupPhoneNumber = it },
+                            placeholder = "Phone number",
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+                        )
+                        OutlinedTextField(
+                            value = customPickupAddressLine,
+                            onValueChange = { customPickupAddressLine = it },
+                            placeholder = { Text("Pickup address") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(20.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                unfocusedBorderColor = BorderLightBlue,
+                                focusedBorderColor = AppBlue,
+                                unfocusedContainerColor = Color.White,
+                                focusedContainerColor = Color.White
+                            ),
+                            minLines = 3
+                        )
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(24.dp))
 
             // Description Input
@@ -883,6 +1039,102 @@ fun CustomTextField(
         singleLine = true,
         textStyle = androidx.compose.ui.text.TextStyle(fontSize = 16.sp, color = TextDarkBlack)
     )
+}
+
+private enum class PickupAddressSource {
+    MY_ADDRESSES,
+    OTHER_ADDRESS
+}
+
+@Composable
+private fun PickupAddressOptionChip(
+    title: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick),
+        color = if (selected) LightBlueSelection else Color.White,
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            if (selected) AppBlue else BorderLightBlue
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = title,
+                color = if (selected) AppBlue else TextGray,
+                fontWeight = FontWeight.Medium
+            )
+        }
+    }
+}
+
+@Composable
+private fun PickupAddressSelectionCard(
+    address: UserAddress,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .border(
+                1.dp,
+                if (isSelected) AppBlue else BorderLightBlue,
+                RoundedCornerShape(16.dp)
+            )
+            .background(if (isSelected) LightBlueSelection else Color.White)
+            .clickable(onClick = onClick)
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Checkbox(
+            checked = isSelected,
+            onCheckedChange = { onClick() }
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = address.recipientName.ifBlank { "My address" },
+                    fontWeight = FontWeight.SemiBold,
+                    color = TextDarkBlack
+                )
+                if (address.isDefault) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Default",
+                        color = AppBlue,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            }
+            if (address.phoneNumber.isNotBlank()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = address.phoneNumber,
+                    color = TextGray,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = address.addressLine,
+                color = TextGray,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+    }
 }
 
 @Composable

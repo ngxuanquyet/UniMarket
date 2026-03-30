@@ -45,6 +45,7 @@ import com.example.unimarket.presentation.util.formatVnd
 @Composable
 fun ExploreScreen(
     onProductClick: (String) -> Unit = {},
+    onSellerClick: (String) -> Unit = {},
     onCartClick: () -> Unit = {},
     viewModel: ExploreViewModel = androidx.hilt.navigation.compose.hiltViewModel()
 ) {
@@ -173,6 +174,25 @@ fun ExploreScreen(
                     }
                 }
 
+                if (uiState.matchedSellers.isNotEmpty()) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text(
+                                text = "Seller matches",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            uiState.matchedSellers.forEach { seller ->
+                                ExploreSellerCard(
+                                    seller = seller,
+                                    onSellerClick = { onSellerClick(seller.sellerId) },
+                                    onProductClick = onProductClick
+                                )
+                            }
+                        }
+                    }
+                }
+
                 if (uiState.isLoading && uiState.products.isEmpty()) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
                         Box(
@@ -184,7 +204,7 @@ fun ExploreScreen(
                             CircularProgressIndicator(color = SecondaryBlue)
                         }
                     }
-                } else if (uiState.filteredProducts.isEmpty()) {
+                } else if (uiState.filteredProducts.isEmpty() && uiState.matchedSellers.isEmpty()) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
                         Box(
                             modifier = Modifier
@@ -222,6 +242,94 @@ fun ExploreScreen(
                 onPriceSortSelected = viewModel::updateSelectedPriceSort,
                 onDismiss = { showFilterSheet = false }
             )
+        }
+    }
+}
+
+@Composable
+private fun ExploreSellerCard(
+    seller: ExploreSellerPreview,
+    onSellerClick: () -> Unit,
+    onProductClick: (String) -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Image(
+                        painter = rememberAsyncImagePainter(model = seller.avatarUrl),
+                        contentDescription = seller.sellerName,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(CircleShape)
+                            .background(ProfileAvatarBorder)
+                            .clickable { onSellerClick() }
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = seller.sellerName,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                        Text(
+                            text = "${seller.totalListings} item(s) on sale",
+                            color = Color.Gray,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+
+                TextButton(onClick = onSellerClick) {
+                    Text("View profile", color = SecondaryBlue)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                items(seller.previewProducts, key = { it.id }) { product ->
+                    Column(
+                        modifier = Modifier
+                            .width(92.dp)
+                            .clickable { onProductClick(product.id) }
+                    ) {
+                        Image(
+                            painter = rememberAsyncImagePainter(
+                                model = product.imageUrls.firstOrNull() ?: "https://via.placeholder.com/400"
+                            ),
+                            contentDescription = product.name,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(1f)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(ProfileAvatarBorder)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = product.name,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
         }
     }
 }
