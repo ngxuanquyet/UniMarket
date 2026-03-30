@@ -1,9 +1,11 @@
 package com.example.unimarket.di
 
+import com.example.unimarket.data.repository.GeminiAiRepositoryImpl
 import com.example.unimarket.data.repository.InMemoryCartRepositoryImpl
 import com.example.unimarket.data.repository.FirebaseCheckoutRepositoryImpl
 import com.example.unimarket.data.repository.FirebaseChatRepositoryImpl
 import com.example.unimarket.data.repository.FirebaseOrderRepositoryImpl
+import com.example.unimarket.domain.repository.AiRepository
 import com.example.unimarket.domain.repository.AuthRepository
 import com.example.unimarket.domain.repository.CartRepository
 import com.example.unimarket.domain.repository.ChatRepository
@@ -22,6 +24,12 @@ import com.example.unimarket.data.repository.FirebaseProductRepositoryImpl
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class RepositoryModule {
+
+    @Binds
+    @Singleton
+    abstract fun bindAiRepository(
+        geminiAiRepositoryImpl: GeminiAiRepositoryImpl
+    ): AiRepository
 
     @Binds
     @Singleton

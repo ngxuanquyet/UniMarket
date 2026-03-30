@@ -28,6 +28,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.VerticalAlignTop
@@ -162,23 +163,46 @@ fun SellScreen(
     }
 
     LaunchedEffect(uiState.successMessage, uiState.errorMessage) {
-        if (uiState.successMessage != null) {
-            Toast.makeText(context, uiState.successMessage, Toast.LENGTH_SHORT).show()
-            title = ""
-            price = ""
-            description = ""
-            quantity = ""
-            category = "Select a category"
-            condition = "New"
-            isNegotiable = false
-            specCounter = 0
-            specifications.clear()
-            selectedDeliveryMethods.clear()
+        val successMessage = uiState.successMessage
+        val errorMessage = uiState.errorMessage
+
+        if (successMessage != null) {
+            Toast.makeText(context, successMessage, Toast.LENGTH_SHORT).show()
+            if (!successMessage.contains("AI updated", ignoreCase = true)) {
+                title = ""
+                price = ""
+                description = ""
+                quantity = ""
+                category = "Select a category"
+                condition = "New"
+                isNegotiable = false
+                specCounter = 0
+                specifications.clear()
+                selectedDeliveryMethods.clear()
+            }
             viewModel.clearMessages()
         }
-        if (uiState.errorMessage != null) {
-            Toast.makeText(context, uiState.errorMessage, Toast.LENGTH_SHORT).show()
+        if (errorMessage != null) {
+            Toast.makeText(context, errorMessage, Toast.LENGTH_SHORT).show()
             viewModel.clearMessages()
+        }
+    }
+
+    LaunchedEffect(uiState.aiSuggestion) {
+        uiState.aiSuggestion?.let { suggestion ->
+            if (suggestion.title.isNotBlank()) {
+                title = suggestion.title
+            }
+            if (suggestion.description.isNotBlank()) {
+                description = suggestion.description
+            }
+            if (suggestion.specifications.isNotEmpty()) {
+                specifications.clear()
+                suggestion.specifications.forEach { (key, value) ->
+                    specifications.add(SpecItem(specCounter++, key, value))
+                }
+            }
+            viewModel.consumeAiSuggestion()
         }
     }
 
@@ -711,6 +735,49 @@ fun SellScreen(
                 modifier = Modifier.padding(bottom = 8.dp),
                 color = TextDarkBlack
             )
+            Button(
+                onClick = {
+                    viewModel.generateListingSuggestion(
+                        title = title,
+                        description = description,
+                        category = category,
+                        condition = condition,
+                        priceStr = price,
+                        quantityStr = quantity,
+                        isNegotiable = isNegotiable,
+                        specifications = specifications
+                            .filter { it.key.isNotBlank() && it.value.isNotBlank() }
+                            .associate { it.key to it.value },
+                        deliveryMethodsAvailable = selectedDeliveryMethods.toList()
+                    )
+                },
+                enabled = !uiState.isGeneratingWithAi && !uiState.isLoading,
+                shape = RoundedCornerShape(20.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = LightBlueAction)
+            ) {
+                if (uiState.isGeneratingWithAi) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.AutoAwesome,
+                            contentDescription = "Generate with AI",
+                            tint = Color.White
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "AI Write",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
             OutlinedTextField(
                 value = description,
                 onValueChange = { description = it },

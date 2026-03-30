@@ -5,9 +5,11 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.unimarket.domain.model.Product
+import com.example.unimarket.domain.model.AiListingInput
 import com.example.unimarket.domain.model.DeliveryMethod
 import com.example.unimarket.data.local.DraftProduct
 import com.example.unimarket.domain.usecase.auth.GetCurrentUserUseCase
+import com.example.unimarket.domain.usecase.ai.GenerateListingSuggestionUseCase
 import com.example.unimarket.domain.usecase.draft.DeleteDraftUseCase
 import com.example.unimarket.domain.usecase.draft.GetDraftByIdUseCase
 import com.example.unimarket.domain.usecase.draft.SaveDraftUseCase
@@ -33,6 +35,7 @@ class SellViewModel @Inject constructor(
     private val updateProductUseCase: UpdateProductUseCase,
     private val uploadImageUseCase: UploadImageUseCase,
     private val getCurrentUserUseCase: GetCurrentUserUseCase,
+    private val generateListingSuggestionUseCase: GenerateListingSuggestionUseCase,
     private val getAllProductsUseCase: GetAllProductsUseCase,
     private val saveDraftUseCase: SaveDraftUseCase,
     private val getDraftByIdUseCase: GetDraftByIdUseCase,
@@ -120,6 +123,62 @@ class SellViewModel @Inject constructor(
             currentUris.add(uri)
         }
         _uiState.value = _uiState.value.copy(selectedImageUris = currentUris.take(5), errorMessage = null)
+    }
+
+    fun generateListingSuggestion(
+        title: String,
+        description: String,
+        category: String,
+        condition: String,
+        priceStr: String,
+        quantityStr: String,
+        isNegotiable: Boolean,
+        specifications: Map<String, String>,
+        deliveryMethodsAvailable: List<DeliveryMethod>
+    ) {
+        val hasEnoughContext = title.isNotBlank() ||
+            description.isNotBlank() ||
+            category != "Select a category" ||
+            specifications.isNotEmpty()
+
+        if (!hasEnoughContext) {
+            _uiState.value = _uiState.value.copy(
+                errorMessage = "Add at least a title, description, category, or specifications before using AI"
+            )
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isGeneratingWithAi = true,
+                errorMessage = null
+            )
+
+            generateListingSuggestionUseCase(
+                AiListingInput(
+                    title = title.trim(),
+                    description = description.trim(),
+                    category = category.takeUnless { it == "Select a category" }.orEmpty(),
+                    condition = condition.trim(),
+                    price = priceStr.trim(),
+                    quantity = quantityStr.trim(),
+                    isNegotiable = isNegotiable,
+                    specifications = specifications,
+                    deliveryMethodsAvailable = deliveryMethodsAvailable
+                )
+            ).onSuccess { suggestion ->
+                _uiState.value = _uiState.value.copy(
+                    isGeneratingWithAi = false,
+                    aiSuggestion = suggestion,
+                    successMessage = "AI updated title, description, and specifications"
+                )
+            }.onFailure { error ->
+                _uiState.value = _uiState.value.copy(
+                    isGeneratingWithAi = false,
+                    errorMessage = error.message ?: "Failed to generate listing with AI"
+                )
+            }
+        }
     }
 
     fun postListing(
@@ -319,5 +378,9 @@ class SellViewModel @Inject constructor(
 
     fun clearMessages() {
         _uiState.value = _uiState.value.copy(successMessage = null, errorMessage = null)
+    }
+
+    fun consumeAiSuggestion() {
+        _uiState.value = _uiState.value.copy(aiSuggestion = null)
     }
 }
