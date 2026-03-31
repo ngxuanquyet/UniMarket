@@ -29,7 +29,9 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                 Category("1", "All Items"),
                 Category("2", "Electronics"),
                 Category("3", "Textbooks"),
-                Category("4", "Furniture")
+                Category("4", "Furniture"),
+                Category("5", "Clothing"),
+                Category("6", "Other")
             )
         )
     }

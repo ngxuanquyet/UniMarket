@@ -82,7 +82,7 @@ fun MessagesScreen(
         containerColor = Color.White
     ) { paddingValues ->
         PullToRefreshBox(
-            isRefreshing = uiState.isLoading,
+            isRefreshing = uiState.isRefreshing,
             onRefresh = viewModel::refresh,
             modifier = Modifier
                 .fillMaxSize()

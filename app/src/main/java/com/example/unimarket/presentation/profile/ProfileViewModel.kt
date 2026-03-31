@@ -177,19 +177,22 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    fun deleteAddress(addressId: String) {
+    suspend fun deleteAddress(addressId: String): Result<Unit> {
         _uiState.value = _uiState.value.copy(isLoadingAddresses = true, errorMessage = null)
-        viewModelScope.launch {
-            deleteUserAddressUseCase(addressId).onSuccess {
-                loadAddresses()
-                _uiState.value = _uiState.value.copy(successMessage = "Da xoa dia chi")
-            }.onFailure { error ->
-                _uiState.value = _uiState.value.copy(
-                    isLoadingAddresses = false,
-                    errorMessage = error.message ?: "Failed to delete address"
-                )
-            }
+        val result = deleteUserAddressUseCase(addressId)
+        result.onSuccess {
+            _uiState.value = _uiState.value.copy(
+                addresses = _uiState.value.addresses.filterNot { it.id == addressId },
+                isLoadingAddresses = false,
+                successMessage = "Da xoa dia chi"
+            )
+        }.onFailure { error ->
+            _uiState.value = _uiState.value.copy(
+                isLoadingAddresses = false,
+                errorMessage = error.message ?: "Failed to delete address"
+            )
         }
+        return result
     }
 
     fun setDefaultAddress(address: UserAddress) {

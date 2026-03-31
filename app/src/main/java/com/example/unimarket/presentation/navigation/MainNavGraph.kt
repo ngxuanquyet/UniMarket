@@ -13,6 +13,7 @@ import com.example.unimarket.presentation.explore.ExploreScreen
 import com.example.unimarket.presentation.messages.ChatDetailScreen
 import com.example.unimarket.presentation.messages.MessagesScreen
 import com.example.unimarket.presentation.mypurchases.MyPurchasesScreen
+import com.example.unimarket.presentation.profile.MyAddressesScreen
 import com.example.unimarket.presentation.profile.ProfileScreen
 import com.example.unimarket.presentation.sell.SellScreen
 import com.example.unimarket.presentation.sellerorders.SellerOrdersScreen
@@ -66,12 +67,20 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
                     authViewModel.logout()
                 },
                 onBack = { navController.popBackStack() },
+                onMyAddressesClick = {
+                    navController.navigate(Screen.MyAddresses.route)
+                },
                 onMyPurchasesClick = {
                     navController.navigate(Screen.MyPurchases.route)
                 },
                 onSellerOrdersClick = {
                     navController.navigate(Screen.SellerOrders.route)
                 }
+            )
+        }
+        composable(Screen.MyAddresses.route) {
+            MyAddressesScreen(
+                onBackClick = { navController.popBackStack() }
             )
         }
         composable(Screen.MyPurchases.route) {

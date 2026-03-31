@@ -4,6 +4,7 @@ import com.example.unimarket.domain.model.Conversation
 
 data class MessagesUiState(
     val isLoading: Boolean = true,
+    val isRefreshing: Boolean = false,
     val conversations: List<Conversation> = emptyList(),
     val searchQuery: String = "",
     val errorMessage: String? = null

@@ -33,7 +33,7 @@ class MessagesViewModel @Inject constructor(
     fun refresh() {
         _uiState.update {
             it.copy(
-                isLoading = true,
+                isRefreshing = true,
                 errorMessage = null
             )
         }
@@ -49,6 +49,7 @@ class MessagesViewModel @Inject constructor(
         if (currentUser == null) {
             _uiState.value = MessagesUiState(
                 isLoading = false,
+                isRefreshing = false,
                 errorMessage = "Please log in to see messages"
             )
             return
@@ -60,6 +61,7 @@ class MessagesViewModel @Inject constructor(
                 .catch {
                     _uiState.value = MessagesUiState(
                         isLoading = false,
+                        isRefreshing = false,
                         conversations = emptyList(),
                         errorMessage = "Please log in to see messages"
                     )
@@ -68,6 +70,7 @@ class MessagesViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
+                            isRefreshing = false,
                             conversations = conversations,
                             errorMessage = null
                         )

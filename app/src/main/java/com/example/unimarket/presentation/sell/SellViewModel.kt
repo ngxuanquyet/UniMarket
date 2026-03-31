@@ -147,6 +147,13 @@ class SellViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(selectedImageUris = currentUris.take(5), errorMessage = null)
     }
 
+    fun removeImageAtIndex(index: Int) {
+        val currentUris = _uiState.value.selectedImageUris.toMutableList()
+        if (index !in currentUris.indices) return
+        currentUris.removeAt(index)
+        _uiState.value = _uiState.value.copy(selectedImageUris = currentUris, errorMessage = null)
+    }
+
     fun generateListingSuggestion(
         title: String,
         description: String,

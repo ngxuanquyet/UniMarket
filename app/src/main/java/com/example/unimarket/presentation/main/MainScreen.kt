@@ -2,6 +2,11 @@ package com.example.unimarket.presentation.main
 
 import com.example.unimarket.presentation.theme.*
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
@@ -24,8 +29,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -36,7 +44,8 @@ import androidx.navigation.compose.rememberNavController
 import com.example.unimarket.presentation.navigation.MainNavGraph
 import com.example.unimarket.presentation.navigation.Screen
 import com.example.unimarket.presentation.navigation.SessionViewModel
-import com.example.unimarket.presentation.theme.PrimaryYellowDark
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun MainScreen(
@@ -77,6 +86,8 @@ fun BottomNavigationBar(
     navController: NavHostController,
     unreadMessageCount: Int
 ) {
+    val coroutineScope = rememberCoroutineScope()
+    var isAnimatingToSell by remember { mutableStateOf(false) }
     val items = listOf(
         BottomNavItem("Explore", Screen.Explore.route, Icons.Default.Explore),
         BottomNavItem("Sell", Screen.Sell.route, Icons.Default.AddCircleOutline),
@@ -84,33 +95,54 @@ fun BottomNavigationBar(
         BottomNavItem("Messages", Screen.Messages.route, Icons.Default.ChatBubbleOutline),
         BottomNavItem("Profile", Screen.Profile.route, Icons.Default.PersonOutline)
     )
-
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    val normalizedRoute = currentRoute
+        ?.substringBefore("?")
+        ?.substringBefore("/")
 
-    val showBottomBar = currentRoute in listOf(
+    val showBottomBar = normalizedRoute in listOf(
         Screen.Explore.route,
-        Screen.Sell.route,
         Screen.MyListings.route,
         Screen.Messages.route,
         Screen.Profile.route
-    )
+    ) && !isAnimatingToSell
 
-    if (showBottomBar) {
+    AnimatedVisibility(
+        visible = showBottomBar,
+        enter = slideInVertically(initialOffsetY = { it / 2 }) + fadeIn(),
+        exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
+    ) {
         NavigationBar(
             containerColor = Color.White,
             tonalElevation = 8.dp
         ) {
             items.forEach { item ->
                 NavigationBarItem(
-                    selected = currentRoute == item.route,
+                    selected = normalizedRoute == item.route,
                     onClick = {
-                        navController.navigate(item.route) {
-                            navController.graph.startDestinationRoute?.let { route ->
-                                popUpTo(route) { saveState = true }
+                        if (item.route == Screen.Sell.route && normalizedRoute != Screen.Sell.route) {
+                            if (isAnimatingToSell) return@NavigationBarItem
+                            isAnimatingToSell = true
+                            coroutineScope.launch {
+                                delay(180)
+                                navController.navigate(item.route) {
+                                    navController.graph.startDestinationRoute?.let { route ->
+                                        popUpTo(route) { saveState = true }
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                                isAnimatingToSell = false
                             }
-                            launchSingleTop = true
-                            restoreState = true
+                        } else {
+                            navController.navigate(item.route) {
+                                navController.graph.startDestinationRoute?.let { route ->
+                                    popUpTo(route) { saveState = true }
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
                         }
                     },
                     icon = {
