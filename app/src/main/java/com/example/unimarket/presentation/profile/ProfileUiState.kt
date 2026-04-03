@@ -8,6 +8,8 @@ data class ProfileUiState(
     val avatarUrl: String = "",
     val boughtCount: Int = 0,
     val soldCount: Int = 0,
+    val averageRating: Double = 0.0,
+    val ratingCount: Int = 0,
     val addresses: List<UserAddress> = emptyList(),
     val isUploading: Boolean = false,
     val isRefreshingProfile: Boolean = false,

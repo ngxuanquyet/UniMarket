@@ -27,6 +27,8 @@ class UserSessionLocalDataSource @Inject constructor(
             .putString(KEY_STUDENT_ID, userProfile.studentId)
             .putInt(KEY_BOUGHT_COUNT, userProfile.boughtCount)
             .putInt(KEY_SOLD_COUNT, userProfile.soldCount)
+            .putFloat(KEY_AVERAGE_RATING, userProfile.averageRating.toFloat())
+            .putInt(KEY_RATING_COUNT, userProfile.ratingCount)
             .apply()
 
         _cachedUser.value = userProfile
@@ -48,7 +50,9 @@ class UserSessionLocalDataSource @Inject constructor(
             avatarUrl = sharedPreferences.getString(KEY_AVATAR_URL, null).orEmpty(),
             studentId = sharedPreferences.getString(KEY_STUDENT_ID, null).orEmpty(),
             boughtCount = sharedPreferences.getInt(KEY_BOUGHT_COUNT, 0),
-            soldCount = sharedPreferences.getInt(KEY_SOLD_COUNT, 0)
+            soldCount = sharedPreferences.getInt(KEY_SOLD_COUNT, 0),
+            averageRating = sharedPreferences.getFloat(KEY_AVERAGE_RATING, 0f).toDouble(),
+            ratingCount = sharedPreferences.getInt(KEY_RATING_COUNT, 0)
         )
     }
 
@@ -61,5 +65,7 @@ class UserSessionLocalDataSource @Inject constructor(
         const val KEY_STUDENT_ID = "student_id"
         const val KEY_BOUGHT_COUNT = "bought_count"
         const val KEY_SOLD_COUNT = "sold_count"
+        const val KEY_AVERAGE_RATING = "average_rating"
+        const val KEY_RATING_COUNT = "rating_count"
     }
 }

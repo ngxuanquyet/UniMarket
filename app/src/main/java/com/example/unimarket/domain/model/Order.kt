@@ -21,6 +21,9 @@ data class Order(
     val sellerAddress: UserAddress? = null,
     val status: OrderStatus = OrderStatus.UNKNOWN,
     val statusLabel: String = status.label,
+    val reviewRating: Int? = null,
+    val reviewComment: String = "",
+    val reviewCreatedAt: Long = 0L,
     val createdAt: Long = 0L,
     val updatedAt: Long = 0L
 )

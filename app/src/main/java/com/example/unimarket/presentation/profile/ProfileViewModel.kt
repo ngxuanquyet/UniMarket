@@ -46,7 +46,9 @@ class ProfileViewModel @Inject constructor(
                         email = cachedUser.email,
                         avatarUrl = cachedUser.avatarUrl,
                         boughtCount = cachedUser.boughtCount,
-                        soldCount = cachedUser.soldCount
+                        soldCount = cachedUser.soldCount,
+                        averageRating = cachedUser.averageRating,
+                        ratingCount = cachedUser.ratingCount
                     )
                 }
             }

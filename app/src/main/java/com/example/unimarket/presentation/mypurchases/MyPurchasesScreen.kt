@@ -1,5 +1,6 @@
 package com.example.unimarket.presentation.mypurchases
 
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,11 +25,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.Straighten
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -37,6 +40,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -50,6 +54,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -59,13 +64,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.example.unimarket.R
 import com.example.unimarket.domain.model.Order
 import com.example.unimarket.domain.model.OrderStatus
 import com.example.unimarket.presentation.theme.BackgroundLight
@@ -95,6 +105,10 @@ fun MyPurchasesScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
+    var reviewTargetOrder by remember { mutableStateOf<Order?>(null) }
+    var pendingRating by rememberSaveable { mutableIntStateOf(0) }
+    var pendingComment by rememberSaveable { mutableStateOf("") }
+    var showReviewSuccessDialog by rememberSaveable { mutableStateOf(false) }
     val selectedTab = PurchaseOrderTab.entries[selectedTabIndex]
     val filteredOrders = remember(uiState.orders, selectedTabIndex) {
         uiState.orders.filter { selectedTab.matches(it.status) }
@@ -103,7 +117,17 @@ fun MyPurchasesScreen(
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let { message ->
             snackbarHostState.showSnackbar(message)
-            viewModel.clearError()
+            viewModel.clearMessages()
+        }
+    }
+
+    LaunchedEffect(uiState.successMessage) {
+        uiState.successMessage?.let {
+            reviewTargetOrder = null
+            pendingRating = 0
+            pendingComment = ""
+            showReviewSuccessDialog = true
+            viewModel.clearMessages()
         }
     }
 
@@ -203,13 +227,46 @@ fun MyPurchasesScreen(
                             verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
                             items(filteredOrders, key = { it.documentPath.ifBlank { it.id } }) { order ->
-                                PurchaseOrderCard(order = order)
+                                PurchaseOrderCard(
+                                    order = order,
+                                    isSubmittingReview = uiState.submittingReviewOrderId == order.id,
+                                    onRateSeller = {
+                                        reviewTargetOrder = order
+                                        pendingRating = order.reviewRating ?: 0
+                                        pendingComment = order.reviewComment
+                                    }
+                                )
                             }
                         }
                     }
                 }
             }
         }
+    }
+
+    reviewTargetOrder?.let { order ->
+        ReviewSellerDialog(
+            order = order,
+            rating = pendingRating,
+            comment = pendingComment,
+            isSubmitting = uiState.submittingReviewOrderId == order.id,
+            onDismiss = {
+                if (uiState.submittingReviewOrderId == null) {
+                    reviewTargetOrder = null
+                    pendingRating = 0
+                    pendingComment = ""
+                }
+            },
+            onRatingChange = { pendingRating = it },
+            onCommentChange = { pendingComment = it },
+            onSubmit = { viewModel.submitReview(order, pendingRating, pendingComment) }
+        )
+    }
+
+    if (showReviewSuccessDialog) {
+        ReviewSuccessDialog(
+            onDismiss = { showReviewSuccessDialog = false }
+        )
     }
 }
 
@@ -268,9 +325,18 @@ private fun PurchaseTabBar(
 
 @Composable
 private fun PurchaseOrderCard(
-    order: Order
+    order: Order,
+    isSubmittingReview: Boolean,
+    onRateSeller: () -> Unit
 ) {
     val totalAmount = if (order.totalAmount > 0) order.totalAmount else order.unitPrice * order.quantity
+    val isDelivered = order.status == OrderStatus.DELIVERED
+    val hasReview = order.reviewRating != null
+    val primaryActionLabel = when {
+        hasReview -> "Rated ${order.reviewRating}/5"
+        isDelivered -> "Rate Seller"
+        else -> "Track Order"
+    }
 
     Surface(
         color = SurfaceWhite,
@@ -418,17 +484,278 @@ private fun PurchaseOrderCard(
                 }
 
                 Button(
-                    onClick = {},
+                    onClick = {
+                        if (isDelivered && !hasReview) {
+                            onRateSeller()
+                        }
+                    },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp),
+                    enabled = !hasReview && !isSubmittingReview,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (hasReview) ProfileAvatarBorder else SecondaryBlue,
+                        disabledContainerColor = ProfileAvatarBorder,
+                        disabledContentColor = TextGray
+                    )
+                ) {
+                    if (isSubmittingReview) {
+                        CircularProgressIndicator(
+                            color = SurfaceWhite,
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(
+                            text = primaryActionLabel,
+                            color = if (hasReview) TextGray else SurfaceWhite,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReviewSellerDialog(
+    order: Order,
+    rating: Int,
+    comment: String,
+    isSubmitting: Boolean,
+    onDismiss: () -> Unit,
+    onRatingChange: (Int) -> Unit,
+    onCommentChange: (String) -> Unit,
+    onSubmit: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Rate ${order.storeName.ifBlank { "seller" }}",
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Sản phẩm: ${order.productName}",
+                    color = TextDarkBlack,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "Số lượng: ${order.quantity}",
+                    color = TextGray,
+                    fontSize = 14.sp
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(BackgroundLight)
+                        .border(1.dp, BorderLightGray, RoundedCornerShape(18.dp))
+                        .padding(horizontal = 16.dp, vertical = 18.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        for (index in 1..5) {
+                            Icon(
+                                painter = painterResource(
+                                    id = if (index <= rating) {
+                                        R.drawable.star_yellow
+                                    } else {
+                                        R.drawable.star_light_gray
+                                    }
+                                ),
+                                contentDescription = "Rate $index stars",
+                                tint = Color.Unspecified,
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clickable { onRatingChange(index) }
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = comment,
+                    onValueChange = onCommentChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 3,
+                    maxLines = 8,
+                    placeholder = {
+                        Text("Share a quick comment about your experience")
+                    }
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onSubmit,
+                enabled = rating in 1..5 && !isSubmitting
+            ) {
+                if (isSubmitting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = SurfaceWhite
+                    )
+                } else {
+                    Text("Submit")
+                }
+            }
+        },
+        dismissButton = {
+            OutlinedButton(
+                onClick = onDismiss,
+                enabled = !isSubmitting
+            ) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+private fun ReviewSuccessDialog(
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 28.dp),
+            shape = RoundedCornerShape(32.dp),
+            color = SurfaceWhite,
+            tonalElevation = 0.dp,
+            shadowElevation = 18.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 22.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(CircleShape)
+                        .background(SecondaryBlue),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Success",
+                        tint = SurfaceWhite,
+                        modifier = Modifier.size(34.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Text(
+                    text = "Thank You for Your\nFeedback!",
+                    color = TextDarkBlack,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    lineHeight = 34.sp
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Text(
+                    text = "Your review helps the campus\ncommunity find the best items and\ntrusted sellers.",
+                    color = TextGray,
+                    fontSize = 15.sp,
+                    lineHeight = 22.sp
+                )
+
+                Spacer(modifier = Modifier.height(28.dp))
+
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(54.dp),
+                    shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = SecondaryBlue)
                 ) {
                     Text(
-                        text = "Track Order",
+                        text = "Back to Orders",
                         color = SurfaceWhite,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
+                        fontSize = 16.sp
                     )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "Share UniMarket",
+                    color = SecondaryBlue,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.clickable {
+                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(
+                                Intent.EXTRA_TEXT,
+                                "I just left a verified review on UniMarket. Check out trusted campus deals on UniMarket."
+                            )
+                        }
+                        context.startActivity(Intent.createChooser(shareIntent, "Share UniMarket"))
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(28.dp))
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(Color(0xFFF8D8F2))
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(14.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF9C3FA0)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = SurfaceWhite,
+                                modifier = Modifier.size(10.dp)
+                            )
+                        }
+                        Text(
+                            text = "VERIFIED REVIEW",
+                            color = Color(0xFF9C3FA0),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }

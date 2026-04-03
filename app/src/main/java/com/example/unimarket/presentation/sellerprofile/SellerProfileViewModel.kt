@@ -102,7 +102,14 @@ class SellerProfileViewModel @Inject constructor(
                     .ifBlank { buildAvatarFallbackUrl(sellerName) }
 
                 val ratingSource = sellerProducts.map { it.rating }.filter { it > 0 }
-                val averageRating = if (ratingSource.isNotEmpty()) ratingSource.average() else 4.9
+                val storedRatingCount = userDoc?.getLong("ratingCount")?.toInt() ?: 0
+                val storedAverageRating = userDoc?.getDouble("averageRating") ?: 0.0
+                val ratingCount = if (storedRatingCount > 0) storedRatingCount else ratingSource.size
+                val averageRating = when {
+                    storedRatingCount > 0 -> storedAverageRating
+                    ratingSource.isNotEmpty() -> ratingSource.average()
+                    else -> 0.0
+                }
                 val soldCount = userDoc?.getLong("soldCount")?.toInt()
                     ?: sellerProducts.count { it.quantityAvailable <= 0 }
 
@@ -114,6 +121,7 @@ class SellerProfileViewModel @Inject constructor(
                     studentId = userDoc?.getString("studentId").orEmpty(),
                     isVerifiedStudent = userDoc?.getString("studentId").isNullOrBlank().not(),
                     averageRating = averageRating,
+                    ratingCount = ratingCount,
                     activeListings = sellerProducts,
                     soldCount = soldCount,
                     memberSinceLabel = buildMemberSinceLabel(userDoc?.getLong("createdAt")),

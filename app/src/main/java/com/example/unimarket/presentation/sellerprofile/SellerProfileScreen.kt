@@ -62,7 +62,7 @@ import com.example.unimarket.domain.model.Product
 import com.example.unimarket.presentation.theme.AppBlue
 import com.example.unimarket.presentation.theme.BackgroundLight
 import com.example.unimarket.presentation.theme.MessageBg
-import com.example.unimarket.presentation.theme.PrimaryYellowDark
+import com.example.unimarket.presentation.theme.RatingStarYellow
 import com.example.unimarket.presentation.util.formatVnd
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -236,17 +236,21 @@ private fun SellerHeroSection(
             Icon(
                 Icons.Default.Star,
                 contentDescription = null,
-                tint = PrimaryYellowDark,
+                tint = RatingStarYellow,
                 modifier = Modifier.size(16.dp)
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(
-                text = String.format("%.1f", uiState.averageRating),
+                text = if (uiState.ratingCount > 0) String.format("%.1f", uiState.averageRating) else "New",
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(
-                text = "(${uiState.activeListings.size} listings)",
+                text = if (uiState.ratingCount > 0) {
+                    "(${uiState.ratingCount} reviews)"
+                } else {
+                    "(No reviews yet)"
+                },
                 color = Color.Gray,
                 fontSize = 13.sp
             )

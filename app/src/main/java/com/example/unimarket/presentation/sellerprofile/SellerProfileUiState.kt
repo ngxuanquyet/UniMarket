@@ -10,6 +10,7 @@ data class SellerProfileUiState(
     val studentId: String = "",
     val isVerifiedStudent: Boolean = false,
     val averageRating: Double = 0.0,
+    val ratingCount: Int = 0,
     val activeListings: List<Product> = emptyList(),
     val soldCount: Int = 0,
     val memberSinceLabel: String = "New",

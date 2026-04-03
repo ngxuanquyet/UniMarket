@@ -76,7 +76,9 @@ class AuthRepositoryImpl @Inject constructor(
                         avatarUrl = profileUpdates.photoUri?.toString().orEmpty(),
                         studentId = studentId,
                         boughtCount = 0,
-                        soldCount = 0
+                        soldCount = 0,
+                        averageRating = 0.0,
+                        ratingCount = 0
                     ),
                     includeBoughtCount = true,
                         includeSoldCount = true
@@ -362,7 +364,9 @@ class AuthRepositoryImpl @Inject constructor(
             avatarUrl = avatarUrl,
             studentId = getString("studentId").orEmpty(),
             boughtCount = getLong("boughtCount")?.toInt() ?: 0,
-            soldCount = getLong("soldCount")?.toInt() ?: 0
+            soldCount = getLong("soldCount")?.toInt() ?: 0,
+            averageRating = getDouble("averageRating") ?: 0.0,
+            ratingCount = getLong("ratingCount")?.toInt() ?: 0
         )
     }
 

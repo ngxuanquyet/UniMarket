@@ -35,6 +35,7 @@ import coil.compose.rememberAsyncImagePainter
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.example.unimarket.presentation.theme.PrimaryYellowDark
+import com.example.unimarket.presentation.theme.RatingStarYellow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,7 +104,9 @@ fun ProfileScreen(
                 Spacer(modifier = Modifier.height(24.dp))
                 ProfileStatsRow(
                     soldCount = uiState.soldCount,
-                    boughtCount = uiState.boughtCount
+                    boughtCount = uiState.boughtCount,
+                    averageRating = uiState.averageRating,
+                    ratingCount = uiState.ratingCount
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -281,8 +284,16 @@ fun ProfileHeader(
 @Composable
 fun ProfileStatsRow(
     soldCount: Int,
-    boughtCount: Int
+    boughtCount: Int,
+    averageRating: Double,
+    ratingCount: Int
 ) {
+    val ratingLabel = if (ratingCount > 0) {
+        String.format("%.1f", averageRating)
+    } else {
+        "New"
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -294,10 +305,10 @@ fun ProfileStatsRow(
         StatCard(value = boughtCount.toString(), label = "Bought", modifier = Modifier.weight(1f))
         Spacer(modifier = Modifier.width(16.dp))
         StatCard(
-            value = "4.8", 
+            value = ratingLabel,
             label = "Rating", 
             modifier = Modifier.weight(1f),
-            showStar = true
+            showStar = ratingCount > 0
         )
     }
 }
@@ -322,7 +333,7 @@ fun StatCard(value: String, label: String, modifier: Modifier = Modifier, showSt
                 Icon(
                     imageVector = Icons.Default.Star,
                     contentDescription = "Star",
-                    tint = PrimaryYellowDark,
+                    tint = RatingStarYellow,
                     modifier = Modifier.size(18.dp)
                 )
             }

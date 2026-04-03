@@ -42,6 +42,7 @@ val OrangeBadge = Color(0xFFFF9800)
 val RedDangerBg = Color(0xFFFFEBEE)
 val LightRedReviewBg = Color(0xFFFFF0F0)
 val OrangeBadgeBg = Color(0xFFFFF3E0)
+val RatingStarYellow = Color(0xFFFFC500)
 
 val BackgroundLogin = Color(0xFFF0F7FF)
 val AuthAccent = Color(0xFF1D4ED8)
