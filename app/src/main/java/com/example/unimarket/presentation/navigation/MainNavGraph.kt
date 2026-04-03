@@ -16,6 +16,7 @@ import com.example.unimarket.presentation.mypurchases.MyPurchasesScreen
 import com.example.unimarket.presentation.profile.MyAddressesScreen
 import com.example.unimarket.presentation.profile.ProfileScreen
 import com.example.unimarket.presentation.sell.SellScreen
+import com.example.unimarket.presentation.statistics.StatisticsScreen
 import com.example.unimarket.presentation.sellerorders.SellerOrdersScreen
 import com.example.unimarket.presentation.sellerprofile.SellerProfileScreen
 
@@ -75,6 +76,9 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
                 },
                 onSellerOrdersClick = {
                     navController.navigate(Screen.SellerOrders.route)
+                },
+                onStatisticsClick = {
+                    navController.navigate(Screen.Statistics.route)
                 }
             )
         }
@@ -90,6 +94,11 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
         }
         composable(Screen.SellerOrders.route) {
             SellerOrdersScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.Statistics.route) {
+            StatisticsScreen(
                 onBackClick = { navController.popBackStack() }
             )
         }

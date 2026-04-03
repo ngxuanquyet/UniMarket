@@ -45,6 +45,7 @@ fun ProfileScreen(
     onMyAddressesClick: () -> Unit = {},
     onMyPurchasesClick: () -> Unit = {},
     onSellerOrdersClick: () -> Unit = {},
+    onStatisticsClick: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val scrollState = rememberScrollState()
@@ -113,7 +114,8 @@ fun ProfileScreen(
                 ProfileActionsList(
                     onMyAddressesClick = onMyAddressesClick,
                     onMyPurchasesClick = onMyPurchasesClick,
-                    onSellerOrdersClick = onSellerOrdersClick
+                    onSellerOrdersClick = onSellerOrdersClick,
+                    onStatisticsClick = onStatisticsClick
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))
@@ -351,7 +353,8 @@ fun StatCard(value: String, label: String, modifier: Modifier = Modifier, showSt
 fun ProfileActionsList(
     onMyAddressesClick: () -> Unit = {},
     onMyPurchasesClick: () -> Unit = {},
-    onSellerOrdersClick: () -> Unit = {}
+    onSellerOrdersClick: () -> Unit = {},
+    onStatisticsClick: () -> Unit = {}
 ) {
     Column(modifier = Modifier.padding(horizontal = 24.dp)) {
         ActionRowItem(
@@ -359,6 +362,13 @@ fun ProfileActionsList(
             icon = Icons.Default.LocalOffer,
             iconBgColor = LightBlueReviewBg,
             iconColor = BlueReview
+        )
+        ActionRowItem(
+            title = "Income & Expense",
+            icon = Icons.Default.BarChart,
+            iconBgColor = LightBlueReviewBg,
+            iconColor = BlueReview,
+            onClick = onStatisticsClick
         )
         ActionRowItem(
             title = "Seller Orders",
