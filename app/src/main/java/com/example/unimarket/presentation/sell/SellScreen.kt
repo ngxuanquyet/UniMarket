@@ -245,6 +245,27 @@ fun SellScreen(
         }
     }
 
+    LaunchedEffect(uiState.aiImageSuggestion) {
+        uiState.aiImageSuggestion?.let { suggestion ->
+            if (suggestion.title.isNotBlank()) {
+                title = suggestion.title
+            }
+            if (suggestion.description.isNotBlank()) {
+                description = suggestion.description
+            }
+            mapSuggestedCategoryToSellCategory(suggestion.category)?.let { mappedCategory ->
+                category = mappedCategory
+            }
+            if (suggestion.specifications.isNotEmpty()) {
+                specifications.clear()
+                suggestion.specifications.forEach { (key, value) ->
+                    specifications.add(SpecItem(specCounter++, key, value))
+                }
+            }
+            viewModel.consumeAiImageSuggestion()
+        }
+    }
+
     LaunchedEffect(initialProduct?.id, uiState.myAddresses) {
         val initialPickupAddress = initialProduct?.sellerPickupAddress
         val matchedProfileAddressId = initialPickupAddress?.id
@@ -630,6 +651,48 @@ fun SellScreen(
             }
 
             Spacer(modifier = Modifier.height(32.dp))
+
+            Button(
+                onClick = {
+                    viewModel.generateListingSuggestionFromImage(
+                        title = title,
+                        description = description,
+                        category = category,
+                        condition = condition,
+                        specifications = specifications
+                            .filter { it.key.isNotBlank() && it.value.isNotBlank() }
+                            .associate { it.key to it.value }
+                    )
+                },
+                enabled = uiState.selectedImageUris.isNotEmpty() && !uiState.isGeneratingWithAiFromImage && !uiState.isLoading,
+                shape = RoundedCornerShape(20.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = AppBlue),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (uiState.isGeneratingWithAiFromImage) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.AutoAwesome,
+                            contentDescription = "AI Autofill from image",
+                            tint = Color.White
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "AI Autofill from Image",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Title Input
             Text(
@@ -1122,6 +1185,23 @@ private fun createSellPhotoUri(context: android.content.Context): Uri? {
             imageFile
         )
     }.getOrNull()
+}
+
+private fun mapSuggestedCategoryToSellCategory(rawCategory: String): String? {
+    val normalized = rawCategory.trim().lowercase()
+    if (normalized.isBlank()) return null
+    return when {
+        normalized.contains("electronic") || normalized.contains("smartphone") || normalized.contains("phone") ||
+            normalized.contains("laptop") || normalized.contains("tablet") || normalized.contains("headphone") ||
+            normalized.contains("camera") -> "Electronics"
+        normalized.contains("textbook") || normalized.contains("book") || normalized.contains("notebook") -> "Textbooks"
+        normalized.contains("furniture") || normalized.contains("chair") || normalized.contains("desk") ||
+            normalized.contains("table") || normalized.contains("sofa") -> "Furniture"
+        normalized.contains("clothing") || normalized.contains("shirt") || normalized.contains("pants") ||
+            normalized.contains("jacket") || normalized.contains("shoe") || normalized.contains("fashion") -> "Clothing"
+        normalized.contains("other") -> "Other"
+        else -> null
+    }
 }
 
 private enum class PickupAddressSource {

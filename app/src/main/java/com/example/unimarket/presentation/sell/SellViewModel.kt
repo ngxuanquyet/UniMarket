@@ -4,6 +4,7 @@ import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.unimarket.domain.model.AiImageListingInput
 import com.example.unimarket.domain.model.AiListingInput
 import com.example.unimarket.domain.model.DeliveryMethod
 import com.example.unimarket.domain.model.Product
@@ -11,6 +12,7 @@ import com.example.unimarket.domain.model.UserAddress
 import com.example.unimarket.data.local.DraftProduct
 import com.example.unimarket.domain.usecase.auth.GetCurrentUserUseCase
 import com.example.unimarket.domain.usecase.auth.GetUserAddressesUseCase
+import com.example.unimarket.domain.usecase.ai.GenerateImageListingSuggestionUseCase
 import com.example.unimarket.domain.usecase.ai.GenerateListingSuggestionUseCase
 import com.example.unimarket.domain.usecase.draft.DeleteDraftUseCase
 import com.example.unimarket.domain.usecase.draft.GetDraftByIdUseCase
@@ -39,6 +41,7 @@ class SellViewModel @Inject constructor(
     private val getCurrentUserUseCase: GetCurrentUserUseCase,
     private val getUserAddressesUseCase: GetUserAddressesUseCase,
     private val generateListingSuggestionUseCase: GenerateListingSuggestionUseCase,
+    private val generateImageListingSuggestionUseCase: GenerateImageListingSuggestionUseCase,
     private val getAllProductsUseCase: GetAllProductsUseCase,
     private val saveDraftUseCase: SaveDraftUseCase,
     private val getDraftByIdUseCase: GetDraftByIdUseCase,
@@ -205,6 +208,51 @@ class SellViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(
                     isGeneratingWithAi = false,
                     errorMessage = error.message ?: "Failed to generate listing with AI"
+                )
+            }
+        }
+    }
+
+    fun generateListingSuggestionFromImage(
+        title: String,
+        description: String,
+        category: String,
+        condition: String,
+        specifications: Map<String, String>
+    ) {
+        val imageUri = _uiState.value.selectedImageUris.firstOrNull()
+        if (imageUri == null) {
+            _uiState.value = _uiState.value.copy(
+                errorMessage = "Please select at least one image before using AI autofill"
+            )
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isGeneratingWithAiFromImage = true,
+                errorMessage = null
+            )
+
+            generateImageListingSuggestionUseCase(
+                AiImageListingInput(
+                    imageUri = imageUri,
+                    title = title.trim(),
+                    description = description.trim(),
+                    category = category.takeUnless { it == "Select a category" }.orEmpty(),
+                    condition = condition.trim(),
+                    specifications = specifications
+                )
+            ).onSuccess { suggestion ->
+                _uiState.value = _uiState.value.copy(
+                    isGeneratingWithAiFromImage = false,
+                    aiImageSuggestion = suggestion,
+                    successMessage = "AI autofilled details from the selected image"
+                )
+            }.onFailure { error ->
+                _uiState.value = _uiState.value.copy(
+                    isGeneratingWithAiFromImage = false,
+                    errorMessage = error.message ?: "Failed to autofill listing from image"
                 )
             }
         }
@@ -422,5 +470,9 @@ class SellViewModel @Inject constructor(
 
     fun consumeAiSuggestion() {
         _uiState.value = _uiState.value.copy(aiSuggestion = null)
+    }
+
+    fun consumeAiImageSuggestion() {
+        _uiState.value = _uiState.value.copy(aiImageSuggestion = null)
     }
 }

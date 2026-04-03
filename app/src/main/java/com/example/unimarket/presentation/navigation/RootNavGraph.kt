@@ -13,6 +13,7 @@ import androidx.navigation.navigation
 import com.example.unimarket.presentation.auth.AuthViewModel
 import com.example.unimarket.presentation.auth.LoginScreen
 import com.example.unimarket.presentation.auth.SignUpScreen
+import com.example.unimarket.presentation.auth.WelcomeScreen
 import com.example.unimarket.presentation.auth.state.AuthState
 import com.example.unimarket.presentation.main.MainScreen
 
@@ -55,9 +56,19 @@ fun RootNavGraph(
         route = "root_graph"
     ) {
         navigation(
-            startDestination = Screen.Login.route,
+            startDestination = Screen.Welcome.route,
             route = Screen.AuthGraph.route
         ) {
+            composable(Screen.Welcome.route) {
+                WelcomeScreen(
+                    onContinueClick = {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(Screen.Welcome.route) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }
+                )
+            }
             composable(Screen.Login.route) { 
                 val viewModel: AuthViewModel = hiltViewModel()
                 val authState = viewModel.authState.collectAsStateWithLifecycle()

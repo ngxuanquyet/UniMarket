@@ -1,24 +1,33 @@
 package com.example.unimarket.data.repository
 
+import android.content.Context
+import android.net.Uri
+import android.util.Base64
 import android.util.Log
 import com.example.unimarket.data.api.GeminiApiService
 import com.example.unimarket.data.api.model.GeminiContent
 import com.example.unimarket.data.api.model.GeminiGenerateContentRequest
 import com.example.unimarket.data.api.model.GeminiGenerationConfig
+import com.example.unimarket.data.api.model.GeminiInlineData
 import com.example.unimarket.data.api.model.GeminiPart
 import com.example.unimarket.data.api.model.GeminiThinkingConfig
+import com.example.unimarket.domain.model.AiImageListingInput
+import com.example.unimarket.domain.model.AiImageListingSuggestion
 import com.example.unimarket.domain.model.AiListingInput
 import com.example.unimarket.domain.model.AiListingSuggestion
 import com.example.unimarket.domain.repository.AiRepository
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import com.google.gson.Gson
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.tasks.await
+import java.net.URL
 import javax.inject.Inject
 
 class GeminiAiRepositoryImpl @Inject constructor(
     private val geminiApiService: GeminiApiService,
     private val remoteConfig: FirebaseRemoteConfig,
-    private val gson: Gson
+    private val gson: Gson,
+    @ApplicationContext private val context: Context
 ) : AiRepository {
 
     override suspend fun generateListingSuggestion(input: AiListingInput): Result<AiListingSuggestion> {
@@ -71,14 +80,7 @@ class GeminiAiRepositoryImpl @Inject constructor(
                 "Gemini response success: code=${response.code()}, body=${gson.toJson(response.body())}"
             )
 
-            val rawJson = response.body()
-                ?.candidates
-                ?.firstOrNull()
-                ?.content
-                ?.parts
-                ?.joinToString(separator = "") { it.text.orEmpty() }
-                .orEmpty()
-                .trim()
+            val rawJson = extractResponseText(response)
 
             if (rawJson.isBlank()) {
                 return Result.failure(Exception("Gemini returned an empty response"))
@@ -86,7 +88,7 @@ class GeminiAiRepositoryImpl @Inject constructor(
 
             Log.d("GeminiAiRepository", "Gemini raw generated JSON: $rawJson")
 
-            val parsed = gson.fromJson(rawJson, AiListingSuggestion::class.java)
+            val parsed = gson.fromJson(cleanJsonResponse(rawJson), AiListingSuggestion::class.java)
             if (parsed == null || parsed.description.isBlank()) {
                 return Result.failure(Exception("Failed to parse Gemini response"))
             }
@@ -103,6 +105,86 @@ class GeminiAiRepositoryImpl @Inject constructor(
                     title = parsed.title.trim(),
                     description = finalDescription,
                     specifications = finalSpecifications
+                )
+            )
+        } catch (error: Exception) {
+            Result.failure(error)
+        }
+    }
+
+    override suspend fun generateListingSuggestionFromImage(input: AiImageListingInput): Result<AiImageListingSuggestion> {
+        return try {
+            remoteConfig.fetchAndActivate().await()
+            val apiKey = remoteConfig.getString("API_KEY")
+            if (apiKey.isBlank()) {
+                return Result.failure(Exception("Gemini API key is missing from Remote Config"))
+            }
+
+            val encodedImage = encodeImageToBase64(input.imageUri)
+                ?: return Result.failure(Exception("Failed to read selected image"))
+            val mimeType = resolveMimeType(input.imageUri)
+
+            val request = GeminiGenerateContentRequest(
+                systemInstruction = GeminiContent(
+                    parts = listOf(
+                        GeminiPart(
+                            text = "You analyze product photos for a student marketplace app. " +
+                                "Use the image first, and use the user's current text only as supporting context. " +
+                                "Do not invent specific specs that are not visually supported unless you clearly mark them as generic in the description. " +
+                                "Respond with valid JSON only using this shape: " +
+                                "{\"title\":\"...\",\"description\":\"...\",\"category\":\"Electronics|Textbooks|Furniture|Clothing|Other\",\"specifications\":{\"key\":\"value\"}}."
+                        )
+                    )
+                ),
+                contents = listOf(
+                    GeminiContent(
+                        role = "user",
+                        parts = listOf(
+                            GeminiPart(
+                                inlineData = GeminiInlineData(
+                                    mimeType = mimeType,
+                                    data = encodedImage
+                                )
+                            ),
+                            GeminiPart(text = buildImagePrompt(input))
+                        )
+                    )
+                ),
+                generationConfig = GeminiGenerationConfig(
+                    temperature = 0.3,
+                    topP = 0.9,
+                    topK = 32,
+                    maxOutputTokens = 768,
+                    responseMimeType = "application/json",
+                    thinkingConfig = GeminiThinkingConfig(thinkingBudget = 0)
+                )
+            )
+
+            val response = geminiApiService.generateContent(apiKey = apiKey, request = request)
+            if (!response.isSuccessful) {
+                val errorBody = response.errorBody()?.string().orEmpty()
+                Log.e("GeminiAiRepository", "Gemini image request failed: ${response.code()} $errorBody")
+                return Result.failure(Exception("Gemini image request failed with code ${response.code()}"))
+            }
+
+            val rawJson = extractResponseText(response)
+            if (rawJson.isBlank()) {
+                return Result.failure(Exception("Gemini returned an empty response"))
+            }
+
+            Log.d("GeminiAiRepository", "Gemini image raw generated JSON: $rawJson")
+
+            val parsed = gson.fromJson(cleanJsonResponse(rawJson), AiImageListingSuggestion::class.java)
+            if (parsed == null || (parsed.title.isBlank() && parsed.description.isBlank())) {
+                return Result.failure(Exception("Failed to parse Gemini image response"))
+            }
+
+            Result.success(
+                parsed.copy(
+                    title = parsed.title.trim(),
+                    description = parsed.description.trim(),
+                    category = parsed.category.trim(),
+                    specifications = normalizeSpecifications(parsed.specifications)
                 )
             )
         } catch (error: Exception) {
@@ -179,6 +261,42 @@ class GeminiAiRepositoryImpl @Inject constructor(
         """.trimIndent()
     }
 
+    private fun buildImagePrompt(input: AiImageListingInput): String {
+        val existingSpecifications = input.specifications.entries
+            .filter { it.key.isNotBlank() && it.value.isNotBlank() }
+            .joinToString(separator = "\n") { "- ${it.key}: ${it.value}" }
+            .ifBlank { "- None" }
+
+        return """
+            Analyze this product photo and create marketplace autofill content.
+
+            Return JSON only with these fields:
+            - title
+            - description
+            - category
+            - specifications
+
+            Category rules:
+            Choose exactly one of: Electronics, Textbooks, Furniture, Clothing, Other.
+
+            Writing rules:
+            - Keep the title short and searchable.
+            - The description should sound natural for a second-hand student marketplace.
+            - Use the image as the main source of truth.
+            - Use current user text only as a hint.
+            - Do not invent hidden specs like storage, CPU, or model number unless visible or strongly supported by the current text.
+            - Specifications must be a flat JSON object of short key/value strings.
+
+            Current user text:
+            Title: ${input.title.ifBlank { "(empty)" }}
+            Description: ${input.description.ifBlank { "(empty)" }}
+            Category: ${input.category.ifBlank { "(empty)" }}
+            Condition: ${input.condition.ifBlank { "(empty)" }}
+            Specifications:
+            $existingSpecifications
+        """.trimIndent()
+    }
+
     private fun buildFinalSpecifications(
         input: AiListingInput,
         aiSpecifications: Map<String, String>
@@ -210,6 +328,44 @@ class GeminiAiRepositoryImpl @Inject constructor(
                 }
             }
             .toMap()
+    }
+
+    private fun extractResponseText(response: retrofit2.Response<com.example.unimarket.data.api.model.GeminiGenerateContentResponse>): String {
+        return response.body()
+            ?.candidates
+            ?.firstOrNull()
+            ?.content
+            ?.parts
+            ?.joinToString(separator = "") { it.text.orEmpty() }
+            .orEmpty()
+            .trim()
+    }
+
+    private fun cleanJsonResponse(rawText: String): String {
+        return rawText
+            .removePrefix("```json")
+            .removePrefix("```")
+            .removeSuffix("```")
+            .trim()
+    }
+
+    private fun encodeImageToBase64(uri: Uri): String? {
+        return runCatching {
+            val bytes = when (uri.scheme?.lowercase()) {
+                "http", "https" -> URL(uri.toString()).openStream().use { it.readBytes() }
+                else -> context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            } ?: return null
+            Base64.encodeToString(bytes, Base64.NO_WRAP)
+        }.getOrNull()
+    }
+
+    private fun resolveMimeType(uri: Uri): String {
+        return context.contentResolver.getType(uri)
+            ?: when (uri.toString().substringAfterLast('.', "").lowercase()) {
+                "png" -> "image/png"
+                "webp" -> "image/webp"
+                else -> "image/jpeg"
+            }
     }
 
     private fun extractSpecificationsFromText(text: String): Map<String, String> {
