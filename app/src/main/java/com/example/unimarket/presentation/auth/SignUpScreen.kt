@@ -32,7 +32,8 @@ fun SignUpScreen(
     onNavigateBack: () -> Unit,
     onNavigateToLogin: () -> Unit,
     isLoading: Boolean = false,
-    errorMessage: String? = null
+    errorMessage: String? = null,
+    successMessage: String? = null
 ) {
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -49,6 +50,13 @@ fun SignUpScreen(
     LaunchedEffect(errorMessage) {
         if (errorMessage != null) {
             Toast.makeText(context, errorMessage, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    LaunchedEffect(successMessage) {
+        if (!successMessage.isNullOrBlank()) {
+            Toast.makeText(context, successMessage, Toast.LENGTH_LONG).show()
+            onNavigateToLogin()
         }
     }
 

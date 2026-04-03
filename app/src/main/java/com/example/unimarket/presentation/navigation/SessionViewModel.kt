@@ -10,6 +10,7 @@ import com.example.unimarket.domain.usecase.auth.GetCurrentUserUseCase
 import com.example.unimarket.domain.usecase.auth.ObserveCachedUserUseCase
 import com.example.unimarket.domain.usecase.auth.RefreshCurrentUserProfileUseCase
 import com.example.unimarket.domain.usecase.chat.ObserveConversationsUseCase
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseUser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -39,14 +40,14 @@ class SessionViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(
         SessionUiState(
-            isAuthenticated = getCachedUserUseCase() != null || getCurrentUserUseCase() != null
+            isAuthenticated = getCachedUserUseCase() != null || getCurrentUserUseCase().isVerifiedSessionUser()
         )
     )
     val uiState: StateFlow<SessionUiState> = _uiState.asStateFlow()
     private var unreadMessagesJob: Job? = null
 
     init {
-        if (getCurrentUserUseCase() != null) {
+        if (getCurrentUserUseCase().isVerifiedSessionUser()) {
             refreshProfileInBackground()
             syncFcmTokenInBackground()
             logIdTokenInBackground()
@@ -55,7 +56,7 @@ class SessionViewModel @Inject constructor(
 
         viewModelScope.launch {
             observeCachedUserUseCase().collect { cachedUser ->
-                val isAuthenticated = cachedUser != null || getCurrentUserUseCase() != null
+                val isAuthenticated = cachedUser != null || getCurrentUserUseCase().isVerifiedSessionUser()
                 _uiState.update { currentState ->
                     currentState.copy(
                         isAuthenticated = isAuthenticated,
@@ -100,7 +101,7 @@ class SessionViewModel @Inject constructor(
     }
 
     private fun observeUnreadMessages() {
-        val currentUser = getCurrentUserUseCase() as? FirebaseUser
+        val currentUser = (getCurrentUserUseCase() as? FirebaseUser)?.takeIf { it.isVerifiedSessionUser() }
         if (currentUser == null) {
             unreadMessagesJob?.cancel()
             _uiState.update { it.copy(unreadMessageCount = 0) }
@@ -126,4 +127,16 @@ class SessionViewModel @Inject constructor(
     private companion object {
         const val TAG = "SessionViewModel"
     }
+}
+
+private fun Any?.isVerifiedSessionUser(): Boolean {
+    val user = this as? FirebaseUser ?: return false
+    return user.isVerifiedSessionUser()
+}
+
+private fun FirebaseUser.isVerifiedSessionUser(): Boolean {
+    val signedInWithPassword = providerData.any { provider ->
+        provider.providerId == EmailAuthProvider.PROVIDER_ID
+    }
+    return !signedInWithPassword || isEmailVerified
 }

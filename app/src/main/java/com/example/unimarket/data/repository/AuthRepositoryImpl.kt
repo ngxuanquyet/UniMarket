@@ -7,6 +7,7 @@ import com.example.unimarket.data.local.UserSessionLocalDataSource
 import com.example.unimarket.domain.model.UserProfile
 import com.example.unimarket.domain.model.UserAddress
 import com.example.unimarket.domain.repository.AuthRepository
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
@@ -30,7 +31,15 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun login(email: String, password: String): Result<Unit> {
         return try {
             auth.signInWithEmailAndPassword(email, password).await()
-            refreshCurrentUserProfile().map { Unit }
+            val currentUser = auth.currentUser
+            currentUser?.reload()?.await()
+
+            if (currentUser.requiresEmailVerification()) {
+                logout()
+                Result.failure(Exception("Please verify your email before logging in. Check your inbox for the verification link."))
+            } else {
+                refreshCurrentUserProfile().map { Unit }
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -70,11 +79,14 @@ class AuthRepositoryImpl @Inject constructor(
                         soldCount = 0
                     ),
                     includeBoughtCount = true,
-                    includeSoldCount = true
+                        includeSoldCount = true
                 )
+
+                user.sendEmailVerification().await()
             }
 
-            refreshCurrentUserProfile().map { Unit }
+            logout()
+            Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -368,6 +380,14 @@ class AuthRepositoryImpl @Inject constructor(
 
     private fun FirebaseUser.authAvatarUrl(): String {
         return photoUrl?.toString().orEmpty()
+    }
+
+    private fun FirebaseUser?.requiresEmailVerification(): Boolean {
+        if (this == null) return false
+        val signedInWithPassword = providerData.any { provider ->
+            provider.providerId == EmailAuthProvider.PROVIDER_ID
+        }
+        return signedInWithPassword && !isEmailVerified
     }
 
     private companion object {

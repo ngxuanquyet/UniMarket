@@ -92,7 +92,8 @@ fun RootNavGraph(
                     onNavigateBack = { navController.navigateUp() },
                     onNavigateToLogin = { navController.popBackStack() },
                     isLoading = authState.value is AuthState.Loading,
-                    errorMessage = (authState.value as? AuthState.Error)?.message
+                    errorMessage = (authState.value as? AuthState.Error)?.message,
+                    successMessage = (authState.value as? AuthState.Success)?.message
                 ) 
             }
         }

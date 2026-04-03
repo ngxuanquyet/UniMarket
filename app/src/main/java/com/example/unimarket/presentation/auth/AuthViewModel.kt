@@ -9,6 +9,8 @@ import com.example.unimarket.domain.usecase.auth.SignInWithGoogleUseCase
 import com.example.unimarket.domain.usecase.auth.GetCurrentUserUseCase
 import com.example.unimarket.domain.usecase.auth.LogoutUseCase
 import com.example.unimarket.presentation.auth.state.AuthState
+import com.google.firebase.auth.EmailAuthProvider
+import com.google.firebase.auth.FirebaseUser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,8 +35,8 @@ class AuthViewModel @Inject constructor(
     }
 
     private fun checkUserLoggedIn() {
-        if (getCurrentUserUseCase() != null) {
-            _authState.value = AuthState.Success
+        if (getCurrentUserUseCase().isVerifiedSessionUser()) {
+            _authState.value = AuthState.Success()
         }
     }
 
@@ -48,7 +50,7 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             loginUseCase(email, password)
                 .onSuccess {
-                    _authState.value = AuthState.Success
+                    _authState.value = AuthState.Success()
                 }
                 .onFailure { error ->
                     _authState.value = AuthState.Error(error.message ?: "Login failed")
@@ -76,7 +78,7 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             signUpUseCase(name, email, "", password)
                 .onSuccess {
-                    _authState.value = AuthState.Success
+                    _authState.value = AuthState.Success("Verification link sent. Please check your email before logging in.")
                 }
                 .onFailure { error ->
                     _authState.value = AuthState.Error(error.message ?: "Sign up failed")
@@ -94,7 +96,7 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             signInWithGoogleUseCase(idToken)
                 .onSuccess {
-                    _authState.value = AuthState.Success
+                    _authState.value = AuthState.Success()
                 }
                 .onFailure { error ->
                     _authState.value = AuthState.Error(error.message ?: "Google Login failed")
@@ -110,4 +112,12 @@ class AuthViewModel @Inject constructor(
         logoutUseCase()
         _authState.value = AuthState.Idle
     }
+}
+
+private fun Any?.isVerifiedSessionUser(): Boolean {
+    val user = this as? FirebaseUser ?: return false
+    val signedInWithPassword = user.providerData.any { provider ->
+        provider.providerId == EmailAuthProvider.PROVIDER_ID
+    }
+    return !signedInWithPassword || user.isEmailVerified
 }
