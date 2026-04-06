@@ -3,10 +3,15 @@ package com.example.unimarket.data.repository
 import com.example.unimarket.BuildConfig
 import com.example.unimarket.data.api.NotificationApiService
 import com.example.unimarket.data.api.model.CheckoutAddressDto
+import com.example.unimarket.data.api.model.CheckoutPaymentMethodDto
 import com.example.unimarket.data.api.model.OrderDto
+import com.example.unimarket.data.api.model.OrderPaymentCheckResponseDto
 import com.example.unimarket.data.api.model.OrderStatusUpdateRequestDto
 import com.example.unimarket.domain.model.Order
+import com.example.unimarket.domain.model.OrderPaymentCheckResult
 import com.example.unimarket.domain.model.OrderStatus
+import com.example.unimarket.domain.model.SellerPaymentMethod
+import com.example.unimarket.domain.model.SellerPaymentMethodType
 import com.example.unimarket.domain.model.UserAddress
 import com.example.unimarket.domain.repository.OrderRepository
 import com.google.firebase.Timestamp
@@ -68,6 +73,41 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
             }
 
             Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun checkTransferPayment(orderId: String): Result<OrderPaymentCheckResult> {
+        val currentUser = auth.currentUser ?: return Result.failure(Exception("No user logged in"))
+        if (BuildConfig.NOTIFICATION_SERVER_BASE_URL.isBlank()) {
+            return Result.failure(Exception("Checkout backend is not configured"))
+        }
+
+        return try {
+            val idToken = currentUser.getIdToken(false).await().token.orEmpty()
+            if (idToken.isBlank()) {
+                return Result.failure(Exception("Missing Firebase ID token"))
+            }
+
+            val response = notificationApiService.checkTransferPayment(
+                authorization = "Bearer $idToken",
+                orderId = orderId
+            )
+
+            if (!response.isSuccessful) {
+                return Result.failure(
+                    Exception(
+                        response.errorMessage()
+                            ?: "Payment check failed with code ${response.code()}"
+                    )
+                )
+            }
+
+            val body = response.body()
+                ?: return Result.failure(Exception("Empty response from payment check service"))
+
+            Result.success(body.toDomain())
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -223,9 +263,13 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
                 totalAmount = totalAmount,
                 deliveryMethod = firstString(document, null, "deliveryMethod").orEmpty(),
                 paymentMethod = firstString(document, null, "paymentMethod").orEmpty(),
+                paymentMethodDetails = mapPaymentMethod(document.get("paymentMethodDetails")),
                 meetingPoint = firstString(document, null, "meetingPoint").orEmpty(),
                 buyerAddress = mapAddress(document.get("buyerAddress")),
                 sellerAddress = mapAddress(document.get("sellerAddress")),
+                transferContent = firstString(document, null, "transferContent").orEmpty(),
+                paymentExpiresAt = firstTimestampMillis(document, null, "paymentExpiresAt") ?: 0L,
+                paymentConfirmedAt = firstTimestampMillis(document, null, "paymentConfirmedAt") ?: 0L,
                 status = status,
                 statusLabel = rawStatus.toStatusLabel(status),
                 createdAt = firstTimestampMillis(document, productMap, "createdAt", "orderedAt") ?: 0L,
@@ -260,6 +304,22 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
             phoneNumber = phoneNumber,
             addressLine = addressLine,
             isDefault = isDefault
+        )
+    }
+
+    private fun mapPaymentMethod(value: Any?): SellerPaymentMethod? {
+        val map = value.asMapValue() ?: return null
+        return SellerPaymentMethod(
+            id = map["id"].toStringValue().orEmpty(),
+            type = SellerPaymentMethodType.fromRaw(map["type"].toStringValue()),
+            label = map["label"].toStringValue().orEmpty(),
+            accountName = map["accountName"].toStringValue().orEmpty(),
+            accountNumber = map["accountNumber"].toStringValue().orEmpty(),
+            bankCode = map["bankCode"].toStringValue().orEmpty(),
+            bankName = map["bankName"].toStringValue().orEmpty(),
+            phoneNumber = map["phoneNumber"].toStringValue().orEmpty(),
+            note = map["note"].toStringValue().orEmpty(),
+            isDefault = map["isDefault"] as? Boolean ?: false
         )
     }
 
@@ -453,9 +513,13 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
             totalAmount = order.totalAmount,
             deliveryMethod = order.deliveryMethod,
             paymentMethod = order.paymentMethod,
+            paymentMethodDetails = order.paymentMethodDetails?.toDomain(),
             meetingPoint = order.meetingPoint,
             buyerAddress = order.buyerAddress?.toDomain(),
             sellerAddress = order.sellerAddress?.toDomain(),
+            transferContent = order.transferContent,
+            paymentExpiresAt = order.paymentExpiresAt,
+            paymentConfirmedAt = order.paymentConfirmedAt,
             status = status,
             statusLabel = order.statusLabel.ifBlank { status.label },
             createdAt = order.createdAt,
@@ -470,6 +534,32 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
             phoneNumber = phoneNumber,
             addressLine = addressLine,
             isDefault = isDefault
+        )
+    }
+
+    private fun CheckoutPaymentMethodDto.toDomain(): SellerPaymentMethod {
+        return SellerPaymentMethod(
+            id = id,
+            type = SellerPaymentMethodType.fromRaw(type),
+            label = label,
+            accountName = accountName,
+            accountNumber = accountNumber,
+            bankCode = bankCode,
+            bankName = bankName,
+            phoneNumber = phoneNumber,
+            note = note,
+            isDefault = isDefault
+        )
+    }
+
+    private fun OrderPaymentCheckResponseDto.toDomain(): OrderPaymentCheckResult {
+        val normalizedStatus = OrderStatus.fromRaw(status)
+        return OrderPaymentCheckResult(
+            orderId = orderId,
+            status = normalizedStatus,
+            statusLabel = statusLabel.ifBlank { normalizedStatus.label },
+            paymentExpiresAt = paymentExpiresAt,
+            paymentConfirmedAt = paymentConfirmedAt
         )
     }
 

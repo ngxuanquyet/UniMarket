@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -82,22 +83,22 @@ fun LoginScreen(
         topSpacing = 188,
         contentBelowHeader = true,
         contentTopPadding = 0,
-        contentOffsetY = -152
+        contentOffsetY = -132
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
         ) {
-            AuthHeading(title = "Sign in")
+            AuthHeading(title = stringResource(R.string.auth_sign_in))
 
             Spacer(modifier = Modifier.height(18.dp))
 
             AuthLineField(
-                label = "Email",
+                label = stringResource(R.string.auth_email),
                 value = email,
                 onValueChange = { email = it },
-                placeholder = "demo@email.com",
+                placeholder = stringResource(R.string.auth_email_placeholder),
                 leadingIcon = Icons.Default.School,
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                     keyboardType = KeyboardType.Email
@@ -107,10 +108,10 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(18.dp))
 
             AuthLineField(
-                label = "Password",
+                label = stringResource(R.string.auth_password),
                 value = password,
                 onValueChange = { password = it },
-                placeholder = "Enter your password",
+                placeholder = stringResource(R.string.auth_password_placeholder),
                 leadingIcon = Icons.Outlined.Lock,
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                     keyboardType = KeyboardType.Password
@@ -150,14 +151,14 @@ fun LoginScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Remember Me",
+                        text = stringResource(R.string.auth_remember_me),
                         fontSize = 12.sp,
                         color = TextDark
                     )
                 }
 
                 Text(
-                    text = "Forgot Password?",
+                    text = stringResource(R.string.auth_forgot_password),
                     fontSize = 12.sp,
                     color = AuthAccent,
                     fontWeight = FontWeight.SemiBold,
@@ -168,7 +169,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(42.dp))
 
             AuthPrimaryButton(
-                text = "Login",
+                text = stringResource(R.string.auth_login),
                 isLoading = isLoading,
                 onClick = { onLoginClick(email.trim(), password) }
             )
@@ -202,14 +203,14 @@ fun LoginScreen(
                             } else {
                                 Toast.makeText(
                                     context,
-                                    "Unexpected credential type",
+                                    context.getString(R.string.auth_google_unexpected_credential),
                                     Toast.LENGTH_SHORT
                                 ).show()
                             }
                         } catch (e: NoCredentialException) {
                             Toast.makeText(
                                 context,
-                                "No Google account found on this device, or Google Sign-In is not configured correctly.",
+                                context.getString(R.string.auth_google_no_account),
                                 Toast.LENGTH_LONG
                             ).show()
                         } catch (_: GetCredentialCancellationException) {
@@ -217,13 +218,13 @@ fun LoginScreen(
                         } catch (e: GetCredentialException) {
                             Toast.makeText(
                                 context,
-                                "Google Sign-In failed: ${e.message}",
+                                context.getString(R.string.auth_google_failed, e.message ?: ""),
                                 Toast.LENGTH_SHORT
                             ).show()
                         } catch (e: Exception) {
                             Toast.makeText(
                                 context,
-                                "An error occurred: ${e.message}",
+                                context.getString(R.string.auth_generic_error, e.message ?: ""),
                                 Toast.LENGTH_SHORT
                             ).show()
                         }
@@ -236,12 +237,12 @@ fun LoginScreen(
             ) {
                 Image(
                     painter = painterResource(R.drawable.ic_google),
-                    contentDescription = "Google",
+                    contentDescription = stringResource(R.string.auth_google),
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    text = "Continue with Google",
+                    text = stringResource(R.string.auth_continue_with_google),
                     color = TextDark,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium
@@ -251,8 +252,8 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             AuthBottomPrompt(
-                prefix = "Don't have an Account ?",
-                action = "Sign up",
+                prefix = stringResource(R.string.auth_no_account),
+                action = stringResource(R.string.auth_sign_up),
                 onClick = onNavigateToSignUp
             )
         }

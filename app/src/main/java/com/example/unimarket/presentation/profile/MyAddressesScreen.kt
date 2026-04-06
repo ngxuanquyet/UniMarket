@@ -56,10 +56,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.unimarket.R
 import com.example.unimarket.domain.model.UserAddress
 import com.example.unimarket.presentation.theme.BackgroundLight
 import com.example.unimarket.presentation.theme.BlueReview
@@ -74,6 +77,7 @@ fun MyAddressesScreen(
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     var editingAddress by remember { mutableStateOf<UserAddress?>(null) }
     var pendingDeleteConfirmation by remember { mutableStateOf<UserAddress?>(null) }
     var showAddressDialog by remember { mutableStateOf(false) }
@@ -90,10 +94,10 @@ fun MyAddressesScreen(
         },
         topBar = {
             TopAppBar(
-                title = { Text("My Addresses", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.profile_my_addresses), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
                 actions = {
@@ -103,7 +107,7 @@ fun MyAddressesScreen(
                             showAddressDialog = true
                         }
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = "Add address", tint = BlueReview)
+                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.my_addresses_add_address), tint = BlueReview)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
@@ -144,8 +148,8 @@ fun MyAddressesScreen(
         pendingDeleteConfirmation?.let { address ->
             AlertDialog(
                 onDismissRequest = { pendingDeleteConfirmation = null },
-                title = { Text("Delete address") },
-                text = { Text("Are you sure you want to delete this address?") },
+                title = { Text(stringResource(R.string.my_addresses_delete_title)) },
+                text = { Text(stringResource(R.string.my_addresses_delete_message)) },
                 confirmButton = {
                     TextButton(
                         onClick = {
@@ -156,8 +160,8 @@ fun MyAddressesScreen(
                             pendingDeletionKeys.add(addressKey)
                             coroutineScope.launch {
                                 val snackbarResult = snackbarHostState.showSnackbar(
-                                    message = "Address deleted",
-                                    actionLabel = "Undo",
+                                    message = context.getString(R.string.my_addresses_deleted),
+                                    actionLabel = context.getString(R.string.common_undo),
                                     withDismissAction = true
                                 )
 
@@ -175,18 +179,18 @@ fun MyAddressesScreen(
                                 pendingDeletionKeys.remove(addressKey)
                                 deleteResult.onFailure { error ->
                                     snackbarHostState.showSnackbar(
-                                        message = error.message ?: "Failed to delete address"
+                                        message = error.message ?: context.getString(R.string.my_addresses_delete_failed)
                                     )
                                 }
                             }
                         }
                     ) {
-                        Text("Delete", color = MaterialTheme.colorScheme.error)
+                        Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.error)
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { pendingDeleteConfirmation = null }) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.common_cancel))
                     }
                 }
             )
@@ -239,10 +243,10 @@ private fun AddressesContent(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Chua co dia chi nao", fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.my_addresses_empty_title), fontWeight = FontWeight.SemiBold)
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            "Them dia chi de nguoi mua hoac nguoi ban co the chon khi giao nhan.",
+                            stringResource(R.string.my_addresses_empty_message),
                             color = Color.Gray,
                             style = MaterialTheme.typography.bodyMedium
                         )
@@ -250,7 +254,7 @@ private fun AddressesContent(
                         TextButton(onClick = onAddClick) {
                             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Add address")
+                            Text(stringResource(R.string.my_addresses_add_address))
                         }
                     }
                 }
@@ -310,21 +314,21 @@ private fun AddressCard(
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "Dia chi",
+                    text = stringResource(R.string.my_addresses_address_label),
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
                 )
                 if (address.isDefault) {
                     AssistChip(
                         onClick = {},
-                        label = { Text("Mac dinh") },
+                        label = { Text(stringResource(R.string.common_default)) },
                         leadingIcon = {
                             Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(14.dp))
                         }
                     )
                 } else {
                     TextButton(onClick = onSetDefaultClick) {
-                        Text("Dat mac dinh")
+                        Text(stringResource(R.string.my_addresses_set_default))
                     }
                 }
             }
@@ -340,7 +344,7 @@ private fun AddressCard(
                 OutlinedButton(onClick = onEditClick, shape = RoundedCornerShape(12.dp)) {
                     Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Sua")
+                    Text(stringResource(R.string.common_edit))
                 }
                 OutlinedButton(
                     onClick = onDeleteClick,
@@ -349,7 +353,7 @@ private fun AddressCard(
                 ) {
                     Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Xoa")
+                    Text(stringResource(R.string.common_delete))
                 }
             }
         }
@@ -369,7 +373,15 @@ private fun AddressEditorDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (initialAddress == null) "Them dia chi" else "Sua dia chi") },
+        title = {
+            Text(
+                if (initialAddress == null) {
+                    stringResource(R.string.my_addresses_add_title)
+                } else {
+                    stringResource(R.string.my_addresses_edit_title)
+                }
+            )
+        },
         text = {
             Column(
                 modifier = Modifier
@@ -380,21 +392,21 @@ private fun AddressEditorDialog(
                 OutlinedTextField(
                     value = recipientName,
                     onValueChange = { recipientName = it },
-                    label = { Text("Ho ten nguoi nhan") },
+                    label = { Text(stringResource(R.string.my_addresses_recipient_name)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
                 OutlinedTextField(
                     value = phoneNumber,
                     onValueChange = { phoneNumber = it },
-                    label = { Text("So dien thoai") },
+                    label = { Text(stringResource(R.string.my_addresses_phone_number)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
                 OutlinedTextField(
                     value = addressLine,
                     onValueChange = { addressLine = it },
-                    label = { Text("Address") },
+                    label = { Text(stringResource(R.string.my_addresses_address_input)) },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Row(
@@ -403,7 +415,7 @@ private fun AddressEditorDialog(
                 ) {
                     Checkbox(checked = isDefault, onCheckedChange = { isDefault = it })
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Dat lam dia chi mac dinh")
+                    Text(stringResource(R.string.my_addresses_set_as_default))
                 }
             }
         },
@@ -421,12 +433,12 @@ private fun AddressEditorDialog(
                     )
                 }
             ) {
-                Text("Luu")
+                Text(stringResource(R.string.common_save))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Huy")
+                Text(stringResource(R.string.common_cancel))
             }
         }
     )

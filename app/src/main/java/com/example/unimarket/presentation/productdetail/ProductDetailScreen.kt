@@ -32,17 +32,21 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.unimarket.R
 import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
 import com.example.unimarket.domain.model.DeliveryMethod
 import com.example.unimarket.presentation.theme.*
 import com.example.unimarket.presentation.util.formatVnd
+import com.example.unimarket.presentation.util.localizedConditionLabel
+import com.example.unimarket.presentation.util.localizedTitle
 import com.example.unimarket.presentation.util.toRelativeTimeLabel
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
@@ -117,7 +121,7 @@ fun ProductDetailScreen(
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.common_back),
                             tint = Color.Black
                         )
                     }
@@ -130,7 +134,7 @@ fun ProductDetailScreen(
                             .clip(CircleShape)
                             .background(Color.White.copy(alpha = 0.8f))
                     ) {
-                        Icon(Icons.Default.Share, contentDescription = "Share", tint = Color.Black)
+                        Icon(Icons.Default.Share, contentDescription = stringResource(R.string.product_share), tint = Color.Black)
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     IconButton(
@@ -142,7 +146,7 @@ fun ProductDetailScreen(
                     ) {
                         Icon(
                             imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            contentDescription = "Favorite",
+                            contentDescription = stringResource(R.string.explore_favorite),
                             tint = if (isFavorite) RedDanger else Color.Black
                         )
                     }
@@ -172,7 +176,7 @@ fun ProductDetailScreen(
                                 } else {
                                     Toast.makeText(
                                         context,
-                                        "You cannot chat with yourself",
+                                        context.getString(R.string.product_cannot_chat_self),
                                         Toast.LENGTH_SHORT
                                     ).show()
                                 }
@@ -189,12 +193,12 @@ fun ProductDetailScreen(
                             ) {
                                 Icon(
                                     Icons.AutoMirrored.Filled.Message,
-                                    contentDescription = "Chat",
+                                    contentDescription = stringResource(R.string.product_chat),
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    "Chat Now",
+                                    stringResource(R.string.product_chat_now),
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 12.sp
                                 )
@@ -209,7 +213,7 @@ fun ProductDetailScreen(
                                 } else {
                                     Toast.makeText(
                                         context,
-                                        "You cannot add your own product to cart",
+                                        context.getString(R.string.product_cannot_add_own),
                                         Toast.LENGTH_SHORT
                                     ).show()
                                 }
@@ -226,12 +230,12 @@ fun ProductDetailScreen(
                             ) {
                                 Icon(
                                     Icons.Default.ShoppingCart,
-                                    contentDescription = "Cart",
+                                    contentDescription = stringResource(R.string.explore_cart),
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    "Add to Cart",
+                                    stringResource(R.string.product_add_to_cart),
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 12.sp
                                 )
@@ -246,7 +250,7 @@ fun ProductDetailScreen(
                                 } else {
                                     Toast.makeText(
                                         context,
-                                        "You cannot buy your own product",
+                                        context.getString(R.string.product_cannot_buy_own),
                                         Toast.LENGTH_SHORT
                                     ).show()
                                 }
@@ -258,7 +262,7 @@ fun ProductDetailScreen(
                             colors = ButtonDefaults.buttonColors(containerColor = PrimaryYellowDark)
                         ) {
                             Text(
-                                "Buy Now",
+                                stringResource(R.string.product_buy_now),
                                 color = Color.Black,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp
@@ -284,7 +288,7 @@ fun ProductDetailScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = uiState.errorMessage ?: "Product not found",
+                        text = uiState.errorMessage ?: stringResource(R.string.product_not_found),
                         color = Color.Gray,
                         fontSize = 16.sp
                     )
@@ -309,7 +313,7 @@ fun ProductDetailScreen(
                                 ) { page ->
                                     Image(
                                         painter = rememberAsyncImagePainter(model = product.imageUrls[page]),
-                                        contentDescription = "${product.name} image ${page + 1}",
+                                        contentDescription = stringResource(R.string.product_image_page, product.name, page + 1),
                                         contentScale = ContentScale.Crop,
                                         modifier = Modifier.fillMaxSize()
                                     )
@@ -332,7 +336,7 @@ fun ProductDetailScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = product.condition,
+                                    text = localizedConditionLabel(product.condition),
                                     color = Color.White,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Medium
@@ -366,7 +370,7 @@ fun ProductDetailScreen(
                                     ) {
                                         Image(
                                             painter = rememberAsyncImagePainter(model = product.imageUrls[index]),
-                                            contentDescription = "Thumbnail ${index + 1}",
+                                            contentDescription = stringResource(R.string.product_thumbnail, index + 1),
                                             contentScale = ContentScale.Crop,
                                             modifier = Modifier.fillMaxSize()
                                         )
@@ -410,7 +414,7 @@ fun ProductDetailScreen(
                                         .padding(horizontal = 10.dp, vertical = 4.dp)
                                 ) {
                                     Text(
-                                        "Negotiable",
+                                        stringResource(R.string.sell_negotiable),
                                         color = Color(0xFF4CAF50),
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold
@@ -421,7 +425,7 @@ fun ProductDetailScreen(
 
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = "Available: ${product.quantityAvailable}",
+                            text = stringResource(R.string.product_available, product.quantityAvailable),
                             fontSize = 14.sp,
                             color = if (product.quantityAvailable > 0) Color.Gray else RedDanger,
                             fontWeight = FontWeight.Medium
@@ -435,22 +439,23 @@ fun ProductDetailScreen(
                         ) {
                             Icon(
                                 Icons.Default.LocationOn,
-                                contentDescription = "Location",
+                                contentDescription = stringResource(R.string.product_location),
                                 tint = Color.Gray,
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = product.location.ifBlank { "Campus Library meet-up" },
+                                text = product.location.ifBlank { stringResource(R.string.product_default_location) },
                                 fontSize = 12.sp,
                                 color = Color.Gray
                             )
                             Spacer(modifier = Modifier.weight(1f))
                             Text(
-                                text = "Posted ${
+                                text = stringResource(
+                                    R.string.product_posted_time,
                                     product.postedAt.toRelativeTimeLabel()
-                                        .ifBlank { product.timeAgo.ifBlank { "Recently listed" } }
-                                }",
+                                        .ifBlank { product.timeAgo.ifBlank { stringResource(R.string.product_recently_listed) } }
+                                ),
                                 fontSize = 12.sp,
                                 color = Color.Gray
                             )
@@ -459,7 +464,7 @@ fun ProductDetailScreen(
                         if (product.deliveryMethodsAvailable.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "Delivery Methods Available",
+                                text = stringResource(R.string.sell_delivery_methods),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp,
                                 color = Color.Black
@@ -511,7 +516,7 @@ fun ProductDetailScreen(
                             if (sellerAvatarPainter.state !is AsyncImagePainter.State.Error) {
                                 Image(
                                     painter = sellerAvatarPainter,
-                                    contentDescription = "Seller Avatar",
+                                    contentDescription = stringResource(R.string.product_seller_avatar),
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize()
                                 )
@@ -523,12 +528,16 @@ fun ProductDetailScreen(
 
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = product.sellerName.ifBlank { "Anonymous Seller" },
+                                text = product.sellerName.ifBlank { stringResource(R.string.product_anonymous_seller) },
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp
                             )
                             Text(
-                                text = "Verified Student",
+                                text = if (uiState.isSellerVerifiedStudent) {
+                                    stringResource(R.string.profile_verified_student)
+                                } else {
+                                    stringResource(R.string.seller_profile_campus_seller)
+                                },
                                 color = Color.Gray,
                                 fontSize = 12.sp
                             )
@@ -538,19 +547,23 @@ fun ProductDetailScreen(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     Icons.Default.Star,
-                                    contentDescription = "Rating",
+                                    contentDescription = stringResource(R.string.profile_rating),
                                     tint = PrimaryYellowDark,
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    text = if (product.rating > 0) product.rating.toString() else "4.9",
+                                    text = if (uiState.sellerRatingCount > 0) {
+                                        String.format("%.1f", uiState.sellerAverageRating)
+                                    } else {
+                                        stringResource(R.string.common_new)
+                                    },
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.sp
                                 )
                             }
                             Text(
-                                text = "(24 sold)",
+                                text = stringResource(R.string.product_sold_count, uiState.sellerSoldCount),
                                 color = Color.Gray,
                                 fontSize = 12.sp
                             )
@@ -561,7 +574,7 @@ fun ProductDetailScreen(
 
                     Column(modifier = Modifier.padding(20.dp)) {
                         Text(
-                            text = "Description",
+                            text = stringResource(R.string.sell_description),
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp,
                             color = Color.Black
@@ -569,7 +582,7 @@ fun ProductDetailScreen(
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = product.description.ifBlank {
-                                "No description provided for this item. Please contact the seller for more details."
+                                stringResource(R.string.product_no_description)
                             },
                             fontSize = 14.sp,
                             color = Color.DarkGray,
@@ -582,7 +595,7 @@ fun ProductDetailScreen(
                     if (product.specifications.isNotEmpty()) {
                         Column(modifier = Modifier.padding(20.dp)) {
                             Text(
-                                text = "Specifications",
+                                text = stringResource(R.string.sell_specifications),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 18.sp,
                                 color = Color.Black
@@ -651,7 +664,7 @@ private fun QuantityPickerSheet(
             .padding(horizontal = 24.dp, vertical = 16.dp)
     ) {
         Text(
-            text = "Choose quantity",
+            text = stringResource(R.string.product_choose_quantity),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
@@ -668,7 +681,7 @@ private fun QuantityPickerSheet(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Available stock: $availableQuantity", fontWeight = FontWeight.Medium)
+            Text(stringResource(R.string.product_available_stock, availableQuantity), fontWeight = FontWeight.Medium)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -702,7 +715,7 @@ private fun QuantityPickerSheet(
             shape = RoundedCornerShape(24.dp),
             colors = ButtonDefaults.buttonColors(containerColor = PrimaryYellowDark)
         ) {
-            Text("Confirm", color = Color.Black, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.product_confirm), color = Color.Black, fontWeight = FontWeight.Bold)
         }
         Spacer(modifier = Modifier.height(12.dp))
     }
@@ -742,7 +755,7 @@ private fun DeliveryMethodChips(methods: List<DeliveryMethod>) {
                             .padding(horizontal = 12.dp, vertical = 8.dp)
                     ) {
                         Text(
-                            text = method.title,
+                            text = method.localizedTitle(),
                             color = SecondaryBlue,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium

@@ -13,7 +13,7 @@ data class SellerProfileUiState(
     val ratingCount: Int = 0,
     val activeListings: List<Product> = emptyList(),
     val soldCount: Int = 0,
-    val memberSinceLabel: String = "New",
+    val memberSinceLabel: String = "",
     val selectedProductForChat: Product? = null,
     val errorMessage: String? = null
 )

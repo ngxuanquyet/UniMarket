@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -47,6 +48,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.rememberAsyncImagePainter
+import com.example.unimarket.R
 import com.example.unimarket.domain.model.Conversation
 import com.example.unimarket.presentation.theme.DividerColor
 import com.example.unimarket.presentation.theme.MessageBg
@@ -71,7 +73,7 @@ fun MessagesScreen(
             TopAppBar(
                 title = { 
                     Text(
-                        "Messages", 
+                        stringResource(R.string.messages_title),
                         fontWeight = FontWeight.Bold, 
                         modifier = Modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally)
                     ) 
@@ -95,9 +97,13 @@ fun MessagesScreen(
                     OutlinedTextField(
                         value = uiState.searchQuery,
                         onValueChange = viewModel::updateSearchQuery,
-                        placeholder = { Text("Search conversations...", color = Color.Gray) },
+                        placeholder = { Text(stringResource(R.string.messages_search_placeholder), color = Color.Gray) },
                         leadingIcon = {
-                            Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.Gray)
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = stringResource(R.string.common_search),
+                                tint = Color.Gray
+                            )
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -128,7 +134,7 @@ fun MessagesScreen(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(uiState.errorMessage ?: "Unable to load messages", color = Color.Gray)
+                            Text(uiState.errorMessage ?: stringResource(R.string.messages_load_error), color = Color.Gray)
                         }
                     }
 
@@ -137,7 +143,7 @@ fun MessagesScreen(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("No conversations yet", color = Color.Gray)
+                            Text(stringResource(R.string.messages_empty), color = Color.Gray)
                         }
                     }
 
@@ -222,7 +228,7 @@ fun MessageItem(
                 Spacer(modifier = Modifier.height(2.dp))
 
                 Text(
-                    text = conversation.lastMessage.ifBlank { "Start a conversation" },
+                    text = conversation.lastMessage.ifBlank { stringResource(R.string.messages_start_conversation) },
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.DarkGray,
                     maxLines = 1,

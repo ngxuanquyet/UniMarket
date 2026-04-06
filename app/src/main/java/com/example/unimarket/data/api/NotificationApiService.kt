@@ -3,6 +3,7 @@ package com.example.unimarket.data.api
 import com.example.unimarket.data.api.model.ChatNotificationRequest
 import com.example.unimarket.data.api.model.BuyNowPurchaseRequestDto
 import com.example.unimarket.data.api.model.BuyNowPurchaseResponseDto
+import com.example.unimarket.data.api.model.OrderPaymentCheckResponseDto
 import com.example.unimarket.data.api.model.OrdersResponseDto
 import com.example.unimarket.data.api.model.OrderStatusUpdateRequestDto
 import com.example.unimarket.data.api.model.OrderStatusUpdateResponseDto
@@ -43,4 +44,10 @@ interface NotificationApiService {
         @Path("orderId") orderId: String,
         @Body body: OrderStatusUpdateRequestDto
     ): Response<OrderStatusUpdateResponseDto>
+
+    @POST("orders/{orderId}/payment/check")
+    suspend fun checkTransferPayment(
+        @Header("Authorization") authorization: String,
+        @Path("orderId") orderId: String
+    ): Response<OrderPaymentCheckResponseDto>
 }

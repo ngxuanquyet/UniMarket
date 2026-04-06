@@ -16,9 +16,13 @@ data class Order(
     val totalAmount: Double = 0.0,
     val deliveryMethod: String = "",
     val paymentMethod: String = "",
+    val paymentMethodDetails: SellerPaymentMethod? = null,
     val meetingPoint: String = "",
     val buyerAddress: UserAddress? = null,
     val sellerAddress: UserAddress? = null,
+    val transferContent: String = "",
+    val paymentExpiresAt: Long = 0L,
+    val paymentConfirmedAt: Long = 0L,
     val status: OrderStatus = OrderStatus.UNKNOWN,
     val statusLabel: String = status.label,
     val reviewRating: Int? = null,
@@ -29,6 +33,7 @@ data class Order(
 )
 
 enum class OrderStatus(val label: String) {
+    WAITING_PAYMENT("WAIT PAYMENT"),
     WAITING_CONFIRMATION("WAITING"),
     WAITING_PICKUP("WAIT PICKUP"),
     SHIPPING("SHIPPING"),
@@ -48,6 +53,11 @@ enum class OrderStatus(val label: String) {
                 .replace(" ", "_")
 
             return when (normalized) {
+                "WAITING_PAYMENT",
+                "WAIT_FOR_PAYMENT",
+                "PENDING_PAYMENT",
+                "AWAITING_PAYMENT" -> WAITING_PAYMENT
+
                 "WAITING",
                 "WAITING_CONFIRMATION",
                 "WAIT_FOR_CONFIRMATION",

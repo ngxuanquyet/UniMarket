@@ -41,6 +41,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.ui.res.stringResource
+import com.example.unimarket.R
 import com.example.unimarket.presentation.navigation.MainNavGraph
 import com.example.unimarket.presentation.navigation.Screen
 import com.example.unimarket.presentation.navigation.SessionViewModel
@@ -89,11 +91,11 @@ fun BottomNavigationBar(
     val coroutineScope = rememberCoroutineScope()
     var isAnimatingToSell by remember { mutableStateOf(false) }
     val items = listOf(
-        BottomNavItem("Explore", Screen.Explore.route, Icons.Default.Explore),
-        BottomNavItem("Sell", Screen.Sell.route, Icons.Default.AddCircleOutline),
-        BottomNavItem("My Listings", Screen.MyListings.route, Icons.AutoMirrored.Filled.ListAlt),
-        BottomNavItem("Messages", Screen.Messages.route, Icons.Default.ChatBubbleOutline),
-        BottomNavItem("Profile", Screen.Profile.route, Icons.Default.PersonOutline)
+        BottomNavItem(R.string.bottom_nav_explore, Screen.Explore.route, Icons.Default.Explore),
+        BottomNavItem(R.string.bottom_nav_sell, Screen.Sell.route, Icons.Default.AddCircleOutline),
+        BottomNavItem(R.string.bottom_nav_my_listings, Screen.MyListings.route, Icons.AutoMirrored.Filled.ListAlt),
+        BottomNavItem(R.string.bottom_nav_messages, Screen.Messages.route, Icons.Default.ChatBubbleOutline),
+        BottomNavItem(R.string.bottom_nav_profile, Screen.Profile.route, Icons.Default.PersonOutline)
     )
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -118,6 +120,7 @@ fun BottomNavigationBar(
             tonalElevation = 8.dp
         ) {
             items.forEach { item ->
+                val label = stringResource(item.labelRes)
                 NavigationBarItem(
                     selected = normalizedRoute == item.route,
                     onClick = {
@@ -156,13 +159,13 @@ fun BottomNavigationBar(
                                     }
                                 }
                             ) {
-                                Icon(item.icon, contentDescription = item.title)
+                                Icon(item.icon, contentDescription = label)
                             }
                         } else {
-                            Icon(item.icon, contentDescription = item.title)
+                            Icon(item.icon, contentDescription = label)
                         }
                     },
-                    label = { Text(item.title, style = MaterialTheme.typography.labelSmall) },
+                    label = { Text(label, style = MaterialTheme.typography.labelSmall) },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = Color.White,
                         selectedTextColor = AppBlue,

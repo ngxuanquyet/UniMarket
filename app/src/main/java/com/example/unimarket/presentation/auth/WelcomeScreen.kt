@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -69,7 +70,7 @@ fun WelcomeScreen(
                     .navigationBarsPadding()
             ) {
                 Text(
-                    text = "Welcome",
+                    text = stringResource(R.string.auth_welcome_title),
                     color = TextDark,
                     fontSize = 34.sp,
                     fontWeight = FontWeight.Bold
@@ -78,7 +79,7 @@ fun WelcomeScreen(
                 Spacer(modifier = Modifier.height(14.dp))
 
                 Text(
-                    text = "Buy, sell, and discover student deals.\nEverything you need on one campus marketplace.",
+                    text = stringResource(R.string.auth_welcome_subtitle),
                     color = WelcomeBody,
                     fontSize = 15.sp,
                     lineHeight = 22.sp,
@@ -95,7 +96,7 @@ fun WelcomeScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Continue",
+                        text = stringResource(R.string.auth_continue),
                         color = WelcomeActionText,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold
@@ -111,7 +112,7 @@ fun WelcomeScreen(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = "Continue",
+                            contentDescription = stringResource(R.string.auth_continue),
                             tint = Color.White
                         )
                     }

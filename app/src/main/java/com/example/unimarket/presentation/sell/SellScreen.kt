@@ -77,12 +77,14 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.example.unimarket.R
 import com.example.unimarket.domain.model.DeliveryMethod
 import com.example.unimarket.domain.model.UserAddress
 import com.example.unimarket.presentation.theme.AppBlue
@@ -95,6 +97,9 @@ import com.example.unimarket.presentation.theme.SlateGrey
 import com.example.unimarket.presentation.theme.SurfaceLightBlue
 import com.example.unimarket.presentation.theme.TextDarkBlack
 import com.example.unimarket.presentation.theme.TextGray
+import com.example.unimarket.presentation.util.localizedCategoryLabel
+import com.example.unimarket.presentation.util.localizedConditionLabel
+import com.example.unimarket.presentation.util.localizedTitle
 import androidx.compose.ui.text.input.KeyboardType
 import java.io.File
 
@@ -366,13 +371,22 @@ fun SellScreen(
     if (showDraftDialog) {
         AlertDialog(
             onDismissRequest = { showDraftDialog = false },
-            title = { Text("Save Draft?", fontWeight = FontWeight.Bold, color = TextDarkBlack) },
-            text = { 
+            title = {
                 Text(
-                    if (initialProduct != null) "You have unsaved changes. Do you want to save the changes to this draft?" 
-                    else "You have unsaved changes. Do you want to save this listing as a draft?", 
+                    stringResource(R.string.sell_save_draft_title),
+                    fontWeight = FontWeight.Bold,
+                    color = TextDarkBlack
+                )
+            },
+            text = {
+                Text(
+                    if (initialProduct != null) {
+                        stringResource(R.string.sell_save_draft_message_existing)
+                    } else {
+                        stringResource(R.string.sell_save_draft_message_new)
+                    },
                     color = TextGray
-                ) 
+                )
             },
             confirmButton = {
                 TextButton(onClick = {
@@ -391,7 +405,7 @@ fun SellScreen(
                         onDraftSaved = { onBackClick() }
                     )
                 }) {
-                    Text("Save", color = AppBlue, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.common_save), color = AppBlue, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -399,7 +413,7 @@ fun SellScreen(
                     showDraftDialog = false
                     onBackClick()
                 }) {
-                    Text("Discard", color = Color.Red)
+                    Text(stringResource(R.string.common_discard), color = Color.Red)
                 }
             }
         )
@@ -413,17 +427,17 @@ fun SellScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 8.dp)
+                .padding(horizontal = 24.dp, vertical = 8.dp)
             ) {
                 Text(
-                    text = "Add photo",
+                    text = stringResource(R.string.sell_add_photo),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = TextDarkBlack
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 SourceOptionRow(
-                    title = "Choose from gallery",
+                    title = stringResource(R.string.sell_choose_from_gallery),
                     onClick = {
                         showImageSourceSheet = false
                         singleImagePickerLauncher.launch(
@@ -434,12 +448,16 @@ fun SellScreen(
                     }
                 )
                 SourceOptionRow(
-                    title = "Take a photo",
+                    title = stringResource(R.string.sell_take_photo),
                     onClick = {
                         showImageSourceSheet = false
                         val uri = createSellPhotoUri(context)
                         if (uri == null) {
-                            Toast.makeText(context, "Unable to open camera", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.sell_unable_open_camera),
+                                Toast.LENGTH_SHORT
+                            ).show()
                         } else {
                             pendingCameraUri = uri
                             cameraLauncher.launch(uri)
@@ -456,7 +474,11 @@ fun SellScreen(
             TopAppBar(
                 title = {
                     Text(
-                        if (productId != null) "Edit Item" else "Sell an Item",
+                        if (productId != null) {
+                            stringResource(R.string.sell_edit_item)
+                        } else {
+                            stringResource(R.string.sell_sell_item)
+                        },
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 20.sp,
                         color = TextDarkBlack,
@@ -472,7 +494,7 @@ fun SellScreen(
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.common_back),
                             tint = TextDarkBlack
                         )
                     }
@@ -509,7 +531,11 @@ fun SellScreen(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = if (productId != null) "Update" else "Post",
+                                    text = if (productId != null) {
+                                        stringResource(R.string.common_update)
+                                    } else {
+                                        stringResource(R.string.common_post)
+                                    },
                                     color = Color.White,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -573,7 +599,7 @@ fun SellScreen(
                         if (firstImage != null) {
                             AsyncImage(
                                 model = firstImage,
-                                contentDescription = "Main Photo",
+                                contentDescription = stringResource(R.string.sell_main_photo),
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize()
                             )
@@ -679,12 +705,12 @@ fun SellScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             Icons.Default.AutoAwesome,
-                            contentDescription = "AI Autofill from image",
+                            contentDescription = stringResource(R.string.sell_ai_autofill_image),
                             tint = Color.White
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "AI Autofill from Image",
+                            text = stringResource(R.string.sell_ai_autofill_image),
                             color = Color.White,
                             fontWeight = FontWeight.Bold
                         )
@@ -696,7 +722,7 @@ fun SellScreen(
 
             // Title Input
             Text(
-                "Item Title",
+                stringResource(R.string.sell_item_title),
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
                 modifier = Modifier.padding(bottom = 8.dp),
@@ -705,14 +731,14 @@ fun SellScreen(
             CustomTextField(
                 value = title,
                 onValueChange = { title = it },
-                placeholder = "What are you selling?"
+                placeholder = stringResource(R.string.sell_item_title_placeholder)
             )
 
             Spacer(modifier = Modifier.height(24.dp))
 
             // Category Dropdown
             Text(
-                "Category",
+                stringResource(R.string.sell_category),
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
                 modifier = Modifier.padding(bottom = 8.dp),
@@ -736,13 +762,13 @@ fun SellScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            category,
+                            localizedCategoryLabel(category),
                             color = if (category == "Select a category") Color.Gray else TextDarkBlack,
                             fontSize = 16.sp
                         )
                         Icon(
                             Icons.Default.ArrowDropDown,
-                            contentDescription = "Dropdown",
+                            contentDescription = stringResource(R.string.sell_open_category_dropdown),
                             tint = Color.Gray
                         )
                     }
@@ -754,7 +780,7 @@ fun SellScreen(
                 ) {
                     categories.forEach { selection ->
                         DropdownMenuItem(
-                            text = { Text(selection) },
+                            text = { Text(localizedCategoryLabel(selection)) },
                             onClick = {
                                 category = selection
                                 categoryExpanded = false
@@ -768,7 +794,7 @@ fun SellScreen(
 
             // Price & Negotiable Row
             Text(
-                "Price",
+                stringResource(R.string.sell_price),
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
                 modifier = Modifier.padding(bottom = 8.dp),
@@ -778,7 +804,7 @@ fun SellScreen(
                 CustomTextField(
                     value = price,
                     onValueChange = { input -> price = input.filter(Char::isDigit) },
-                    placeholder = "0 VND",
+                    placeholder = stringResource(R.string.sell_price_placeholder),
                     modifier = Modifier.weight(1f),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
@@ -798,7 +824,7 @@ fun SellScreen(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    "Negotiable",
+                    stringResource(R.string.sell_negotiable),
                     color = TextGray,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium
@@ -808,7 +834,7 @@ fun SellScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                "Quantity",
+                stringResource(R.string.sell_quantity),
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
                 modifier = Modifier.padding(bottom = 8.dp),
@@ -817,7 +843,7 @@ fun SellScreen(
             CustomTextField(
                 value = quantity,
                 onValueChange = { input -> quantity = input.filter(Char::isDigit) },
-                placeholder = "Enter available quantity",
+                placeholder = stringResource(R.string.sell_quantity_placeholder),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
             )
 
@@ -825,7 +851,7 @@ fun SellScreen(
 
             // Item Condition
             Text(
-                "Item Condition",
+                stringResource(R.string.sell_item_condition),
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
                 modifier = Modifier.padding(bottom = 8.dp),
@@ -853,7 +879,7 @@ fun SellScreen(
                             modifier = Modifier.padding(horizontal = 16.dp)
                         ) {
                             Text(
-                                text = cond,
+                                text = localizedConditionLabel(cond),
                                 color = if (isSelected) LightBlueAction else TextGray,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium
@@ -866,14 +892,14 @@ fun SellScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                "Delivery Methods Available",
+                stringResource(R.string.sell_delivery_methods),
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
                 modifier = Modifier.padding(bottom = 8.dp),
                 color = TextDarkBlack
             )
             Text(
-                "Chon mot hoac nhieu phuong thuc ma ban co the ho tro.",
+                stringResource(R.string.sell_delivery_methods_hint),
                 color = TextGray,
                 fontSize = 13.sp
             )
@@ -894,7 +920,7 @@ fun SellScreen(
                                         selectedDeliveryMethods.add(method)
                                     }
                                 },
-                                label = { Text(method.title) },
+                                label = { Text(method.localizedTitle()) },
                                 modifier = Modifier.weight(1f)
                             )
                         }
@@ -909,14 +935,14 @@ fun SellScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    "Pickup Address",
+                    stringResource(R.string.sell_pickup_address),
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,
                     modifier = Modifier.padding(bottom = 8.dp),
                     color = TextDarkBlack
                 )
                 Text(
-                    "Neu chon Nguoi mua den lay, ban can khai bao dia chi nhan hang cho bai dang nay.",
+                    stringResource(R.string.sell_pickup_address_hint),
                     color = TextGray,
                     fontSize = 13.sp
                 )
@@ -928,13 +954,13 @@ fun SellScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     PickupAddressOptionChip(
-                        title = "My addresses",
+                        title = stringResource(R.string.sell_pickup_source_my_addresses),
                         selected = pickupAddressSource == PickupAddressSource.MY_ADDRESSES,
                         onClick = { pickupAddressSource = PickupAddressSource.MY_ADDRESSES },
                         modifier = Modifier.weight(1f)
                     )
                     PickupAddressOptionChip(
-                        title = "Other address",
+                        title = stringResource(R.string.sell_pickup_source_other_address),
                         selected = pickupAddressSource == PickupAddressSource.OTHER_ADDRESS,
                         onClick = { pickupAddressSource = PickupAddressSource.OTHER_ADDRESS },
                         modifier = Modifier.weight(1f)
@@ -946,7 +972,7 @@ fun SellScreen(
                 if (pickupAddressSource == PickupAddressSource.MY_ADDRESSES) {
                     if (uiState.myAddresses.isEmpty()) {
                         Text(
-                            text = "Ban chua co dia chi trong My addresses. Hay chon Other address de nhap dia chi cho bai dang nay.",
+                            text = stringResource(R.string.sell_no_saved_addresses),
                             color = TextGray,
                             fontSize = 13.sp
                         )
@@ -966,18 +992,18 @@ fun SellScreen(
                         CustomTextField(
                             value = customPickupRecipientName,
                             onValueChange = { customPickupRecipientName = it },
-                            placeholder = "Recipient name"
+                            placeholder = stringResource(R.string.sell_recipient_name_placeholder)
                         )
                         CustomTextField(
                             value = customPickupPhoneNumber,
                             onValueChange = { customPickupPhoneNumber = it },
-                            placeholder = "Phone number",
+                            placeholder = stringResource(R.string.sell_phone_number_placeholder),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
                         )
                         OutlinedTextField(
                             value = customPickupAddressLine,
                             onValueChange = { customPickupAddressLine = it },
-                            placeholder = { Text("Pickup address") },
+                            placeholder = { Text(stringResource(R.string.sell_pickup_address_placeholder)) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(20.dp),
                             colors = OutlinedTextFieldDefaults.colors(
@@ -996,7 +1022,7 @@ fun SellScreen(
 
             // Description Input
             Text(
-                "Description",
+                stringResource(R.string.sell_description),
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
                 modifier = Modifier.padding(bottom = 8.dp),
@@ -1032,12 +1058,12 @@ fun SellScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             Icons.Default.AutoAwesome,
-                            contentDescription = "Generate with AI",
+                            contentDescription = stringResource(R.string.sell_ai_write),
                             tint = Color.White
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            "AI Write",
+                            stringResource(R.string.sell_ai_write),
                             color = Color.White,
                             fontWeight = FontWeight.Bold
                         )
@@ -1050,7 +1076,7 @@ fun SellScreen(
                 onValueChange = { description = it },
                 placeholder = {
                     Text(
-                        "Describe your item, including any flaws,\ndimensions, or specific details buyers\nshould know...",
+                        stringResource(R.string.sell_description_placeholder),
                         color = Color.Gray.copy(alpha = 0.7f),
                         lineHeight = 22.sp
                     )
@@ -1077,13 +1103,13 @@ fun SellScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "Specifications",
+                    stringResource(R.string.sell_specifications),
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,
                     color = TextDarkBlack
                 )
                 TextButton(onClick = { specifications.add(SpecItem(specCounter++, "", "")) }) {
-                    Text("+ Add Spec", color = AppBlue, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.sell_add_spec), color = AppBlue, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -1097,17 +1123,21 @@ fun SellScreen(
                         CustomTextField(
                             value = spec.key,
                             onValueChange = { specifications[index] = spec.copy(key = it) },
-                            placeholder = "e.g. Brand",
+                            placeholder = stringResource(R.string.sell_spec_key_placeholder),
                             modifier = Modifier.weight(1f)
                         )
                         CustomTextField(
                             value = spec.value,
                             onValueChange = { specifications[index] = spec.copy(value = it) },
-                            placeholder = "e.g. Apple",
+                            placeholder = stringResource(R.string.sell_spec_value_placeholder),
                             modifier = Modifier.weight(1f)
                         )
                         IconButton(onClick = { specifications.removeAt(index) }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Remove", tint = Color.Red)
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = stringResource(R.string.common_remove),
+                                tint = Color.Red
+                            )
                         }
                     }
                 }
@@ -1269,14 +1299,14 @@ private fun PickupAddressSelectionCard(
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = address.recipientName.ifBlank { "My address" },
+                    text = address.recipientName.ifBlank { stringResource(R.string.sell_my_address_fallback) },
                     fontWeight = FontWeight.SemiBold,
                     color = TextDarkBlack
                 )
                 if (address.isDefault) {
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Default",
+                        text = stringResource(R.string.common_default),
                         color = AppBlue,
                         style = MaterialTheme.typography.labelSmall
                     )
@@ -1335,7 +1365,7 @@ fun SmallImageBox(
             if (uri != null) {
                 AsyncImage(
                     model = uri,
-                    contentDescription = "Small Photo",
+                    contentDescription = stringResource(R.string.sell_small_photo),
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
@@ -1374,7 +1404,7 @@ private fun ImageRemoveButton(
     ) {
         Icon(
             imageVector = Icons.Default.Close,
-            contentDescription = "Remove image",
+            contentDescription = stringResource(R.string.common_remove_image),
             tint = Color.White,
             modifier = Modifier.size(14.dp)
         )

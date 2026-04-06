@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -70,15 +71,15 @@ fun SignUpScreen(
                 .fillMaxWidth()
                 .navigationBarsPadding()
         ) {
-            AuthHeading(title = "Sign up")
+            AuthHeading(title = stringResource(R.string.auth_sign_up))
 
             Spacer(modifier = Modifier.height(26.dp))
 
             AuthLineField(
-                label = "Full name",
+                label = stringResource(R.string.auth_full_name),
                 value = fullName,
                 onValueChange = { fullName = it },
-                placeholder = "Your display name",
+                placeholder = stringResource(R.string.auth_full_name_placeholder),
                 leadingIcon = Icons.Default.Person,
                 textFieldModifier = Modifier.focusRequester(fullNameFocusRequester)
             )
@@ -86,10 +87,10 @@ fun SignUpScreen(
             Spacer(modifier = Modifier.height(18.dp))
 
             AuthLineField(
-                label = "Email",
+                label = stringResource(R.string.auth_email),
                 value = email,
                 onValueChange = { email = it },
-                placeholder = "demo@email.com",
+                placeholder = stringResource(R.string.auth_email_placeholder),
                 leadingIcon = Icons.Default.School,
                 textFieldModifier = Modifier.focusRequester(emailFocusRequester),
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
@@ -100,10 +101,10 @@ fun SignUpScreen(
             Spacer(modifier = Modifier.height(18.dp))
 
             AuthLineField(
-                label = "Password",
+                label = stringResource(R.string.auth_password),
                 value = password,
                 onValueChange = { password = it },
-                placeholder = "Enter your password",
+                placeholder = stringResource(R.string.auth_password_placeholder),
                 leadingIcon = Icons.Outlined.Lock,
                 textFieldModifier = Modifier.focusRequester(passwordFocusRequester),
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
@@ -125,10 +126,10 @@ fun SignUpScreen(
             Spacer(modifier = Modifier.height(18.dp))
 
             AuthLineField(
-                label = "Confirm Password",
+                label = stringResource(R.string.auth_confirm_password),
                 value = confirmPassword,
                 onValueChange = { confirmPassword = it },
-                placeholder = "Confirm your password",
+                placeholder = stringResource(R.string.auth_confirm_password_placeholder),
                 leadingIcon = Icons.Outlined.Lock,
                 textFieldModifier = Modifier.focusRequester(confirmPasswordFocusRequester),
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
@@ -150,7 +151,7 @@ fun SignUpScreen(
             Spacer(modifier = Modifier.height(28.dp))
 
             AuthPrimaryButton(
-                text = "Create Account",
+                text = stringResource(R.string.auth_create_account),
                 isLoading = isLoading,
                 onClick = {
                     val trimmedFullName = fullName.trim()
@@ -161,7 +162,7 @@ fun SignUpScreen(
                             fullNameFocusRequester.requestFocus()
                             Toast.makeText(
                                 context,
-                                "Please enter your full name",
+                                context.getString(R.string.auth_error_enter_full_name),
                                 Toast.LENGTH_SHORT
                             ).show()
                             return@AuthPrimaryButton
@@ -171,7 +172,7 @@ fun SignUpScreen(
                             emailFocusRequester.requestFocus()
                             Toast.makeText(
                                 context,
-                                "Please enter your email",
+                                context.getString(R.string.auth_error_enter_email),
                                 Toast.LENGTH_SHORT
                             ).show()
                             return@AuthPrimaryButton
@@ -181,7 +182,7 @@ fun SignUpScreen(
                             passwordFocusRequester.requestFocus()
                             Toast.makeText(
                                 context,
-                                "Please enter your password",
+                                context.getString(R.string.auth_error_enter_password),
                                 Toast.LENGTH_SHORT
                             ).show()
                             return@AuthPrimaryButton
@@ -191,7 +192,7 @@ fun SignUpScreen(
                             confirmPasswordFocusRequester.requestFocus()
                             Toast.makeText(
                                 context,
-                                "Please confirm your password",
+                                context.getString(R.string.auth_error_confirm_password),
                                 Toast.LENGTH_SHORT
                             ).show()
                             return@AuthPrimaryButton
@@ -201,7 +202,7 @@ fun SignUpScreen(
                             confirmPasswordFocusRequester.requestFocus()
                             Toast.makeText(
                                 context,
-                                "Passwords do not match",
+                                context.getString(R.string.auth_error_passwords_mismatch),
                                 Toast.LENGTH_SHORT
                             ).show()
                             return@AuthPrimaryButton
@@ -215,8 +216,8 @@ fun SignUpScreen(
             Spacer(modifier = Modifier.height(22.dp))
 
             AuthBottomPrompt(
-                prefix = "Already have an Account?",
-                action = "Login",
+                prefix = stringResource(R.string.auth_have_account),
+                action = stringResource(R.string.auth_login),
                 onClick = onNavigateToLogin
             )
         }

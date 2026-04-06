@@ -1,11 +1,15 @@
 package com.example.unimarket.data.local
 
 import android.content.Context
+import com.example.unimarket.domain.model.SellerPaymentMethod
+import com.example.unimarket.domain.model.SellerPaymentMethodType
 import com.example.unimarket.domain.model.UserProfile
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import org.json.JSONArray
+import org.json.JSONObject
 import javax.inject.Inject
 
 class UserSessionLocalDataSource @Inject constructor(
@@ -29,6 +33,7 @@ class UserSessionLocalDataSource @Inject constructor(
             .putInt(KEY_SOLD_COUNT, userProfile.soldCount)
             .putFloat(KEY_AVERAGE_RATING, userProfile.averageRating.toFloat())
             .putInt(KEY_RATING_COUNT, userProfile.ratingCount)
+            .putString(KEY_PAYMENT_METHODS, paymentMethodsToJson(userProfile.paymentMethods))
             .apply()
 
         _cachedUser.value = userProfile
@@ -52,8 +57,54 @@ class UserSessionLocalDataSource @Inject constructor(
             boughtCount = sharedPreferences.getInt(KEY_BOUGHT_COUNT, 0),
             soldCount = sharedPreferences.getInt(KEY_SOLD_COUNT, 0),
             averageRating = sharedPreferences.getFloat(KEY_AVERAGE_RATING, 0f).toDouble(),
-            ratingCount = sharedPreferences.getInt(KEY_RATING_COUNT, 0)
+            ratingCount = sharedPreferences.getInt(KEY_RATING_COUNT, 0),
+            paymentMethods = paymentMethodsFromJson(
+                sharedPreferences.getString(KEY_PAYMENT_METHODS, null).orEmpty()
+            )
         )
+    }
+
+    private fun paymentMethodsToJson(methods: List<SellerPaymentMethod>): String {
+        val array = JSONArray()
+        methods.forEach { method ->
+            array.put(
+                JSONObject()
+                    .put("id", method.id)
+                    .put("type", method.type.storageValue)
+                    .put("label", method.label)
+                    .put("accountName", method.accountName)
+                    .put("accountNumber", method.accountNumber)
+                    .put("bankCode", method.bankCode)
+                    .put("bankName", method.bankName)
+                    .put("phoneNumber", method.phoneNumber)
+                    .put("note", method.note)
+                    .put("isDefault", method.isDefault)
+            )
+        }
+        return array.toString()
+    }
+
+    private fun paymentMethodsFromJson(raw: String): List<SellerPaymentMethod> {
+        if (raw.isBlank()) return emptyList()
+
+        return runCatching {
+            val array = JSONArray(raw)
+            List(array.length()) { index ->
+                val item = array.getJSONObject(index)
+                SellerPaymentMethod(
+                    id = item.optString("id"),
+                    type = SellerPaymentMethodType.fromRaw(item.optString("type")),
+                    label = item.optString("label"),
+                    accountName = item.optString("accountName"),
+                    accountNumber = item.optString("accountNumber"),
+                    bankCode = item.optString("bankCode"),
+                    bankName = item.optString("bankName"),
+                    phoneNumber = item.optString("phoneNumber"),
+                    note = item.optString("note"),
+                    isDefault = item.optBoolean("isDefault")
+                )
+            }
+        }.getOrDefault(emptyList())
     }
 
     private companion object {
@@ -67,5 +118,6 @@ class UserSessionLocalDataSource @Inject constructor(
         const val KEY_SOLD_COUNT = "sold_count"
         const val KEY_AVERAGE_RATING = "average_rating"
         const val KEY_RATING_COUNT = "rating_count"
+        const val KEY_PAYMENT_METHODS = "payment_methods"
     }
 }

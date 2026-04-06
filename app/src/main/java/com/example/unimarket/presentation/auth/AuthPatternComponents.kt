@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
@@ -221,7 +222,7 @@ fun PasswordToggle(
     ) {
         Icon(
             imageVector = if (visible) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
-            contentDescription = "Toggle password visibility",
+            contentDescription = stringResource(R.string.auth_toggle_password_visibility),
             tint = AuthIcon,
             modifier = Modifier.size(16.dp)
         )

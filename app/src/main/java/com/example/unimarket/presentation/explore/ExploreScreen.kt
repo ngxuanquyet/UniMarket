@@ -30,15 +30,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.unimarket.R
 import com.example.unimarket.domain.model.DeliveryMethod
-import coil.compose.rememberAsyncImagePainter
+    import coil.compose.rememberAsyncImagePainter
 import com.example.unimarket.presentation.theme.PrimaryYellowDark
 import com.example.unimarket.presentation.theme.SecondaryBlue
 import com.example.unimarket.presentation.util.formatVnd
+import com.example.unimarket.presentation.util.localizedCategoryLabel
+import com.example.unimarket.presentation.util.localizedConditionLabel
+import com.example.unimarket.presentation.util.localizedTitle
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -58,7 +63,7 @@ fun ExploreScreen(
         topBar = {
             TopAppBar(
                 title = { 
-                    Text("Explore", fontWeight = FontWeight.Bold, fontSize = 24.sp) 
+                    Text(stringResource(R.string.explore_title), fontWeight = FontWeight.Bold, fontSize = 24.sp)
                 },
                 actions = {
                     IconButton(
@@ -69,7 +74,11 @@ fun ExploreScreen(
                             .background(ProfileAvatarBorder)
                             .size(40.dp)
                     ) {
-                        Icon(Icons.Default.ShoppingCart, contentDescription = "Cart", tint = Color.DarkGray)
+                        Icon(
+                            Icons.Default.ShoppingCart,
+                            contentDescription = stringResource(R.string.explore_cart),
+                            tint = Color.DarkGray
+                        )
                     }
                     IconButton(
                         onClick = { },
@@ -79,7 +88,11 @@ fun ExploreScreen(
                             .background(ProfileAvatarBorder)
                             .size(40.dp)
                     ) {
-                        Icon(Icons.Default.Notifications, contentDescription = "Notifications", tint = Color.DarkGray)
+                        Icon(
+                            Icons.Default.Notifications,
+                            contentDescription = stringResource(R.string.explore_notifications),
+                            tint = Color.DarkGray
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
@@ -111,9 +124,13 @@ fun ExploreScreen(
                     OutlinedTextField(
                         value = uiState.searchQuery,
                         onValueChange = { viewModel.updateSearchQuery(it) },
-                        placeholder = { Text("Find second-hand items", color = Color.Gray) },
+                        placeholder = { Text(stringResource(R.string.explore_search_placeholder), color = Color.Gray) },
                         leadingIcon = {
-                            Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.Gray)
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = stringResource(R.string.common_search),
+                                tint = Color.Gray
+                            )
                         },
                         trailingIcon = {
                             IconButton(
@@ -130,7 +147,7 @@ fun ExploreScreen(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.FilterList,
-                                    contentDescription = "Filter products",
+                                    contentDescription = stringResource(R.string.explore_filter_products),
                                     tint = if (hasActiveFilters) SecondaryBlue else Color.Gray
                                 )
                             }
@@ -164,7 +181,7 @@ fun ExploreScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = category,
+                                    text = localizedCategoryLabel(category),
                                     color = if (isSelected) Color.White else Color.DarkGray,
                                     fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
                                     fontSize = 14.sp
@@ -178,7 +195,7 @@ fun ExploreScreen(
                     item(span = { GridItemSpan(maxLineSpan) }) {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(
-                                text = "Seller matches",
+                                text = stringResource(R.string.explore_seller_matches),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
@@ -213,7 +230,7 @@ fun ExploreScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "No items found",
+                                text = stringResource(R.string.explore_no_items_found),
                                 color = Color.Gray,
                                 style = MaterialTheme.typography.bodyLarge
                             )
@@ -286,7 +303,7 @@ private fun ExploreSellerCard(
                             fontSize = 16.sp
                         )
                         Text(
-                            text = "${seller.totalListings} item(s) on sale",
+                            text = stringResource(R.string.explore_items_on_sale, seller.totalListings),
                             color = Color.Gray,
                             style = MaterialTheme.typography.bodySmall
                         )
@@ -294,7 +311,7 @@ private fun ExploreSellerCard(
                 }
 
                 TextButton(onClick = onSellerClick) {
-                    Text("View profile", color = SecondaryBlue)
+                    Text(stringResource(R.string.explore_view_profile), color = SecondaryBlue)
                 }
             }
 
@@ -349,14 +366,14 @@ private fun ExploreFilterSheet(
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         Text(
-            text = "Filter products",
+            text = stringResource(R.string.explore_filter_products),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
         )
 
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(
-                text = "Price range",
+                text = stringResource(R.string.explore_price_range),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
@@ -373,7 +390,7 @@ private fun ExploreFilterSheet(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = priceFilter.label,
+                            text = priceFilter.displayLabel(),
                             color = if (isSelected) Color.White else Color.DarkGray,
                             fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
                             fontSize = 14.sp
@@ -385,7 +402,7 @@ private fun ExploreFilterSheet(
 
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(
-                text = "Sort by price",
+                text = stringResource(R.string.explore_sort_by_price),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
@@ -401,7 +418,7 @@ private fun ExploreFilterSheet(
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     Text(
-                        text = sortOption.label,
+                        text = sortOption.displayLabel(),
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
                         style = MaterialTheme.typography.bodyLarge,
                         color = if (isSelected) SecondaryBlue else Color.DarkGray,
@@ -419,7 +436,7 @@ private fun ExploreFilterSheet(
             colors = ButtonDefaults.buttonColors(containerColor = SecondaryBlue),
             shape = RoundedCornerShape(18.dp)
         ) {
-            Text("Done", color = Color.White, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.common_done), color = Color.White, fontWeight = FontWeight.SemiBold)
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -452,7 +469,7 @@ fun ExploreProductCard(
             )
 
             // Tags (e.g., PRICE DROP, NEW) -> Simplified logic based on timeAgo or condition
-            val tag = if (product.condition == "New") "NEW" else null
+            val tag = if (product.condition == "New") stringResource(R.string.condition_new_badge) else null
             if (tag != null) {
                 Box(
                     modifier = Modifier
@@ -484,7 +501,7 @@ fun ExploreProductCard(
             ) {
                 Icon(
                     imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    contentDescription = "Favorite",
+                    contentDescription = stringResource(R.string.explore_favorite),
                     tint = if (isFavorite) RedDanger else Color.DarkGray,
                     modifier = Modifier.size(18.dp)
                 )
@@ -513,7 +530,7 @@ fun ExploreProductCard(
         Spacer(modifier = Modifier.height(2.dp))
         
         Text(
-            text = product.condition,
+            text = localizedConditionLabel(product.condition),
             style = MaterialTheme.typography.bodySmall,
             color = Color.Gray,
             maxLines = 1,
@@ -536,11 +553,11 @@ private fun DeliveryMethodSummaryChips(methods: List<DeliveryMethod>) {
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(10.dp))
-                            .background(MessageBg)
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .background(MessageBg)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = method.title,
+                            text = method.localizedTitle(),
                             style = MaterialTheme.typography.labelSmall,
                             color = SecondaryBlue,
                             maxLines = 1,
@@ -551,4 +568,28 @@ private fun DeliveryMethodSummaryChips(methods: List<DeliveryMethod>) {
             }
         }
     }
+}
+
+@Composable
+private fun ExplorePriceFilter.displayLabel(): String {
+    return stringResource(
+        when (this) {
+            ExplorePriceFilter.ALL -> R.string.explore_filter_all_prices
+            ExplorePriceFilter.UP_TO_200K -> R.string.explore_filter_up_to_200k
+            ExplorePriceFilter.FROM_200K_TO_500K -> R.string.explore_filter_200k_500k
+            ExplorePriceFilter.FROM_500K_TO_1M -> R.string.explore_filter_500k_1m
+            ExplorePriceFilter.FROM_1M -> R.string.explore_filter_from_1m
+        }
+    )
+}
+
+@Composable
+private fun ExplorePriceSort.displayLabel(): String {
+    return stringResource(
+        when (this) {
+            ExplorePriceSort.RECOMMENDED -> R.string.explore_sort_recommended
+            ExplorePriceSort.PRICE_LOW_TO_HIGH -> R.string.explore_sort_low_to_high
+            ExplorePriceSort.PRICE_HIGH_TO_LOW -> R.string.explore_sort_high_to_low
+        }
+    )
 }

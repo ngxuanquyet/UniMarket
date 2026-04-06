@@ -5,8 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.example.unimarket.domain.model.DeliveryMethod
 import com.example.unimarket.domain.model.Product
 import com.example.unimarket.domain.model.PurchaseRequest
+import com.example.unimarket.domain.model.SellerPaymentMethod
+import com.example.unimarket.domain.model.SellerPaymentMethodType
 import com.example.unimarket.domain.model.UserAddress
 import com.example.unimarket.domain.usecase.auth.GetUserAddressesUseCase
+import com.example.unimarket.domain.usecase.auth.GetUserPaymentMethodsUseCase
 import com.example.unimarket.domain.usecase.auth.RefreshCurrentUserProfileUseCase
 import com.example.unimarket.domain.usecase.cart.GetCartItemsUseCase
 import com.example.unimarket.domain.usecase.cart.RemoveFromCartUseCase
@@ -24,9 +27,18 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-private const val DEFAULT_PAYMENT_METHOD = "Cash on delivery"
 private const val PLATFORM_FEE = 1500.0
 private const val SHIPPING_FEE = 30000.0
+private const val CASH_ON_DELIVERY_OPTION_ID = "cash_on_delivery"
+
+data class CheckoutPaymentOption(
+    val id: String,
+    val type: SellerPaymentMethodType,
+    val sellerMethod: SellerPaymentMethod? = null
+) {
+    val paymentMethodCode: String
+        get() = type.storageValue
+}
 
 data class CheckoutOrderUiState(
     val id: String,
@@ -35,13 +47,17 @@ data class CheckoutOrderUiState(
     val quantity: Int,
     val availableDeliveryMethods: List<DeliveryMethod> = emptyList(),
     val sellerAddresses: List<UserAddress> = emptyList(),
+    val availablePaymentOptions: List<CheckoutPaymentOption> = defaultCheckoutPaymentOptions(),
     val selectedSellerAddressId: String? = null,
     val selectedDeliveryMethod: DeliveryMethod? = null,
-    val meetingPoint: String = "",
-    val paymentMethod: String = DEFAULT_PAYMENT_METHOD
+    val selectedPaymentOptionId: String = CASH_ON_DELIVERY_OPTION_ID,
+    val meetingPoint: String = ""
 ) {
     val selectedSellerAddress: UserAddress?
         get() = sellerAddresses.firstOrNull { it.id == selectedSellerAddressId }
+
+    val selectedPaymentOption: CheckoutPaymentOption?
+        get() = availablePaymentOptions.firstOrNull { it.id == selectedPaymentOptionId }
 
     val subtotal: Double
         get() = product.price * quantity
@@ -85,6 +101,7 @@ class CheckoutViewModel @Inject constructor(
     private val getAllProductsUseCase: GetAllProductsUseCase,
     private val getCartItemsUseCase: GetCartItemsUseCase,
     private val getUserAddressesUseCase: GetUserAddressesUseCase,
+    private val getUserPaymentMethodsUseCase: GetUserPaymentMethodsUseCase,
     private val confirmBuyNowPurchaseUseCase: ConfirmBuyNowPurchaseUseCase,
     private val refreshCurrentUserProfileUseCase: RefreshCurrentUserProfileUseCase,
     private val removeFromCartUseCase: RemoveFromCartUseCase
@@ -100,7 +117,8 @@ class CheckoutViewModel @Inject constructor(
         data class ShowSnackbar(val message: String) : UiEvent()
         data class PurchaseCompleted(
             val orderIds: List<String>,
-            val requestedCount: Int
+            val requestedCount: Int,
+            val transferOrderIds: List<String> = emptyList()
         ) : UiEvent()
     }
 
@@ -183,29 +201,40 @@ class CheckoutViewModel @Inject constructor(
         val buyerAddresses = buyerResult.getOrDefault(emptyList())
 
         val sellerAddressMap = mutableMapOf<String, List<UserAddress>>()
+        val sellerPaymentMap = mutableMapOf<String, List<SellerPaymentMethod>>()
         val sellerErrorMessages = mutableListOf<String>()
 
         baseOrders.map { it.product.userId }
             .filter { it.isNotBlank() }
             .distinct()
             .forEach { sellerUserId ->
-                val sellerResult = getUserAddressesUseCase(sellerUserId)
-                sellerAddressMap[sellerUserId] = sellerResult.getOrDefault(emptyList())
-                sellerResult.exceptionOrNull()?.message?.let(sellerErrorMessages::add)
+                val sellerAddressResult = getUserAddressesUseCase(sellerUserId)
+                sellerAddressMap[sellerUserId] = sellerAddressResult.getOrDefault(emptyList())
+                sellerAddressResult.exceptionOrNull()?.message?.let(sellerErrorMessages::add)
+
+                val sellerPaymentResult = getUserPaymentMethodsUseCase(sellerUserId)
+                sellerPaymentMap[sellerUserId] = sellerPaymentResult.getOrDefault(emptyList())
+                sellerPaymentResult.exceptionOrNull()?.message?.let(sellerErrorMessages::add)
             }
 
-        val ordersWithAddresses = baseOrders.map { order ->
+        val ordersWithData = baseOrders.map { order ->
             val sellerAddresses = order.product.sellerPickupAddress?.let { listOf(it) }
                 ?: sellerAddressMap[order.product.userId].orEmpty()
+            val paymentOptions = buildPaymentOptions(
+                sellerPaymentMap[order.product.userId].orEmpty()
+            )
             order.copy(
                 sellerAddresses = sellerAddresses,
+                availablePaymentOptions = paymentOptions,
                 selectedSellerAddressId = sellerAddresses.firstOrNull { it.isDefault }?.id
-                    ?: sellerAddresses.firstOrNull()?.id
+                    ?: sellerAddresses.firstOrNull()?.id,
+                selectedPaymentOptionId = paymentOptions.firstOrNull { it.id == order.selectedPaymentOptionId }?.id
+                    ?: paymentOptions.firstOrNull()?.id.orEmpty()
             )
         }
 
         _uiState.value = CheckoutUiState(
-            orders = ordersWithAddresses,
+            orders = ordersWithData,
             buyerAddresses = buyerAddresses,
             selectedBuyerAddressId = buyerAddresses.firstOrNull { it.isDefault }?.id
                 ?: buyerAddresses.firstOrNull()?.id,
@@ -260,12 +289,12 @@ class CheckoutViewModel @Inject constructor(
         }
     }
 
-    fun selectPaymentMethod(orderId: String, value: String) {
+    fun selectPaymentMethod(orderId: String, optionId: String) {
         _uiState.update { state ->
             state.copy(
                 orders = state.orders.map { order ->
-                    if (order.id == orderId) {
-                        order.copy(paymentMethod = value)
+                    if (order.id == orderId && order.availablePaymentOptions.any { it.id == optionId }) {
+                        order.copy(selectedPaymentOptionId = optionId)
                     } else {
                         order
                     }
@@ -295,16 +324,19 @@ class CheckoutViewModel @Inject constructor(
             _uiState.update { it.copy(isSubmitting = true) }
 
             val createdOrderIds = mutableListOf<String>()
+            val transferOrderIds = mutableListOf<String>()
             val failedMessages = mutableListOf<String>()
 
             state.orders.forEach { order ->
                 val selectedDeliveryMethod = order.selectedDeliveryMethod ?: return@forEach
+                val selectedPaymentOption = order.selectedPaymentOption ?: return@forEach
                 val result = confirmBuyNowPurchaseUseCase(
                     PurchaseRequest(
                         productId = order.product.id,
                         quantity = order.quantity,
                         deliveryMethod = selectedDeliveryMethod,
-                        paymentMethod = order.paymentMethod,
+                        paymentMethod = selectedPaymentOption.paymentMethodCode,
+                        paymentMethodDetails = selectedPaymentOption.sellerMethod,
                         meetingPoint = order.meetingPoint.trim(),
                         buyerAddress = state.selectedBuyerAddress,
                         sellerAddress = order.selectedSellerAddress
@@ -314,6 +346,9 @@ class CheckoutViewModel @Inject constructor(
                 val confirmation = result.getOrNull()
                 if (confirmation != null) {
                     createdOrderIds += confirmation.orderId
+                    if (selectedPaymentOption.type != SellerPaymentMethodType.CASH_ON_DELIVERY) {
+                        transferOrderIds += confirmation.orderId
+                    }
                     order.cartItemId?.let { cartItemId ->
                         removeFromCartUseCase(cartItemId)
                     }
@@ -329,7 +364,8 @@ class CheckoutViewModel @Inject constructor(
                 _uiEvent.emit(
                     UiEvent.PurchaseCompleted(
                         orderIds = createdOrderIds,
-                        requestedCount = state.orders.size
+                        requestedCount = state.orders.size,
+                        transferOrderIds = transferOrderIds
                     )
                 )
                 if (failedMessages.isNotEmpty()) {
@@ -357,6 +393,27 @@ class CheckoutViewModel @Inject constructor(
         }
         if (order.availableDeliveryMethods.isEmpty()) {
             return "${order.product.name} has no delivery method configured"
+        }
+        val selectedPaymentOption = order.selectedPaymentOption
+            ?: return "Please select a payment method for ${order.product.name}"
+        when (selectedPaymentOption.type) {
+            SellerPaymentMethodType.BANK_TRANSFER -> {
+                val sellerMethod = selectedPaymentOption.sellerMethod
+                    ?: return "Seller bank transfer information is unavailable"
+                if (sellerMethod.accountName.isBlank() || sellerMethod.accountNumber.isBlank()) {
+                    return "Seller bank transfer information is incomplete"
+                }
+            }
+
+            SellerPaymentMethodType.MOMO -> {
+                val sellerMethod = selectedPaymentOption.sellerMethod
+                    ?: return "Seller MoMo information is unavailable"
+                if (sellerMethod.phoneNumber.isBlank()) {
+                    return "Seller MoMo phone number is missing"
+                }
+            }
+
+            SellerPaymentMethodType.CASH_ON_DELIVERY -> Unit
         }
 
         return when (order.selectedDeliveryMethod) {
@@ -395,13 +452,16 @@ class CheckoutViewModel @Inject constructor(
         quantity: Int
     ): CheckoutOrderUiState {
         val availableMethods = product.deliveryMethodsAvailable
+        val paymentOptions = defaultCheckoutPaymentOptions()
         return CheckoutOrderUiState(
             id = id,
             cartItemId = cartItemId,
             product = product,
             quantity = quantity,
             availableDeliveryMethods = availableMethods,
-            selectedDeliveryMethod = availableMethods.firstOrNull()
+            availablePaymentOptions = paymentOptions,
+            selectedDeliveryMethod = availableMethods.firstOrNull(),
+            selectedPaymentOptionId = paymentOptions.firstOrNull()?.id.orEmpty()
         )
     }
 
@@ -410,4 +470,32 @@ class CheckoutViewModel @Inject constructor(
             _uiEvent.emit(UiEvent.ShowSnackbar(message))
         }
     }
+}
+
+private fun buildPaymentOptions(methods: List<SellerPaymentMethod>): List<CheckoutPaymentOption> {
+    val sellerOptions = methods.map { method ->
+        CheckoutPaymentOption(
+            id = method.id.ifBlank { "${method.type.storageValue}_${method.accountNumber}_${method.phoneNumber}" },
+            type = method.type,
+            sellerMethod = method
+        )
+    }
+
+    val defaultSellerOptionId = methods.firstOrNull { it.isDefault }?.id
+    val orderedSellerOptions = if (defaultSellerOptionId.isNullOrBlank()) {
+        sellerOptions
+    } else {
+        sellerOptions.sortedByDescending { it.id == defaultSellerOptionId }
+    }
+
+    return orderedSellerOptions + defaultCheckoutPaymentOptions()
+}
+
+private fun defaultCheckoutPaymentOptions(): List<CheckoutPaymentOption> {
+    return listOf(
+        CheckoutPaymentOption(
+            id = CASH_ON_DELIVERY_OPTION_ID,
+            type = SellerPaymentMethodType.CASH_ON_DELIVERY
+        )
+    )
 }

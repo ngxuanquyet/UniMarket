@@ -60,6 +60,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -67,6 +68,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.example.unimarket.R
 import com.example.unimarket.domain.model.Order
 import com.example.unimarket.domain.model.OrderStatus
 import com.example.unimarket.presentation.theme.BackgroundLight
@@ -86,6 +88,9 @@ import com.example.unimarket.presentation.theme.TagBlueBg
 import com.example.unimarket.presentation.theme.TextDarkBlack
 import com.example.unimarket.presentation.theme.TextGray
 import com.example.unimarket.presentation.util.formatVnd
+import com.example.unimarket.presentation.util.localizedDeliveryMethodLabel
+import com.example.unimarket.presentation.util.localizedLabel
+import com.example.unimarket.presentation.util.localizedPaymentMethodLabel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -113,12 +118,12 @@ fun SellerOrdersScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Seller Orders", fontWeight = FontWeight.Bold, color = TextDarkBlack) },
+                title = { Text(stringResource(R.string.seller_orders_title), fontWeight = FontWeight.Bold, color = TextDarkBlack) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.common_back),
                             tint = TextDarkBlack
                         )
                     }
@@ -127,7 +132,7 @@ fun SellerOrdersScreen(
                     IconButton(onClick = {}) {
                         Icon(
                             imageVector = Icons.Default.Search,
-                            contentDescription = "Search orders",
+                            contentDescription = stringResource(R.string.seller_orders_search_orders),
                             tint = TextDarkBlack
                         )
                     }
@@ -180,14 +185,14 @@ fun SellerOrdersScreen(
                                 .fillMaxSize()
                                 .padding(horizontal = 20.dp),
                             title = if (uiState.orders.isEmpty()) {
-                                "No incoming orders yet"
+                                stringResource(R.string.seller_orders_empty_title)
                             } else {
-                                "No orders in this tab"
+                                stringResource(R.string.seller_orders_empty_tab_title)
                             },
                             subtitle = if (uiState.orders.isEmpty()) {
-                                "New purchases for your listings will show up here."
+                                stringResource(R.string.seller_orders_empty_subtitle)
                             } else {
-                                "Try another tab or pull to refresh."
+                                stringResource(R.string.seller_orders_empty_tab_subtitle)
                             }
                         )
                     }
@@ -236,9 +241,9 @@ private fun SellerSummaryRow(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        SellerSummaryCard("Awaiting", awaitingCount.toString(), SecondaryBlue, Modifier.weight(1f))
-        SellerSummaryCard("Shipping", inTransitCount.toString(), BlueReview, Modifier.weight(1f))
-        SellerSummaryCard("Delivered", deliveredCount.toString(), GreenBadge, Modifier.weight(1f))
+        SellerSummaryCard(stringResource(R.string.seller_orders_summary_awaiting), awaitingCount.toString(), SecondaryBlue, Modifier.weight(1f))
+        SellerSummaryCard(stringResource(R.string.seller_orders_summary_shipping), inTransitCount.toString(), BlueReview, Modifier.weight(1f))
+        SellerSummaryCard(stringResource(R.string.seller_orders_summary_delivered), deliveredCount.toString(), GreenBadge, Modifier.weight(1f))
     }
 }
 
@@ -294,7 +299,7 @@ private fun SellerOrderTabBar(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = tab.label,
+                        text = tab.label(),
                         color = if (isSelected) SecondaryBlue else TextGray,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                         fontSize = 13.sp
@@ -360,7 +365,7 @@ private fun SellerOrderCard(
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = order.buyerName.ifBlank { "Student Buyer" },
+                        text = order.buyerName.ifBlank { stringResource(R.string.seller_orders_student_buyer) },
                         color = TextDarkBlack,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 13.sp,
@@ -414,7 +419,7 @@ private fun SellerOrderCard(
                 }
 
                 Text(
-                    text = "Qty:${order.quantity}",
+                    text = stringResource(R.string.common_qty, order.quantity),
                     color = TextGray,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
@@ -428,7 +433,7 @@ private fun SellerOrderCard(
                 paymentMethod = order.paymentMethod
             )
 
-            val deliveryNote = sellerDeliveryNote(order)
+    val deliveryNote = sellerDeliveryNote(order)
             if (deliveryNote.isNotBlank()) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
@@ -453,7 +458,7 @@ private fun SellerOrderCard(
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = RedDanger)
                     ) {
-                        Text("Cancel", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        Text(stringResource(R.string.common_cancel), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                     }
                 }
 
@@ -473,7 +478,7 @@ private fun SellerOrderCard(
                             )
                         } else {
                             Text(
-                                text = primaryAction,
+                                text = stringResource(primaryAction),
                                 color = SurfaceWhite,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp
@@ -496,14 +501,14 @@ private fun SellerInfoPillRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         SellerInfoPill(
-            text = deliveryMethod.toDeliveryLabel(),
+            text = localizedDeliveryMethodLabel(deliveryMethod),
             icon = Icons.Default.LocalShipping,
             background = TagBlueBg,
             tint = SecondaryBlue,
             modifier = Modifier.weight(1f)
         )
         SellerInfoPill(
-            text = paymentMethod.ifBlank { "Unknown payment" },
+            text = localizedPaymentMethodLabel(paymentMethod),
             icon = Icons.Default.Inventory2,
             background = LightBlueReviewBg,
             tint = BlueReview,
@@ -586,6 +591,7 @@ private fun SellerStatusBadge(
     statusLabel: String
 ) {
     val (background, contentColor) = when (status) {
+        OrderStatus.WAITING_PAYMENT -> Color(0xFFFFF0D8) to Color(0xFFCB8A16)
         OrderStatus.WAITING_CONFIRMATION -> OrangeBadgeBg to OrangeBadge
         OrderStatus.WAITING_PICKUP -> TagBlueBg to SecondaryBlue
         OrderStatus.SHIPPING -> Color(0xFFFCE9F8) to Color(0xFFC457A8)
@@ -603,7 +609,7 @@ private fun SellerStatusBadge(
             .padding(horizontal = 10.dp, vertical = 5.dp)
     ) {
         Text(
-            text = statusLabel,
+            text = status.localizedLabel(),
             color = contentColor,
             fontWeight = FontWeight.Bold,
             fontSize = 10.sp
@@ -677,6 +683,18 @@ private enum class SellerOrderTab(val label: String) {
     }
 }
 
+@Composable
+private fun SellerOrderTab.label(): String {
+    return when (this) {
+        SellerOrderTab.ALL -> stringResource(R.string.orders_tab_all)
+        SellerOrderTab.WAITING_CONFIRMATION -> stringResource(R.string.order_status_waiting_confirmation)
+        SellerOrderTab.WAITING_PICKUP -> stringResource(R.string.order_status_waiting_pickup)
+        SellerOrderTab.SHIPPING -> stringResource(R.string.order_status_shipping)
+        SellerOrderTab.DELIVERED -> stringResource(R.string.order_status_delivered)
+        SellerOrderTab.CANCELLED -> stringResource(R.string.order_status_cancelled)
+    }
+}
+
 private enum class SellerPlaceholderArtwork {
     BOOK,
     CALCULATOR,
@@ -700,14 +718,14 @@ private fun resolveSellerPlaceholderArtwork(
     }
 }
 
-private fun primaryActionFor(order: Order): String? {
+private fun primaryActionFor(order: Order): Int? {
     return when (order.status) {
-        OrderStatus.WAITING_CONFIRMATION -> "Confirm Order"
-        OrderStatus.WAITING_PICKUP -> "Start Delivery"
-        OrderStatus.SHIPPING -> "Mark Delivered"
+        OrderStatus.WAITING_CONFIRMATION -> R.string.seller_orders_action_confirm_order
+        OrderStatus.WAITING_PICKUP -> R.string.seller_orders_action_start_delivery
+        OrderStatus.SHIPPING -> R.string.seller_orders_action_mark_delivered
         // Keep legacy states actionable so older orders can still be closed.
-        OrderStatus.IN_TRANSIT -> "Mark Delivered"
-        OrderStatus.OUT_FOR_DELIVERY -> "Mark Delivered"
+        OrderStatus.IN_TRANSIT -> R.string.seller_orders_action_mark_delivered
+        OrderStatus.OUT_FOR_DELIVERY -> R.string.seller_orders_action_mark_delivered
         else -> null
     }
 }
@@ -721,22 +739,25 @@ private fun canCancel(order: Order): Boolean {
     )
 }
 
+@Composable
 private fun sellerDeliveryNote(order: Order): String {
     return when (order.deliveryMethod.uppercase()) {
-        "DIRECT_MEET" -> "Meeting point: ${order.meetingPoint.ifBlank { "Not provided yet" }}"
-        "BUYER_TO_SELLER" -> "Buyer pickup address: ${order.sellerAddress?.shortDisplay().orEmpty().ifBlank { "No pickup address saved" }}"
-        "SELLER_TO_BUYER" -> "Deliver to buyer: ${order.buyerAddress?.shortDisplay().orEmpty().ifBlank { "No buyer address saved" }}"
-        "SHIPPING" -> "Shipping to: ${order.buyerAddress?.shortDisplay().orEmpty().ifBlank { "No shipping address saved" }}"
+        "DIRECT_MEET" -> stringResource(
+            R.string.seller_orders_note_meeting_point,
+            order.meetingPoint.ifBlank { stringResource(R.string.seller_orders_note_not_provided) }
+        )
+        "BUYER_TO_SELLER" -> stringResource(
+            R.string.seller_orders_note_buyer_pickup,
+            order.sellerAddress?.shortDisplay().orEmpty().ifBlank { stringResource(R.string.seller_orders_note_no_pickup) }
+        )
+        "SELLER_TO_BUYER" -> stringResource(
+            R.string.seller_orders_note_deliver_to_buyer,
+            order.buyerAddress?.shortDisplay().orEmpty().ifBlank { stringResource(R.string.seller_orders_note_no_buyer_address) }
+        )
+        "SHIPPING" -> stringResource(
+            R.string.seller_orders_note_shipping_to,
+            order.buyerAddress?.shortDisplay().orEmpty().ifBlank { stringResource(R.string.seller_orders_note_no_shipping_address) }
+        )
         else -> order.buyerAddress?.shortDisplay().orEmpty()
-    }
-}
-
-private fun String.toDeliveryLabel(): String {
-    return when (uppercase()) {
-        "DIRECT_MEET" -> "Direct meet"
-        "BUYER_TO_SELLER" -> "Buyer pickup"
-        "SELLER_TO_BUYER" -> "Seller delivery"
-        "SHIPPING" -> "Shipping"
-        else -> ifBlank { "Unknown delivery" }
     }
 }

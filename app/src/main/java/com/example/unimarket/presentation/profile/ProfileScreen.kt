@@ -25,6 +25,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
@@ -32,8 +33,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
-import coil.request.CachePolicy
 import coil.request.ImageRequest
+import com.example.unimarket.R
+import com.example.unimarket.localization.LanguageManager
+import com.example.unimarket.localization.LanguageOption
 import com.example.unimarket.presentation.theme.PrimaryYellowDark
 import com.example.unimarket.presentation.theme.RatingStarYellow
 
@@ -44,15 +47,19 @@ fun ProfileScreen(
     onLogoutClick: () -> Unit,
     onMyAddressesClick: () -> Unit = {},
     onMyPurchasesClick: () -> Unit = {},
+    onPaymentMethodsClick: () -> Unit = {},
     onSellerOrdersClick: () -> Unit = {},
     onStatisticsClick: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val scrollState = rememberScrollState()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     var showEditNameDialog by remember { mutableStateOf(false) }
+    var showLanguageDialog by remember { mutableStateOf(false) }
     var newNameInput by remember { mutableStateOf("") }
+    var currentLanguage by remember { mutableStateOf(LanguageManager.getSelectedLanguage(context)) }
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -65,10 +72,19 @@ fun ProfileScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Profile", fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally)) },
+                title = {
+                    Text(
+                        stringResource(R.string.profile_title),
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally)
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = { onBack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.common_back)
+                        )
                     }
                 },
                 actions = {
@@ -112,10 +128,13 @@ fun ProfileScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
                 ProfileActionsList(
+                    currentLanguage = currentLanguage,
                     onMyAddressesClick = onMyAddressesClick,
                     onMyPurchasesClick = onMyPurchasesClick,
+                    onPaymentMethodsClick = onPaymentMethodsClick,
                     onSellerOrdersClick = onSellerOrdersClick,
-                    onStatisticsClick = onStatisticsClick
+                    onStatisticsClick = onStatisticsClick,
+                    onLanguageClick = { showLanguageDialog = true }
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))
@@ -127,12 +146,12 @@ fun ProfileScreen(
             if (showEditNameDialog) {
                 AlertDialog(
                     onDismissRequest = { showEditNameDialog = false },
-                    title = { Text("Edit Display Name") },
+                    title = { Text(stringResource(R.string.profile_edit_display_name)) },
                     text = {
                         OutlinedTextField(
                             value = newNameInput,
                             onValueChange = { newNameInput = it },
-                            label = { Text("New Name") },
+                            label = { Text(stringResource(R.string.profile_new_name)) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -144,13 +163,25 @@ fun ProfileScreen(
                             }
                             showEditNameDialog = false
                         }) {
-                            Text("Save")
+                            Text(stringResource(R.string.common_save))
                         }
                     },
                     dismissButton = {
                         TextButton(onClick = { showEditNameDialog = false }) {
-                            Text("Cancel")
+                            Text(stringResource(R.string.common_cancel))
                         }
+                    }
+                )
+            }
+
+            if (showLanguageDialog) {
+                LanguageSelectionDialog(
+                    selectedLanguage = currentLanguage,
+                    onDismiss = { showLanguageDialog = false },
+                    onLanguageSelected = { language ->
+                        currentLanguage = language
+                        showLanguageDialog = false
+                        LanguageManager.updateLanguage(context, language)
                     }
                 )
             }
@@ -182,7 +213,7 @@ fun ProfileHeader(
             Box(contentAlignment = Alignment.Center) {
                 Image(
                     painter = painter,
-                    contentDescription = "Profile Picture",
+                    contentDescription = stringResource(R.string.profile_picture),
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .size(100.dp)
@@ -218,7 +249,7 @@ fun ProfileHeader(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Edit,
-                        contentDescription = "Edit Profile",
+                        contentDescription = stringResource(R.string.profile_edit_picture),
                         tint = Color.White,
                         modifier = Modifier.size(14.dp)
                     )
@@ -232,14 +263,14 @@ fun ProfileHeader(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = uiState.displayName.ifEmpty { "User" },
+                text = uiState.displayName.ifEmpty { stringResource(R.string.profile_default_user) },
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.width(8.dp))
             Icon(
                 imageVector = Icons.Default.Edit,
-                contentDescription = "Edit Name",
+                contentDescription = stringResource(R.string.profile_edit_name),
                 tint = PrimaryYellowDark,
                 modifier = Modifier
                     .size(20.dp)
@@ -274,7 +305,7 @@ fun ProfileHeader(
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(
-                text = "Verified Student",
+                text = stringResource(R.string.profile_verified_student),
                 color = GreenBadge, // Green text
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Medium
@@ -293,7 +324,7 @@ fun ProfileStatsRow(
     val ratingLabel = if (ratingCount > 0) {
         String.format("%.1f", averageRating)
     } else {
-        "New"
+        stringResource(R.string.common_new)
     }
 
     Row(
@@ -302,13 +333,21 @@ fun ProfileStatsRow(
             .padding(horizontal = 24.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        StatCard(value = soldCount.toString(), label = "Items Sold", modifier = Modifier.weight(1f))
+        StatCard(
+            value = soldCount.toString(),
+            label = stringResource(R.string.profile_items_sold),
+            modifier = Modifier.weight(1f)
+        )
         Spacer(modifier = Modifier.width(16.dp))
-        StatCard(value = boughtCount.toString(), label = "Bought", modifier = Modifier.weight(1f))
+        StatCard(
+            value = boughtCount.toString(),
+            label = stringResource(R.string.profile_bought),
+            modifier = Modifier.weight(1f)
+        )
         Spacer(modifier = Modifier.width(16.dp))
         StatCard(
             value = ratingLabel,
-            label = "Rating", 
+            label = stringResource(R.string.profile_rating),
             modifier = Modifier.weight(1f),
             showStar = ratingCount > 0
         )
@@ -334,7 +373,7 @@ fun StatCard(value: String, label: String, modifier: Modifier = Modifier, showSt
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(
                     imageVector = Icons.Default.Star,
-                    contentDescription = "Star",
+                    contentDescription = stringResource(R.string.profile_rating),
                     tint = RatingStarYellow,
                     modifier = Modifier.size(18.dp)
                 )
@@ -351,63 +390,57 @@ fun StatCard(value: String, label: String, modifier: Modifier = Modifier, showSt
 
 @Composable
 fun ProfileActionsList(
+    currentLanguage: LanguageOption,
     onMyAddressesClick: () -> Unit = {},
     onMyPurchasesClick: () -> Unit = {},
+    onPaymentMethodsClick: () -> Unit = {},
     onSellerOrdersClick: () -> Unit = {},
-    onStatisticsClick: () -> Unit = {}
+    onStatisticsClick: () -> Unit = {},
+    onLanguageClick: () -> Unit = {}
 ) {
     Column(modifier = Modifier.padding(horizontal = 24.dp)) {
         ActionRowItem(
-            title = "My Listings",
-            icon = Icons.Default.LocalOffer,
-            iconBgColor = LightBlueReviewBg,
-            iconColor = BlueReview
-        )
-        ActionRowItem(
-            title = "Income & Expense",
+            title = stringResource(R.string.profile_income_expense),
             icon = Icons.Default.BarChart,
             iconBgColor = LightBlueReviewBg,
             iconColor = BlueReview,
             onClick = onStatisticsClick
         )
         ActionRowItem(
-            title = "Seller Orders",
+            title = stringResource(R.string.profile_seller_orders),
             icon = Icons.Default.Inventory2,
             iconBgColor = LightBlueReviewBg,
             iconColor = BlueReview,
             onClick = onSellerOrdersClick
         )
         ActionRowItem(
-            title = "My Addresses",
+            title = stringResource(R.string.language_label),
+            subtitle = currentLanguage.displayName(),
+            icon = Icons.Default.Language,
+            iconBgColor = LightBlueReviewBg,
+            iconColor = BlueReview,
+            onClick = onLanguageClick
+        )
+        ActionRowItem(
+            title = stringResource(R.string.profile_my_addresses),
             icon = Icons.Default.LocationOn,
             iconBgColor = LightBlueReviewBg,
             iconColor = BlueReview,
             onClick = onMyAddressesClick
         )
         ActionRowItem(
-            title = "My Purchases",
+            title = stringResource(R.string.profile_my_purchases),
             icon = Icons.Default.ShoppingBag,
             iconBgColor = LightBlueReviewBg,
             iconColor = BlueReview,
             onClick = onMyPurchasesClick
         )
         ActionRowItem(
-            title = "Saved Items",
-            icon = Icons.Default.Favorite,
-            iconBgColor = LightBlueReviewBg,
-            iconColor = BlueReview
-        )
-        ActionRowItem(
-            title = "Payment Methods",
+            title = stringResource(R.string.profile_payment_methods),
             icon = Icons.Default.CreditCard,
             iconBgColor = LightBlueReviewBg,
-            iconColor = BlueReview
-        )
-        ActionRowItem(
-            title = "Account Settings",
-            icon = Icons.Default.Settings,
-            iconBgColor = ProfileAvatarBorder,
-            iconColor = Color.DarkGray
+            iconColor = BlueReview,
+            onClick = onPaymentMethodsClick
         )
     }
 }
@@ -415,6 +448,7 @@ fun ProfileActionsList(
 @Composable
 fun ActionRowItem(
     title: String,
+    subtitle: String? = null,
     icon: ImageVector,
     iconBgColor: Color,
     iconColor: Color,
@@ -444,16 +478,25 @@ fun ActionRowItem(
         
         Spacer(modifier = Modifier.width(16.dp))
         
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.weight(1f)
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium
+            )
+            if (!subtitle.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
+            }
+        }
         
         Icon(
             imageVector = Icons.Default.ChevronRight,
-            contentDescription = "Go",
+            contentDescription = stringResource(R.string.common_go),
             tint = Color.Gray,
             modifier = Modifier.size(20.dp)
         )
@@ -475,16 +518,67 @@ fun LogoutButton(onClick: () -> Unit = {}) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                contentDescription = "Log Out",
+                contentDescription = stringResource(R.string.profile_log_out),
                 tint = RedDanger // Reddish
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "Log Out",
+                text = stringResource(R.string.profile_log_out),
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold,
                 color = RedDanger
             )
         }
+    }
+}
+
+@Composable
+private fun LanguageSelectionDialog(
+    selectedLanguage: LanguageOption,
+    onDismiss: () -> Unit,
+    onLanguageSelected: (LanguageOption) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.language_dialog_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(R.string.language_dialog_message))
+                LanguageOption.entries.forEach { language ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .clickable { onLanguageSelected(language) }
+                            .padding(vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = selectedLanguage == language,
+                            onClick = { onLanguageSelected(language) }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = language.displayName(),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.common_cancel))
+            }
+        }
+    )
+}
+
+@Composable
+private fun LanguageOption.displayName(): String {
+    return when (this) {
+        LanguageOption.ENGLISH -> stringResource(R.string.language_english)
+        LanguageOption.VIETNAMESE -> stringResource(R.string.language_vietnamese)
     }
 }

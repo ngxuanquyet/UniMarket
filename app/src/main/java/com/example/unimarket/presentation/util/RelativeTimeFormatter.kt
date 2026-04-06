@@ -1,5 +1,6 @@
 package com.example.unimarket.presentation.util
 
+import java.util.Locale
 import kotlin.math.max
 
 fun Long.toRelativeTimeLabel(nowMillis: Long = System.currentTimeMillis()): String {
@@ -12,32 +13,69 @@ fun Long.toRelativeTimeLabel(nowMillis: Long = System.currentTimeMillis()): Stri
     val weekMillis = 7 * dayMillis
     val monthMillis = 30 * dayMillis
     val yearMillis = 365 * dayMillis
+    val isVietnamese = Locale.getDefault().language == "vi"
 
     return when {
-        diffMillis < minuteMillis -> "just now"
+        diffMillis < minuteMillis -> if (isVietnamese) "vừa xong" else "just now"
         diffMillis < hourMillis -> {
             val minutes = diffMillis / minuteMillis
-            if (minutes == 1L) "1 minute ago" else "$minutes minutes ago"
+            if (isVietnamese) {
+                "$minutes phút trước"
+            } else if (minutes == 1L) {
+                "1 minute ago"
+            } else {
+                "$minutes minutes ago"
+            }
         }
         diffMillis < dayMillis -> {
             val hours = diffMillis / hourMillis
-            if (hours == 1L) "1 hour ago" else "$hours hours ago"
+            if (isVietnamese) {
+                "$hours giờ trước"
+            } else if (hours == 1L) {
+                "1 hour ago"
+            } else {
+                "$hours hours ago"
+            }
         }
         diffMillis < weekMillis -> {
             val days = diffMillis / dayMillis
-            if (days == 1L) "1 day ago" else "$days days ago"
+            if (isVietnamese) {
+                "$days ngày trước"
+            } else if (days == 1L) {
+                "1 day ago"
+            } else {
+                "$days days ago"
+            }
         }
         diffMillis < monthMillis -> {
             val weeks = diffMillis / weekMillis
-            if (weeks == 1L) "1 week ago" else "$weeks weeks ago"
+            if (isVietnamese) {
+                "$weeks tuần trước"
+            } else if (weeks == 1L) {
+                "1 week ago"
+            } else {
+                "$weeks weeks ago"
+            }
         }
         diffMillis < yearMillis -> {
             val months = diffMillis / monthMillis
-            if (months == 1L) "1 month ago" else "$months months ago"
+            if (isVietnamese) {
+                "$months tháng trước"
+            } else if (months == 1L) {
+                "1 month ago"
+            } else {
+                "$months months ago"
+            }
         }
         else -> {
             val years = diffMillis / yearMillis
-            if (years == 1L) "1 year ago" else "$years years ago"
+            if (isVietnamese) {
+                "$years năm trước"
+            } else if (years == 1L) {
+                "1 year ago"
+            } else {
+                "$years years ago"
+            }
         }
     }
 }

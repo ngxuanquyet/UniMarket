@@ -23,15 +23,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.unimarket.R
 import com.example.unimarket.domain.model.Category
 import com.example.unimarket.domain.model.Product
 import com.example.unimarket.presentation.components.ProductCard
 import com.example.unimarket.presentation.navigation.Screen
 import com.example.unimarket.presentation.theme.PrimaryYellowDark
 import com.example.unimarket.presentation.theme.SecondaryBlue
+import com.example.unimarket.presentation.util.localizedCategoryLabel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,7 +77,7 @@ fun HomeScreen(
             
             // Recommended Section
             Text(
-                text = "Recommended for You",
+                text = stringResource(R.string.home_recommended_for_you),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -108,11 +111,11 @@ fun HomeTopBar(onCartClick: () -> Unit) {
         )
         
         IconButton(onClick = { /* Handle Notifications */ }) {
-            Icon(Icons.Default.NotificationsNone, contentDescription = "Notifications", tint = Color.DarkGray)
+            Icon(Icons.Default.NotificationsNone, contentDescription = stringResource(R.string.explore_notifications), tint = Color.DarkGray)
         }
         
         IconButton(onClick = onCartClick) {
-            Icon(Icons.Outlined.ShoppingCart, contentDescription = "Cart", tint = Color.DarkGray)
+            Icon(Icons.Outlined.ShoppingCart, contentDescription = stringResource(R.string.explore_cart), tint = Color.DarkGray)
         }
     }
     
@@ -126,8 +129,8 @@ fun HomeTopBar(onCartClick: () -> Unit) {
         TextField(
             value = "",
             onValueChange = {},
-            placeholder = { Text("Search textbooks, electronics...", color = Color.Gray) },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.Gray) },
+            placeholder = { Text(stringResource(R.string.home_search_placeholder), color = Color.Gray) },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = stringResource(R.string.common_search), tint = Color.Gray) },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp)
@@ -167,7 +170,7 @@ fun HomeBanner(modifier: Modifier = Modifier) {
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
                 Text(
-                    text = "Back to School",
+                    text = stringResource(R.string.home_back_to_school),
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                     color = Color.Black
@@ -175,7 +178,7 @@ fun HomeBanner(modifier: Modifier = Modifier) {
             }
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "Up to 50% off\nUsed Textbooks",
+                text = stringResource(R.string.home_banner_text),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
@@ -211,12 +214,12 @@ fun CategoriesSection(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "Categories",
+            text = stringResource(R.string.home_categories),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
         Text(
-            text = "See all",
+            text = stringResource(R.string.home_see_all),
             style = MaterialTheme.typography.labelLarge,
             color = PrimaryYellowDark,
             modifier = Modifier.clickable { }
@@ -244,7 +247,7 @@ fun CategoriesSection(
                     .padding(horizontal = 20.dp, vertical = 10.dp)
             ) {
                 Text(
-                    text = category.name,
+                    text = localizedCategoryLabel(category.name),
                     color = if (isSelected) Color.Black else Color.DarkGray,
                     fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal
                 )

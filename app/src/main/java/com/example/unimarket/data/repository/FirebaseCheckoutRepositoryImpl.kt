@@ -4,8 +4,10 @@ import com.example.unimarket.BuildConfig
 import com.example.unimarket.data.api.NotificationApiService
 import com.example.unimarket.data.api.model.BuyNowPurchaseRequestDto
 import com.example.unimarket.data.api.model.CheckoutAddressDto
+import com.example.unimarket.data.api.model.CheckoutPaymentMethodDto
 import com.example.unimarket.domain.model.PurchaseConfirmation
 import com.example.unimarket.domain.model.PurchaseRequest
+import com.example.unimarket.domain.model.SellerPaymentMethod
 import com.example.unimarket.domain.model.UserAddress
 import com.example.unimarket.domain.repository.CheckoutRepository
 import com.google.firebase.auth.FirebaseAuth
@@ -66,9 +68,25 @@ class FirebaseCheckoutRepositoryImpl @Inject constructor(
             quantity = quantity,
             deliveryMethod = deliveryMethod.name,
             paymentMethod = paymentMethod,
+            paymentMethodDetails = paymentMethodDetails?.toDto(),
             meetingPoint = meetingPoint,
             buyerAddress = buyerAddress?.toDto(),
             sellerAddress = sellerAddress?.toDto()
+        )
+    }
+
+    private fun SellerPaymentMethod.toDto(): CheckoutPaymentMethodDto {
+        return CheckoutPaymentMethodDto(
+            id = id,
+            type = type.storageValue,
+            label = label,
+            accountName = accountName,
+            accountNumber = accountNumber,
+            bankCode = bankCode,
+            bankName = bankName,
+            phoneNumber = phoneNumber,
+            note = note,
+            isDefault = isDefault
         )
     }
 

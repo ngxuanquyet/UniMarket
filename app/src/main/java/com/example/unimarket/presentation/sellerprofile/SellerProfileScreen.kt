@@ -51,6 +51,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -58,12 +59,14 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.rememberAsyncImagePainter
+import com.example.unimarket.R
 import com.example.unimarket.domain.model.Product
 import com.example.unimarket.presentation.theme.AppBlue
 import com.example.unimarket.presentation.theme.BackgroundLight
 import com.example.unimarket.presentation.theme.MessageBg
 import com.example.unimarket.presentation.theme.RatingStarYellow
 import com.example.unimarket.presentation.util.formatVnd
+import com.example.unimarket.presentation.util.localizedTitle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,15 +91,15 @@ fun SellerProfileScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Seller Profile", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.seller_profile_title), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = { }) {
-                        Icon(Icons.Default.MoreHoriz, contentDescription = "More")
+                        Icon(Icons.Default.MoreHoriz, contentDescription = stringResource(R.string.seller_profile_more))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
@@ -124,7 +127,7 @@ fun SellerProfileScreen(
                         .padding(paddingValues),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(uiState.errorMessage ?: "Unable to load seller profile", color = Color.Gray)
+                    Text(uiState.errorMessage ?: stringResource(R.string.seller_profile_load_error), color = Color.Gray)
                 }
             }
 
@@ -157,12 +160,12 @@ fun SellerProfileScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Active Listings",
+                                text = stringResource(R.string.seller_profile_active_listings),
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "See all",
+                                text = stringResource(R.string.home_see_all),
                                 color = AppBlue,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -216,7 +219,7 @@ private fun SellerHeroSection(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = uiState.sellerName,
+            text = uiState.sellerName.ifBlank { stringResource(R.string.product_anonymous_seller) },
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.ExtraBold
         )
@@ -224,7 +227,7 @@ private fun SellerHeroSection(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = if (uiState.isVerifiedStudent) "Verified Student" else "Campus Seller",
+            text = if (uiState.isVerifiedStudent) stringResource(R.string.profile_verified_student) else stringResource(R.string.seller_profile_campus_seller),
             color = AppBlue,
             fontWeight = FontWeight.SemiBold,
             fontSize = 13.sp
@@ -241,15 +244,15 @@ private fun SellerHeroSection(
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(
-                text = if (uiState.ratingCount > 0) String.format("%.1f", uiState.averageRating) else "New",
+                text = if (uiState.ratingCount > 0) String.format("%.1f", uiState.averageRating) else stringResource(R.string.common_new),
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = if (uiState.ratingCount > 0) {
-                    "(${uiState.ratingCount} reviews)"
+                    stringResource(R.string.seller_profile_reviews_count, uiState.ratingCount)
                 } else {
-                    "(No reviews yet)"
+                    stringResource(R.string.seller_profile_no_reviews)
                 },
                 color = Color.Gray,
                 fontSize = 13.sp
@@ -276,7 +279,7 @@ private fun SellerHeroSection(
                     contentDescription = null
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Message Seller", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.seller_profile_message_seller), fontWeight = FontWeight.Bold)
             }
 
             Surface(
@@ -287,7 +290,7 @@ private fun SellerHeroSection(
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         Icons.Outlined.Share,
-                        contentDescription = "Share seller",
+                        contentDescription = stringResource(R.string.seller_profile_share_seller),
                         tint = AppBlue
                     )
                 }
@@ -300,9 +303,12 @@ private fun SellerHeroSection(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceAround
         ) {
-            SellerStatBlock(value = uiState.activeListings.size.toString(), label = "ACTIVE")
-            SellerStatBlock(value = uiState.soldCount.toString(), label = "SOLD")
-            SellerStatBlock(value = uiState.memberSinceLabel, label = "MEMBER")
+            SellerStatBlock(value = uiState.activeListings.size.toString(), label = stringResource(R.string.seller_profile_stat_active))
+            SellerStatBlock(value = uiState.soldCount.toString(), label = stringResource(R.string.seller_profile_stat_sold))
+            SellerStatBlock(
+                value = uiState.memberSinceLabel.ifBlank { stringResource(R.string.common_new) },
+                label = stringResource(R.string.seller_profile_stat_member)
+            )
         }
     }
 }
@@ -365,7 +371,7 @@ private fun SellerListingCard(
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = product.description.ifBlank { "Campus listing" },
+                text = product.description.ifBlank { stringResource(R.string.seller_profile_campus_listing) },
                 color = Color.Gray,
                 fontSize = 12.sp,
                 maxLines = 1,
@@ -373,7 +379,7 @@ private fun SellerListingCard(
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = product.timeAgo.ifBlank { "Recently listed" },
+                text = product.timeAgo.ifBlank { stringResource(R.string.product_recently_listed) },
                 color = AppBlue,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium

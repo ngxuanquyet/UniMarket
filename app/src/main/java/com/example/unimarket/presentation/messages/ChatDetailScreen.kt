@@ -51,10 +51,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
+import com.example.unimarket.R
 import com.example.unimarket.domain.model.ChatMessage
 import com.example.unimarket.presentation.theme.AppBlue
 import java.text.SimpleDateFormat
@@ -111,7 +113,7 @@ fun ChatDetailScreen(
 
                         Column {
                             Text(
-                                text = uiState.conversation?.otherUser?.name ?: "Chat",
+                                text = uiState.conversation?.otherUser?.name ?: stringResource(R.string.chat_title_fallback),
                                 fontWeight = FontWeight.SemiBold
                             )
                             uiState.conversation?.productName?.takeIf { it.isNotBlank() }?.let { productName ->
@@ -126,7 +128,7 @@ fun ChatDetailScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 }
             )
@@ -149,7 +151,7 @@ fun ChatDetailScreen(
                         ) {
                             Image(
                                 painter = rememberAsyncImagePainter(model = selectedImageUri),
-                                contentDescription = "Selected image",
+                                contentDescription = stringResource(R.string.chat_selected_image),
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier
                                     .matchParentSize()
@@ -164,7 +166,7 @@ fun ChatDetailScreen(
                             ) {
                                 Icon(
                                     Icons.Default.Close,
-                                    contentDescription = "Remove image",
+                                    contentDescription = stringResource(R.string.common_remove_image),
                                     tint = Color.White,
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -185,7 +187,7 @@ fun ChatDetailScreen(
                         ) {
                             Icon(
                                 Icons.Default.Image,
-                                contentDescription = "Pick image",
+                                contentDescription = stringResource(R.string.chat_pick_image),
                                 tint = AppBlue
                             )
                         }
@@ -194,7 +196,7 @@ fun ChatDetailScreen(
                             value = uiState.messageText,
                             onValueChange = viewModel::updateMessageText,
                             modifier = Modifier.weight(1f),
-                            placeholder = { Text("Type a message") },
+                            placeholder = { Text(stringResource(R.string.chat_type_message)) },
                             shape = RoundedCornerShape(24.dp),
                             maxLines = 4
                         )
@@ -207,7 +209,7 @@ fun ChatDetailScreen(
                         ) {
                             Icon(
                                 Icons.AutoMirrored.Filled.Send,
-                                contentDescription = "Send",
+                                contentDescription = stringResource(R.string.common_send),
                                 tint = AppBlue
                             )
                         }
@@ -235,7 +237,7 @@ fun ChatDetailScreen(
                         .padding(paddingValues),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(uiState.errorMessage ?: "Unable to load chat", color = Color.Gray)
+                    Text(uiState.errorMessage ?: stringResource(R.string.chat_load_error), color = Color.Gray)
                 }
             }
 
@@ -292,7 +294,7 @@ private fun MessageBubble(
                 if (message.imageUrl.isNotBlank()) {
                     Image(
                         painter = rememberAsyncImagePainter(model = message.imageUrl),
-                        contentDescription = "Shared image",
+                        contentDescription = stringResource(R.string.chat_shared_image),
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .fillMaxWidth()

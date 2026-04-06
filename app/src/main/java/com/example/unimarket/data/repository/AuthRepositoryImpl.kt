@@ -3,6 +3,8 @@ package com.example.unimarket.data.repository
 import android.util.Log
 import android.net.Uri
 import androidx.core.net.toUri
+import com.example.unimarket.domain.model.SellerPaymentMethod
+import com.example.unimarket.domain.model.SellerPaymentMethodType
 import com.example.unimarket.data.local.UserSessionLocalDataSource
 import com.example.unimarket.domain.model.UserProfile
 import com.example.unimarket.domain.model.UserAddress
@@ -18,6 +20,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.QuerySnapshot
 import com.google.firebase.firestore.Source
 import com.google.firebase.firestore.SetOptions
+import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
@@ -217,10 +220,24 @@ class AuthRepositoryImpl @Inject constructor(
         return getAddressesByUserId(userId)
     }
 
+    override suspend fun getUserPaymentMethods(): Result<List<SellerPaymentMethod>> {
+        val userId = auth.currentUser?.uid ?: return Result.failure(Exception("No user logged in"))
+        return getPaymentMethodsByUserId(userId)
+    }
+
     override suspend fun getAddressesByUserId(userId: String): Result<List<UserAddress>> {
         return try {
             val snapshot = addressCollection(userId).get().await()
             Result.success(snapshot.toAddresses())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getPaymentMethodsByUserId(userId: String): Result<List<SellerPaymentMethod>> {
+        return try {
+            val snapshot = firestore.collection(USERS_COLLECTION).document(userId).get().await()
+            Result.success(snapshot.toPaymentMethods())
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -272,6 +289,53 @@ class AuthRepositoryImpl @Inject constructor(
                 val firstRemaining = collection.get().await().documents.firstOrNull()
                 firstRemaining?.reference?.update("isDefault", true)?.await()
             }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun saveUserPaymentMethod(method: SellerPaymentMethod): Result<Unit> {
+        return try {
+            val userId = auth.currentUser?.uid ?: return Result.failure(Exception("No user logged in"))
+            val userRef = firestore.collection(USERS_COLLECTION).document(userId)
+            val currentMethods = userRef.get().await().toPaymentMethods()
+            val sanitizedMethod = method.sanitized().copy(
+                id = method.id.ifBlank { UUID.randomUUID().toString() }
+            )
+
+            val nextMethods = currentMethods
+                .filterNot { it.id == sanitizedMethod.id }
+                .plus(sanitizedMethod)
+                .normalizeDefaults()
+
+            userRef.set(
+                mapOf(PAYMENT_METHODS_FIELD to nextMethods.toFirestoreList()),
+                SetOptions.merge()
+            ).await()
+
+            refreshCurrentUserProfile()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun deleteUserPaymentMethod(methodId: String): Result<Unit> {
+        return try {
+            val userId = auth.currentUser?.uid ?: return Result.failure(Exception("No user logged in"))
+            val userRef = firestore.collection(USERS_COLLECTION).document(userId)
+            val remainingMethods = userRef.get().await()
+                .toPaymentMethods()
+                .filterNot { it.id == methodId }
+                .normalizeDefaults()
+
+            userRef.set(
+                mapOf(PAYMENT_METHODS_FIELD to remainingMethods.toFirestoreList()),
+                SetOptions.merge()
+            ).await()
+
+            refreshCurrentUserProfile()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -366,8 +430,28 @@ class AuthRepositoryImpl @Inject constructor(
             boughtCount = getLong("boughtCount")?.toInt() ?: 0,
             soldCount = getLong("soldCount")?.toInt() ?: 0,
             averageRating = getDouble("averageRating") ?: 0.0,
-            ratingCount = getLong("ratingCount")?.toInt() ?: 0
+            ratingCount = getLong("ratingCount")?.toInt() ?: 0,
+            paymentMethods = toPaymentMethods()
         )
+    }
+
+    private fun DocumentSnapshot.toPaymentMethods(): List<SellerPaymentMethod> {
+        val rawMethods = get(PAYMENT_METHODS_FIELD) as? List<*> ?: return emptyList()
+        return rawMethods.mapNotNull { item ->
+            val map = item as? Map<*, *> ?: return@mapNotNull null
+            SellerPaymentMethod(
+                id = map["id"] as? String ?: "",
+                type = SellerPaymentMethodType.fromRaw(map["type"] as? String),
+                label = map["label"] as? String ?: "",
+                accountName = map["accountName"] as? String ?: "",
+                accountNumber = map["accountNumber"] as? String ?: "",
+                bankCode = map["bankCode"] as? String ?: "",
+                bankName = map["bankName"] as? String ?: "",
+                phoneNumber = map["phoneNumber"] as? String ?: "",
+                note = map["note"] as? String ?: "",
+                isDefault = map["isDefault"] as? Boolean ?: false
+            ).sanitized()
+        }.normalizeDefaults()
     }
 
     private fun QuerySnapshot.toAddresses(): List<UserAddress> {
@@ -394,8 +478,46 @@ class AuthRepositoryImpl @Inject constructor(
         return signedInWithPassword && !isEmailVerified
     }
 
+    private fun SellerPaymentMethod.sanitized(): SellerPaymentMethod {
+        return copy(
+            id = id.trim(),
+            label = label.trim(),
+            accountName = accountName.trim(),
+            accountNumber = accountNumber.trim(),
+            bankCode = bankCode.trim().lowercase(),
+            bankName = bankName.trim(),
+            phoneNumber = phoneNumber.trim(),
+            note = note.trim()
+        )
+    }
+
+    private fun List<SellerPaymentMethod>.normalizeDefaults(): List<SellerPaymentMethod> {
+        if (isEmpty()) return emptyList()
+        val defaultId = firstOrNull { it.isDefault }?.id ?: first().id
+        return map { it.copy(isDefault = it.id == defaultId) }
+            .sortedWith(compareByDescending<SellerPaymentMethod> { it.isDefault }.thenBy { it.displayTitle })
+    }
+
+    private fun List<SellerPaymentMethod>.toFirestoreList(): List<Map<String, Any>> {
+        return map { method ->
+            mapOf(
+                "id" to method.id,
+                "type" to method.type.storageValue,
+                "label" to method.label,
+                "accountName" to method.accountName,
+                "accountNumber" to method.accountNumber,
+                "bankCode" to method.bankCode,
+                "bankName" to method.bankName,
+                "phoneNumber" to method.phoneNumber,
+                "note" to method.note,
+                "isDefault" to method.isDefault
+            )
+        }
+    }
+
     private companion object {
         const val USERS_COLLECTION = "users"
         const val ADDRESSES_COLLECTION = "addresses"
+        const val PAYMENT_METHODS_FIELD = "paymentMethods"
     }
 }

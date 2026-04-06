@@ -96,7 +96,7 @@ class SellerProfileViewModel @Inject constructor(
                 val sellerName = userDoc?.getString("name").orEmpty()
                     .ifBlank { userDoc?.getString("displayName").orEmpty() }
                     .ifBlank { selectedProduct?.sellerName.orEmpty() }
-                    .ifBlank { "Student Seller" }
+                    .ifBlank { "" }
 
                 val avatarUrl = userDoc?.getString("avatarUrl").orEmpty()
                     .ifBlank { buildAvatarFallbackUrl(sellerName) }
@@ -143,7 +143,7 @@ class SellerProfileViewModel @Inject constructor(
     }
 
     private fun buildMemberSinceLabel(createdAtMillis: Long?): String {
-        if (createdAtMillis == null || createdAtMillis <= 0) return "New"
+        if (createdAtMillis == null || createdAtMillis <= 0) return ""
         val calendar = Calendar.getInstance().apply { timeInMillis = createdAtMillis }
         return calendar.get(Calendar.YEAR).toString()
     }

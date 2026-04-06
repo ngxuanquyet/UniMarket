@@ -5,6 +5,7 @@ data class PurchaseRequest(
     val quantity: Int,
     val deliveryMethod: DeliveryMethod,
     val paymentMethod: String,
+    val paymentMethodDetails: SellerPaymentMethod? = null,
     val meetingPoint: String = "",
     val buyerAddress: UserAddress? = null,
     val sellerAddress: UserAddress? = null

@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -40,6 +41,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.unimarket.R
 import com.example.unimarket.domain.model.Product
 import com.example.unimarket.presentation.navigation.Screen
 import com.example.unimarket.presentation.util.formatVnd
@@ -58,6 +60,8 @@ fun MyListingsScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+    val deletedMessage = stringResource(R.string.my_listings_deleted)
+    val undoLabel = stringResource(R.string.common_undo)
     
     var itemToDelete by remember { mutableStateOf<Product?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -68,8 +72,8 @@ fun MyListingsScreen(
                 showDeleteDialog = false
                 itemToDelete = null
             },
-            title = { Text("Confirm Deletion") },
-            text = { Text("Are you sure you want to delete this listing? This action cannot be undone after a few seconds.") },
+            title = { Text(stringResource(R.string.my_listings_confirm_deletion)) },
+            text = { Text(stringResource(R.string.my_listings_confirm_deletion_message)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -83,8 +87,8 @@ fun MyListingsScreen(
                         // Show Undo Snackbar
                         coroutineScope.launch {
                             val snackbarResult = snackbarHostState.showSnackbar(
-                                message = "Listing deleted",
-                                actionLabel = "Undo",
+                                message = deletedMessage,
+                                actionLabel = undoLabel,
                                 duration = SnackbarDuration.Short
                             )
                             if (snackbarResult == SnackbarResult.ActionPerformed) {
@@ -93,7 +97,7 @@ fun MyListingsScreen(
                         }
                     }
                 ) {
-                    Text("Delete", color = RedDanger)
+                    Text(stringResource(R.string.common_delete), color = RedDanger)
                 }
             },
             dismissButton = {
@@ -103,7 +107,7 @@ fun MyListingsScreen(
                         itemToDelete = null
                     }
                 ) {
-                    Text("Cancel", color = TextDarkBlack)
+                    Text(stringResource(R.string.common_cancel), color = TextDarkBlack)
                 }
             }
         )
@@ -114,16 +118,16 @@ fun MyListingsScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text("My Listings", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = TextDarkBlack)
+                    Text(stringResource(R.string.profile_my_listings), fontWeight = FontWeight.Bold, fontSize = 20.sp, color = TextDarkBlack)
                 },
                 navigationIcon = {
                     IconButton(onClick = { onBackClick() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextDarkBlack)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back), tint = TextDarkBlack)
                     }
                 },
                 actions = {
                     IconButton(onClick = { /* TODO Build Search */ }) {
-                        Icon(Icons.Default.Search, contentDescription = "Search", tint = TextDarkBlack)
+                        Icon(Icons.Default.Search, contentDescription = stringResource(R.string.common_search), tint = TextDarkBlack)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceWhite)
@@ -139,7 +143,7 @@ fun MyListingsScreen(
                 shape = CircleShape,
                 modifier = Modifier.padding(bottom = 10.dp) // Maintain padding above bottom nav
             ) {
-                Icon(Icons.Default.AddCircleOutline, contentDescription = "Post New Item")
+                Icon(Icons.Default.AddCircleOutline, contentDescription = stringResource(R.string.my_listings_post_new_item))
             }
         },
         floatingActionButtonPosition = FabPosition.End
@@ -150,7 +154,11 @@ fun MyListingsScreen(
                 .padding(paddingValues)
         ) {
             // Tabs
-            val tabs = listOf("Active", "Sold", "Drafts")
+            val tabs = listOf(
+                stringResource(R.string.my_listings_tab_active),
+                stringResource(R.string.my_listings_tab_sold),
+                stringResource(R.string.my_listings_tab_drafts)
+            )
             TabRow(
                 selectedTabIndex = uiState.currentTab,
                 containerColor = SurfaceWhite,
@@ -212,12 +220,12 @@ fun MyListingsScreen(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Column {
-                                            Text("LIVE ITEMS", color = AppBlue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                            Text(stringResource(R.string.my_listings_live_items).uppercase(), color = AppBlue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                             Spacer(modifier = Modifier.height(4.dp))
-                                            Text("${uiState.liveItemsCount} Items", color = TextDarkBlack, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+                                            Text(stringResource(R.string.my_listings_items_count, uiState.liveItemsCount), color = TextDarkBlack, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
                                         }
                                         Column(horizontalAlignment = Alignment.End) {
-                                            Text("EST. VALUE", color = TextGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                            Text(stringResource(R.string.my_listings_est_value).uppercase(), color = TextGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                             Spacer(modifier = Modifier.height(4.dp))
                                             Text(formatVnd(uiState.estimatedValue), color = TextDarkBlack, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
                                         }
@@ -283,9 +291,9 @@ fun ListingCard(
                     val isDraft = product.sellerName == "Draft"
 
                     val badgeText = when {
-                        isDraft -> "DRAFT"
-                        isUnderReview -> "UNDER REVIEW"
-                        else -> "ACTIVE"
+                        isDraft -> stringResource(R.string.my_listings_status_draft)
+                        isUnderReview -> stringResource(R.string.my_listings_status_under_review)
+                        else -> stringResource(R.string.my_listings_status_active)
                     }
                     val badgeColor = when {
                         isDraft -> TextGray
@@ -330,7 +338,7 @@ fun ListingCard(
 
                 val views = (10..100).random() // Dummy views count
                 Text(
-                    "${product.timeAgo} • $views views",
+                    stringResource(R.string.my_listings_views_time, product.timeAgo, views),
                     color = TextGray,
                     fontSize = 12.sp
                 )
@@ -338,7 +346,7 @@ fun ListingCard(
                 val isUnderReviewTextFlag = product.name.contains("Watch", ignoreCase = true)
                 if (isUnderReviewTextFlag) {
                      Text(
-                        "Pending approval from mods",
+                        stringResource(R.string.my_listings_pending_approval),
                         color = TextGray,
                         fontSize = 12.sp
                     )
@@ -359,15 +367,15 @@ fun ListingCard(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 if (isDraft) {
-                    ActionChip("Edit Draft", Icons.Default.Edit, TextDarkBlack, ActionChipBg, Modifier.weight(1f)) { onEditClick(product.id) }
-                    ActionChip("Delete Draft", Icons.Default.DeleteOutline, RedDanger, RedDangerBg, Modifier.weight(1f)) { onDeleteClick() }
+                    ActionChip(stringResource(R.string.my_listings_edit_draft), Icons.Default.Edit, TextDarkBlack, ActionChipBg, Modifier.weight(1f)) { onEditClick(product.id) }
+                    ActionChip(stringResource(R.string.my_listings_delete_draft), Icons.Default.DeleteOutline, RedDanger, RedDangerBg, Modifier.weight(1f)) { onDeleteClick() }
                 } else if (isUnderReview) {
-                    ActionChip("Edit Listing", Icons.Default.Edit, TextDarkBlack, ActionChipBg, Modifier.weight(1f)) { onEditClick(product.id) }
-                    ActionChip("Cancel", Icons.Outlined.Cancel, RedDanger, RedDangerBg, Modifier.weight(1f)) { onDeleteClick() }
+                    ActionChip(stringResource(R.string.my_listings_edit_listing), Icons.Default.Edit, TextDarkBlack, ActionChipBg, Modifier.weight(1f)) { onEditClick(product.id) }
+                    ActionChip(stringResource(R.string.common_cancel), Icons.Outlined.Cancel, RedDanger, RedDangerBg, Modifier.weight(1f)) { onDeleteClick() }
                 } else {
-                    ActionChip("Edit", Icons.Default.Edit, TextDarkBlack, ActionChipBg, Modifier.weight(1f)) { onEditClick(product.id) }
-                    ActionChip("Sold", Icons.Default.CheckCircleOutline, AppBlue, LightBlueSelection, Modifier.weight(1f)) { /* TODO */ }
-                    ActionChip("Delete", Icons.Default.DeleteOutline, RedDanger, RedDangerBg, Modifier.weight(1f)) { onDeleteClick() }
+                    ActionChip(stringResource(R.string.common_edit), Icons.Default.Edit, TextDarkBlack, ActionChipBg, Modifier.weight(1f)) { onEditClick(product.id) }
+                    ActionChip(stringResource(R.string.my_listings_tab_sold), Icons.Default.CheckCircleOutline, AppBlue, LightBlueSelection, Modifier.weight(1f)) { /* TODO */ }
+                    ActionChip(stringResource(R.string.common_delete), Icons.Default.DeleteOutline, RedDanger, RedDangerBg, Modifier.weight(1f)) { onDeleteClick() }
                 }
             }
         }

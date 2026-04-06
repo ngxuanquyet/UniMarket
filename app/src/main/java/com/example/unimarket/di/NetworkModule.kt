@@ -16,7 +16,7 @@ import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-object NetworkModule {
+object  NetworkModule {
     private const val IMAGE_BASE_URL = "https://api.imgbb.com/1/"
     private const val GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/"
 

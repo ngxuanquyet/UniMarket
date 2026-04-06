@@ -1,10 +1,10 @@
 package com.example.unimarket.presentation.main
 
+import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.example.unimarket.presentation.navigation.Screen
 
 data class BottomNavItem(
-    val title: String,
+    @StringRes val labelRes: Int,
     val route: String,
     val icon: ImageVector
 )

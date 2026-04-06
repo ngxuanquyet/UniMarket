@@ -32,14 +32,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.unimarket.R
 import coil.compose.rememberAsyncImagePainter
 import com.example.unimarket.domain.model.DeliveryMethod
 import com.example.unimarket.domain.model.Product
 import com.example.unimarket.presentation.theme.PrimaryYellowDark
 import com.example.unimarket.presentation.util.formatVnd
+import com.example.unimarket.presentation.util.localizedTitle
 
 @Composable
 fun ProductCard(
@@ -76,7 +79,7 @@ fun ProductCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.FavoriteBorder,
-                        contentDescription = "Favorite",
+                        contentDescription = stringResource(R.string.explore_favorite),
                         tint = Color.Gray,
                         modifier = Modifier.size(20.dp)
                     )
@@ -88,7 +91,7 @@ fun ProductCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Default.Star,
-                        contentDescription = "Rating",
+                        contentDescription = stringResource(R.string.profile_rating),
                         tint = PrimaryYellowDark,
                         modifier = Modifier.size(14.dp)
                     )
@@ -125,11 +128,11 @@ fun ProductCard(
                 
                 // Location and Time
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "${product.location} • ${product.timeAgo}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.Gray
-                    )
+                Text(
+                    text = stringResource(R.string.product_location_time, product.location, product.timeAgo),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.Gray
+                )
                 }
 
                 if (product.deliveryMethodsAvailable.isNotEmpty()) {
@@ -152,7 +155,7 @@ private fun DeliveryMethodSummary(methods: List<DeliveryMethod>) {
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
                 Text(
-                    text = method.title,
+                    text = method.localizedTitle(),
                     style = MaterialTheme.typography.labelSmall,
                     color = SecondaryBlue,
                     maxLines = 1,

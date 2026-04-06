@@ -51,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -58,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.unimarket.R
 import com.example.unimarket.domain.model.IncomeExpenseStats
 import com.example.unimarket.domain.model.OrderStatus
 import com.example.unimarket.domain.model.StatisticsPeriod
@@ -82,7 +84,6 @@ import com.example.unimarket.presentation.util.formatVnd
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -104,12 +105,18 @@ fun StatisticsScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Income & Expense", fontWeight = FontWeight.Bold, color = TextDarkBlack) },
+                title = {
+                    Text(
+                        stringResource(R.string.stats_title),
+                        fontWeight = FontWeight.Bold,
+                        color = TextDarkBlack
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.common_back),
                             tint = TextDarkBlack
                         )
                     }
@@ -207,7 +214,7 @@ private fun BalanceHeroCard(stats: IncomeExpenseStats) {
                 .padding(20.dp)
         ) {
             Text(
-                text = "Net balance",
+                text = stringResource(R.string.stats_net_balance),
                 color = Color.White.copy(alpha = 0.85f),
                 style = MaterialTheme.typography.titleMedium
             )
@@ -226,12 +233,12 @@ private fun BalanceHeroCard(stats: IncomeExpenseStats) {
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 HeroPill(
-                    label = "Income",
+                    label = stringResource(R.string.stats_income),
                     value = formatVnd(stats.totalIncome),
                     accent = GreenBadgeBg
                 )
                 HeroPill(
-                    label = "Expense",
+                    label = stringResource(R.string.stats_expense),
                     value = formatVnd(stats.totalExpense),
                     accent = RedDangerBg
                 )
@@ -275,7 +282,7 @@ private fun MetricsGrid(stats: IncomeExpenseStats) {
         ) {
             MetricCard(
                 modifier = Modifier.weight(1f),
-                title = "Delivered sales",
+                title = stringResource(R.string.stats_delivered_sales),
                 value = stats.deliveredSalesCount.toString(),
                 icon = Icons.Default.Sell,
                 accent = BlueReview,
@@ -283,7 +290,7 @@ private fun MetricsGrid(stats: IncomeExpenseStats) {
             )
             MetricCard(
                 modifier = Modifier.weight(1f),
-                title = "Delivered purchases",
+                title = stringResource(R.string.stats_delivered_purchases),
                 value = stats.deliveredPurchaseCount.toString(),
                 icon = Icons.Default.Payments,
                 accent = OrangeBadge,
@@ -296,7 +303,7 @@ private fun MetricsGrid(stats: IncomeExpenseStats) {
         ) {
             MetricCard(
                 modifier = Modifier.weight(1f),
-                title = "Pending income",
+                title = stringResource(R.string.stats_pending_income),
                 value = formatVnd(stats.pendingIncome),
                 icon = Icons.Default.NorthEast,
                 accent = GreenBadge,
@@ -304,7 +311,7 @@ private fun MetricsGrid(stats: IncomeExpenseStats) {
             )
             MetricCard(
                 modifier = Modifier.weight(1f),
-                title = "Avg sale value",
+                title = stringResource(R.string.stats_avg_sale_value),
                 value = formatVnd(stats.averageDeliveredSale),
                 icon = Icons.Default.SouthWest,
                 accent = RedDanger,
@@ -373,12 +380,12 @@ private fun ChartCard(stats: IncomeExpenseStats) {
             ) {
                 Column {
                     Text(
-                        text = "Cashflow trend",
+                        text = stringResource(R.string.stats_cashflow_trend),
                         color = TextDarkBlack,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = stats.period.chartSubtitle(),
+                        text = stringResource(stats.period.chartSubtitleRes()),
                         color = TextGray,
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -394,7 +401,7 @@ private fun ChartCard(stats: IncomeExpenseStats) {
 
             if (stats.chartEntries.all { it.income <= 0.0 && it.expense <= 0.0 }) {
                 Text(
-                    text = "No delivered transactions in this period yet.",
+                    text = stringResource(R.string.stats_no_delivered_transactions),
                     color = TextGray,
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -456,8 +463,8 @@ private fun ChartCard(stats: IncomeExpenseStats) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    LegendDot(label = "Income", color = SecondaryBlue)
-                    LegendDot(label = "Expense", color = OrangeBadge)
+                    LegendDot(label = stringResource(R.string.stats_income), color = SecondaryBlue)
+                    LegendDot(label = stringResource(R.string.stats_expense), color = OrangeBadge)
                 }
             }
         }
@@ -510,14 +517,14 @@ private fun TopProductsCard(products: List<TopSellingProduct>) {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "Top products",
+                text = stringResource(R.string.stats_top_products),
                 color = TextDarkBlack,
                 fontWeight = FontWeight.Bold
             )
 
             if (products.isEmpty()) {
                 Text(
-                    text = "No delivered sales to rank yet.",
+                    text = stringResource(R.string.stats_no_top_products),
                     color = TextGray,
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -565,7 +572,7 @@ private fun TopProductRow(
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "${product.orderCount} orders",
+                text = stringResource(R.string.stats_orders_count, product.orderCount),
                 color = TextGray,
                 style = MaterialTheme.typography.bodySmall
             )
@@ -591,14 +598,14 @@ private fun RecentTransactionsCard(transactions: List<StatisticsTransaction>) {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "Recent transactions",
+                text = stringResource(R.string.stats_recent_transactions),
                 color = TextDarkBlack,
                 fontWeight = FontWeight.Bold
             )
 
             if (transactions.isEmpty()) {
                 Text(
-                    text = "Transactions will appear here once you start buying or selling.",
+                    text = stringResource(R.string.stats_no_transactions),
                     color = TextGray,
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -678,29 +685,48 @@ private fun TransactionRow(transaction: StatisticsTransaction) {
     }
 }
 
+@Composable
 private fun StatisticsPeriod.displayLabel(): String {
+    return stringResource(labelRes())
+}
+
+private fun StatisticsPeriod.labelRes(): Int {
     return when (this) {
-        StatisticsPeriod.LAST_7_DAYS -> "7 days"
-        StatisticsPeriod.LAST_30_DAYS -> "30 days"
-        StatisticsPeriod.THIS_MONTH -> "This month"
-        StatisticsPeriod.ALL_TIME -> "All time"
+        StatisticsPeriod.LAST_7_DAYS -> R.string.stats_period_7_days
+        StatisticsPeriod.LAST_30_DAYS -> R.string.stats_period_30_days
+        StatisticsPeriod.THIS_MONTH -> R.string.stats_period_this_month
+        StatisticsPeriod.ALL_TIME -> R.string.stats_period_all_time
     }
 }
 
-private fun StatisticsPeriod.chartSubtitle(): String {
+private fun StatisticsPeriod.chartSubtitleRes(): Int {
     return when (this) {
-        StatisticsPeriod.LAST_7_DAYS -> "Daily delivered income and expense"
-        StatisticsPeriod.LAST_30_DAYS -> "Delivered income and expense grouped every 5 days"
-        StatisticsPeriod.THIS_MONTH -> "Delivered income and expense by week"
-        StatisticsPeriod.ALL_TIME -> "Delivered income and expense over the last 6 months"
+        StatisticsPeriod.LAST_7_DAYS -> R.string.stats_chart_subtitle_7_days
+        StatisticsPeriod.LAST_30_DAYS -> R.string.stats_chart_subtitle_30_days
+        StatisticsPeriod.THIS_MONTH -> R.string.stats_chart_subtitle_this_month
+        StatisticsPeriod.ALL_TIME -> R.string.stats_chart_subtitle_all_time
     }
 }
 
+@Composable
 private fun OrderStatus.displayLabel(): String {
-    return label.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+    return stringResource(
+        when (this) {
+            OrderStatus.WAITING_PAYMENT -> R.string.order_status_waiting_payment
+            OrderStatus.WAITING_CONFIRMATION -> R.string.order_status_waiting_confirmation
+            OrderStatus.WAITING_PICKUP -> R.string.order_status_waiting_pickup
+            OrderStatus.SHIPPING -> R.string.order_status_shipping
+            OrderStatus.IN_TRANSIT -> R.string.order_status_in_transit
+            OrderStatus.OUT_FOR_DELIVERY -> R.string.order_status_out_for_delivery
+            OrderStatus.DELIVERED -> R.string.order_status_delivered
+            OrderStatus.CANCELLED -> R.string.order_status_cancelled
+            OrderStatus.UNKNOWN -> R.string.order_status_unknown
+        }
+    )
 }
 
+@Composable
 private fun Long.displayDate(): String {
-    if (this <= 0L) return "No date"
+    if (this <= 0L) return stringResource(R.string.stats_no_date)
     return SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(this))
 }

@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Handshake
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Money
+import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.RadioButtonChecked
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
@@ -60,19 +61,31 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.rememberAsyncImagePainter
+import com.example.unimarket.R
 import com.example.unimarket.domain.model.DeliveryMethod
+import com.example.unimarket.domain.model.SellerPaymentMethodType
 import com.example.unimarket.domain.model.UserAddress
 import com.example.unimarket.presentation.theme.BackgroundLight
 import com.example.unimarket.presentation.theme.DividerColor
 import com.example.unimarket.presentation.theme.ProfileAvatarBorder
 import com.example.unimarket.presentation.theme.SecondaryBlue
 import com.example.unimarket.presentation.util.formatVnd
+import com.example.unimarket.presentation.util.localizedConditionLabel
+import com.example.unimarket.presentation.util.localizedPaymentMethodLabel
+import com.example.unimarket.presentation.util.localizedSubtitle
+import com.example.unimarket.presentation.util.localizedTitle
+
+private data class CompletedOrderResult(
+    val orderIds: List<String>,
+    val requestedCount: Int
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,15 +94,14 @@ fun CheckoutScreen(
     quantity: Int = 1,
     cartItemIds: List<String> = emptyList(),
     onBackClick: () -> Unit,
+    onTransferOrdersReady: (List<String>) -> Unit = {},
     onPurchaseCompleted: () -> Unit = {},
     viewModel: CheckoutViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
-    var completedOrderInfo by remember {
-        mutableStateOf<Pair<List<String>, Int>?>(null)
-    }
+    var completedOrderInfo by remember { mutableStateOf<CompletedOrderResult?>(null) }
 
     LaunchedEffect(productId, quantity, cartItemIds) {
         if (cartItemIds.isNotEmpty()) {
@@ -107,39 +119,26 @@ fun CheckoutScreen(
                 }
 
                 is CheckoutViewModel.UiEvent.PurchaseCompleted -> {
-                    completedOrderInfo = event.orderIds to event.requestedCount
+                    if (event.transferOrderIds.isNotEmpty()) {
+                        onTransferOrdersReady(event.transferOrderIds)
+                    } else {
+                        completedOrderInfo = CompletedOrderResult(
+                            orderIds = event.orderIds,
+                            requestedCount = event.requestedCount
+                        )
+                    }
                 }
             }
         }
     }
 
-    completedOrderInfo?.let { (orderIds, requestedCount) ->
-        val completedCount = orderIds.size
-        val isFullSuccess = completedCount == requestedCount
-
-        AlertDialog(
-            onDismissRequest = {},
-            title = {
-                Text(if (isFullSuccess) "Purchase confirmed" else "Partial purchase completed")
-            },
-            text = {
-                Text(
-                    if (isFullSuccess) {
-                        "Created $completedCount order(s) successfully."
-                    } else {
-                        "Created $completedCount/$requestedCount order(s). Check the snackbar for failed orders."
-                    }
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        completedOrderInfo = null
-                        onPurchaseCompleted()
-                    }
-                ) {
-                    Text("Continue")
-                }
+    completedOrderInfo?.let { completed ->
+        PurchaseCompletedDialog(
+            completedCount = completed.orderIds.size,
+            requestedCount = completed.requestedCount,
+            onDismiss = {
+                completedOrderInfo = null
+                onPurchaseCompleted()
             }
         )
     }
@@ -148,10 +147,13 @@ fun CheckoutScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Checkout", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.checkout_title), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     androidx.compose.material3.IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.common_back)
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
@@ -168,7 +170,10 @@ fun CheckoutScreen(
 
             uiState.orders.isEmpty() -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(uiState.errorMessage ?: "No order found", color = Color.Gray)
+                    Text(
+                        uiState.errorMessage ?: stringResource(R.string.checkout_no_order_found),
+                        color = Color.Gray
+                    )
                 }
             }
 
@@ -179,7 +184,7 @@ fun CheckoutScreen(
                         .padding(paddingValues)
                         .verticalScroll(scrollState)
                 ) {
-                    SectionTitle("ORDER DETAILS")
+                    SectionTitle(stringResource(R.string.checkout_order_details))
 
                     uiState.orders.forEachIndexed { index, order ->
                         CheckoutOrderCard(
@@ -197,8 +202,8 @@ fun CheckoutScreen(
                             onMeetingPointChange = { value ->
                                 viewModel.updateMeetingPoint(order.id, value)
                             },
-                            onSelectPaymentMethod = { method ->
-                                viewModel.selectPaymentMethod(order.id, method)
+                            onSelectPaymentMethod = { optionId ->
+                                viewModel.selectPaymentMethod(order.id, optionId)
                             }
                         )
                         Spacer(modifier = Modifier.height(16.dp))
@@ -226,7 +231,7 @@ fun CheckoutScreen(
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
-                                "Processing...",
+                                stringResource(R.string.checkout_processing),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp,
                                 color = Color.White
@@ -240,7 +245,7 @@ fun CheckoutScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                "Confirm ${uiState.orders.size} Order(s)",
+                                stringResource(R.string.checkout_confirm_orders, uiState.orders.size),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp,
                                 color = Color.White
@@ -249,7 +254,7 @@ fun CheckoutScreen(
                     }
 
                     Text(
-                        "SECURE CAMPUS TRANSACTION",
+                        stringResource(R.string.checkout_secure_campus_transaction),
                         fontSize = 10.sp,
                         color = Color.Gray,
                         fontWeight = FontWeight.Bold,
@@ -261,6 +266,46 @@ fun CheckoutScreen(
             }
         }
     }
+}
+
+@Composable
+private fun PurchaseCompletedDialog(
+    completedCount: Int,
+    requestedCount: Int,
+    onDismiss: () -> Unit
+) {
+    val isFullSuccess = completedCount == requestedCount
+
+    AlertDialog(
+        onDismissRequest = {},
+        title = {
+            Text(
+                if (isFullSuccess) {
+                    stringResource(R.string.checkout_purchase_confirmed)
+                } else {
+                    stringResource(R.string.checkout_purchase_partial)
+                }
+            )
+        },
+        text = {
+            Text(
+                if (isFullSuccess) {
+                    stringResource(R.string.checkout_purchase_confirmed_message, completedCount)
+                } else {
+                    stringResource(
+                        R.string.checkout_purchase_partial_message,
+                        completedCount,
+                        requestedCount
+                    )
+                }
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.auth_continue))
+            }
+        }
+    )
 }
 
 @Composable
@@ -285,7 +330,7 @@ private fun CheckoutOrderCard(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Order $orderIndex",
+                text = stringResource(R.string.checkout_order_index, orderIndex),
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp
             )
@@ -296,19 +341,24 @@ private fun CheckoutOrderCard(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            Text("Delivery Method", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.Gray)
+            Text(
+                stringResource(R.string.checkout_delivery_method),
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                color = Color.Gray
+            )
             Spacer(modifier = Modifier.height(8.dp))
 
             if (order.availableDeliveryMethods.isEmpty()) {
                 Text(
-                    text = "Người bán chưa thiết lập phương thức giao nhận.",
+                    text = stringResource(R.string.checkout_seller_no_delivery),
                     color = Color.Gray
                 )
             } else {
                 order.availableDeliveryMethods.forEach { method ->
                     DeliveryOptionCard(
-                        title = method.title,
-                        subtitle = method.subtitle,
+                        title = method.localizedTitle(),
+                        subtitle = method.localizedSubtitle(),
                         isSelected = order.selectedDeliveryMethod == method,
                         icon = method.icon(),
                         onClick = { onSelectDeliveryMethod(method) }
@@ -333,34 +383,39 @@ private fun CheckoutOrderCard(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            Text("Payment Method", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.Gray)
-            Spacer(modifier = Modifier.height(8.dp))
-
-            PaymentOptionCard(
-                title = "Cash on delivery",
-                isSelected = order.paymentMethod == "Cash on delivery",
-                icon = Icons.Default.Money,
-                onClick = { onSelectPaymentMethod("Cash on delivery") }
+            Text(
+                stringResource(R.string.checkout_payment_method),
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                color = Color.Gray
             )
-
             Spacer(modifier = Modifier.height(8.dp))
 
-            PaymentOptionCard(
-                title = "Bank Transfer",
-                isSelected = order.paymentMethod == "Bank Transfer",
-                icon = Icons.Default.AccountBalance,
-                onClick = { onSelectPaymentMethod("Bank Transfer") }
+            order.availablePaymentOptions.forEach { option ->
+                PaymentOptionCard(
+                    title = option.localizedTitle(),
+                    subtitle = option.localizedSubtitle(),
+                    isSelected = order.selectedPaymentOptionId == option.id,
+                    icon = option.icon(),
+                    onClick = { onSelectPaymentMethod(option.id) }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                stringResource(R.string.checkout_order_total),
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                color = Color.Gray
             )
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Text("Order Total", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.Gray)
             Spacer(modifier = Modifier.height(8.dp))
-            SummaryRow("Subtotal", formatVnd(order.subtotal))
+            SummaryRow(stringResource(R.string.checkout_subtotal), formatVnd(order.subtotal))
             Spacer(modifier = Modifier.height(8.dp))
-            SummaryRow("Platform Fee", formatVnd(order.platformFee))
+            SummaryRow(stringResource(R.string.checkout_platform_fee), formatVnd(order.platformFee))
             Spacer(modifier = Modifier.height(8.dp))
-            SummaryRow("Delivery", formatVnd(order.deliveryFee))
+            SummaryRow(stringResource(R.string.checkout_delivery_fee), formatVnd(order.deliveryFee))
 
             HorizontalDivider(color = DividerColor, modifier = Modifier.padding(vertical = 16.dp))
 
@@ -369,7 +424,7 @@ private fun CheckoutOrderCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Total", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text(stringResource(R.string.checkout_total), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Text(
                     formatVnd(order.total),
                     fontWeight = FontWeight.Bold,
@@ -396,8 +451,19 @@ private fun OrderItemSummary(order: CheckoutOrderUiState) {
         Spacer(modifier = Modifier.width(16.dp))
         Column {
             Text(order.product.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            Text("Condition: ${order.product.condition}", color = Color.Gray, fontSize = 12.sp)
-            Text("Quantity: ${order.quantity}", color = Color.Gray, fontSize = 12.sp)
+            Text(
+                stringResource(
+                    R.string.checkout_condition_value,
+                    localizedConditionLabel(order.product.condition)
+                ),
+                color = Color.Gray,
+                fontSize = 12.sp
+            )
+            Text(
+                stringResource(R.string.checkout_quantity_value, order.quantity),
+                color = Color.Gray,
+                fontSize = 12.sp
+            )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 formatVnd(order.product.price),
@@ -421,18 +487,18 @@ private fun OverallSummaryCard(uiState: CheckoutUiState) {
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Overall Summary",
+                text = stringResource(R.string.checkout_overall_summary),
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp
             )
             Spacer(modifier = Modifier.height(12.dp))
-            SummaryRow("Orders", uiState.orders.size.toString())
+            SummaryRow(stringResource(R.string.checkout_orders), uiState.orders.size.toString())
             Spacer(modifier = Modifier.height(8.dp))
-            SummaryRow("Items subtotal", formatVnd(uiState.grandSubtotal))
+            SummaryRow(stringResource(R.string.checkout_items_subtotal), formatVnd(uiState.grandSubtotal))
             Spacer(modifier = Modifier.height(8.dp))
-            SummaryRow("Platform fees", formatVnd(uiState.grandPlatformFee))
+            SummaryRow(stringResource(R.string.checkout_platform_fees), formatVnd(uiState.grandPlatformFee))
             Spacer(modifier = Modifier.height(8.dp))
-            SummaryRow("Delivery fees", formatVnd(uiState.grandDeliveryFee))
+            SummaryRow(stringResource(R.string.checkout_delivery_fees), formatVnd(uiState.grandDeliveryFee))
 
             HorizontalDivider(color = DividerColor, modifier = Modifier.padding(vertical = 16.dp))
 
@@ -441,7 +507,7 @@ private fun OverallSummaryCard(uiState: CheckoutUiState) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Grand total", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text(stringResource(R.string.checkout_grand_total), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Text(
                     formatVnd(uiState.grandTotal),
                     fontWeight = FontWeight.Bold,
@@ -483,8 +549,8 @@ private fun DeliveryMethodDetails(
                 value = meetingPoint,
                 onValueChange = onMeetingPointChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Điểm gặp trực tiếp") },
-                placeholder = { Text("VD: Cổng trường, canteen, sân trường...") },
+                label = { Text(stringResource(R.string.checkout_meeting_point)) },
+                placeholder = { Text(stringResource(R.string.checkout_meeting_point_placeholder)) },
                 shape = RoundedCornerShape(14.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     unfocusedBorderColor = Color.LightGray,
@@ -495,30 +561,30 @@ private fun DeliveryMethodDetails(
 
         DeliveryMethod.BUYER_TO_SELLER -> {
             AddressSelector(
-                title = "Địa chỉ người bán",
+                title = stringResource(R.string.checkout_seller_address),
                 addresses = sellerAddresses,
                 selectedAddressId = selectedSellerAddressId,
-                emptyState = "Người bán chưa có địa chỉ để bạn đến nhận hàng.",
+                emptyState = stringResource(R.string.checkout_seller_address_empty),
                 onAddressClick = onSellerAddressClick
             )
         }
 
         DeliveryMethod.SELLER_TO_BUYER -> {
             AddressSelector(
-                title = "Địa chỉ người mua",
+                title = stringResource(R.string.checkout_buyer_address),
                 addresses = buyerAddresses,
                 selectedAddressId = selectedBuyerAddressId,
-                emptyState = "Bạn chưa có địa chỉ. Hãy thêm địa chỉ trong Profile.",
+                emptyState = stringResource(R.string.checkout_buyer_address_empty),
                 onAddressClick = onBuyerAddressClick
             )
         }
 
         DeliveryMethod.SHIPPING -> {
             AddressSelector(
-                title = "Địa chỉ nhận hàng",
+                title = stringResource(R.string.checkout_shipping_address),
                 addresses = buyerAddresses,
                 selectedAddressId = selectedBuyerAddressId,
-                emptyState = "Bạn chưa có địa chỉ giao hàng. Hãy thêm địa chỉ trong Profile.",
+                emptyState = stringResource(R.string.checkout_shipping_address_empty),
                 onAddressClick = onBuyerAddressClick
             )
         }
@@ -558,7 +624,11 @@ private fun AddressSelector(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = if (selectedAddressId == address.id) Icons.Default.RadioButtonChecked else Icons.Default.RadioButtonUnchecked,
+                        imageVector = if (selectedAddressId == address.id) {
+                            Icons.Default.RadioButtonChecked
+                        } else {
+                            Icons.Default.RadioButtonUnchecked
+                        },
                         contentDescription = null,
                         tint = if (selectedAddressId == address.id) SecondaryBlue else Color.LightGray
                     )
@@ -566,16 +636,24 @@ private fun AddressSelector(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = buildString {
-                                append("Địa chỉ")
-                                if (address.isDefault) append(" • Mặc định")
+                                append(stringResource(R.string.profile_my_addresses))
+                                if (address.isDefault) append(" • ${stringResource(R.string.common_default)}")
                             },
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(address.recipientName, style = MaterialTheme.typography.bodySmall)
                         if (address.phoneNumber.isNotBlank()) {
-                            Text(address.phoneNumber, color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+                            Text(
+                                address.phoneNumber,
+                                color = Color.Gray,
+                                style = MaterialTheme.typography.bodySmall
+                            )
                         }
-                        Text(address.shortDisplay(), color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            address.shortDisplay(),
+                            color = Color.Gray,
+                            style = MaterialTheme.typography.bodySmall
+                        )
                     }
                 }
             }
@@ -642,8 +720,8 @@ private fun PaymentOptionCard(
             .fillMaxWidth()
             .clip(RoundedCornerShape(24.dp))
             .border(
-                width = 1.dp,
-                color = Color.LightGray,
+                width = if (isSelected) 2.dp else 1.dp,
+                color = if (isSelected) SecondaryBlue else Color.LightGray,
                 shape = RoundedCornerShape(24.dp)
             )
             .background(Color.White)
@@ -666,7 +744,7 @@ private fun PaymentOptionCard(
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                if (subtitle != null) {
+                if (!subtitle.isNullOrBlank()) {
                     Text(subtitle, color = Color.Gray, fontSize = 12.sp)
                 }
             }
@@ -691,5 +769,27 @@ private fun DeliveryMethod.icon(): ImageVector {
         DeliveryMethod.BUYER_TO_SELLER -> Icons.Default.Storefront
         DeliveryMethod.SELLER_TO_BUYER -> Icons.Default.Place
         DeliveryMethod.SHIPPING -> Icons.Default.LocalShipping
+    }
+}
+
+@Composable
+private fun CheckoutPaymentOption.localizedTitle(): String {
+    return sellerMethod?.displayTitle?.ifBlank { null }
+        ?: localizedPaymentMethodLabel(paymentMethodCode)
+}
+
+private fun CheckoutPaymentOption.localizedSubtitle(): String? {
+    return when (type) {
+        SellerPaymentMethodType.CASH_ON_DELIVERY -> null
+        SellerPaymentMethodType.BANK_TRANSFER -> sellerMethod?.shortSubtitle
+        SellerPaymentMethodType.MOMO -> sellerMethod?.shortSubtitle
+    }
+}
+
+private fun CheckoutPaymentOption.icon(): ImageVector {
+    return when (type) {
+        SellerPaymentMethodType.CASH_ON_DELIVERY -> Icons.Default.Money
+        SellerPaymentMethodType.BANK_TRANSFER -> Icons.Default.AccountBalance
+        SellerPaymentMethodType.MOMO -> Icons.Default.PhoneAndroid
     }
 }

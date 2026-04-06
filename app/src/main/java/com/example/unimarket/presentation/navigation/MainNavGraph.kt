@@ -9,11 +9,13 @@ import androidx.navigation.compose.composable
 import com.example.unimarket.presentation.auth.AuthViewModel
 import com.example.unimarket.presentation.cart.CartScreen
 import com.example.unimarket.presentation.checkout.CheckoutScreen
+import com.example.unimarket.presentation.checkout.QrTransferScreen
 import com.example.unimarket.presentation.explore.ExploreScreen
 import com.example.unimarket.presentation.messages.ChatDetailScreen
 import com.example.unimarket.presentation.messages.MessagesScreen
 import com.example.unimarket.presentation.mypurchases.MyPurchasesScreen
 import com.example.unimarket.presentation.profile.MyAddressesScreen
+import com.example.unimarket.presentation.profile.PaymentMethodsScreen
 import com.example.unimarket.presentation.profile.ProfileScreen
 import com.example.unimarket.presentation.sell.SellScreen
 import com.example.unimarket.presentation.statistics.StatisticsScreen
@@ -74,6 +76,9 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
                 onMyPurchasesClick = {
                     navController.navigate(Screen.MyPurchases.route)
                 },
+                onPaymentMethodsClick = {
+                    navController.navigate(Screen.PaymentMethods.route)
+                },
                 onSellerOrdersClick = {
                     navController.navigate(Screen.SellerOrders.route)
                 },
@@ -87,9 +92,19 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
                 onBackClick = { navController.popBackStack() }
             )
         }
+        composable(Screen.PaymentMethods.route) {
+            PaymentMethodsScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
         composable(Screen.MyPurchases.route) {
             MyPurchasesScreen(
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                onPendingPaymentClick = { orderId ->
+                    navController.navigate(
+                        Screen.QrTransfer.route + "?orderIds=" + Uri.encode(orderId)
+                    )
+                }
             )
         }
         composable(Screen.SellerOrders.route) {
@@ -179,6 +194,30 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
             )
         }
         composable(
+            route = Screen.QrTransfer.route + "?orderIds={orderIds}",
+            arguments = listOf(androidx.navigation.navArgument("orderIds") {
+                type = androidx.navigation.NavType.StringType
+                defaultValue = ""
+            })
+        ) { backStackEntry ->
+            val orderIds = backStackEntry.arguments
+                ?.getString("orderIds")
+                .orEmpty()
+                .split(",")
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+            QrTransferScreen(
+                orderIds = orderIds,
+                onBackClick = { navController.popBackStack() },
+                onTransferCompleted = {
+                    navController.navigate(Screen.Explore.route) {
+                        popUpTo(Screen.Explore.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
+        composable(
             route = Screen.Checkout.route + "/{productId}?quantity={quantity}",
             arguments = listOf(androidx.navigation.navArgument("productId") {
                 type = androidx.navigation.NavType.StringType
@@ -193,6 +232,11 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
                 productId = productId,
                 quantity = quantity,
                 onBackClick = { navController.popBackStack() },
+                onTransferOrdersReady = { orderIds ->
+                    navController.navigate(
+                        Screen.QrTransfer.route + "?orderIds=" + Uri.encode(orderIds.joinToString(","))
+                    )
+                },
                 onPurchaseCompleted = {
                     navController.navigate(Screen.Explore.route) {
                         popUpTo(Screen.Explore.route) { inclusive = false }
@@ -218,6 +262,11 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
             CheckoutScreen(
                 cartItemIds = cartItemIds,
                 onBackClick = { navController.popBackStack() },
+                onTransferOrdersReady = { orderIds ->
+                    navController.navigate(
+                        Screen.QrTransfer.route + "?orderIds=" + Uri.encode(orderIds.joinToString(","))
+                    )
+                },
                 onPurchaseCompleted = {
                     navController.navigate(Screen.Explore.route) {
                         popUpTo(Screen.Explore.route) { inclusive = false }

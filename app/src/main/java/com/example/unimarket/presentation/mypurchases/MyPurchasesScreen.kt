@@ -66,6 +66,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -95,11 +96,13 @@ import com.example.unimarket.presentation.theme.TagBlueBg
 import com.example.unimarket.presentation.theme.TextDarkBlack
 import com.example.unimarket.presentation.theme.TextGray
 import com.example.unimarket.presentation.util.formatVnd
+import com.example.unimarket.presentation.util.localizedLabel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MyPurchasesScreen(
     onBackClick: () -> Unit,
+    onPendingPaymentClick: (String) -> Unit = {},
     viewModel: MyPurchasesViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -137,7 +140,7 @@ fun MyPurchasesScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Orders",
+                        text = stringResource(R.string.mypurchases_title),
                         fontWeight = FontWeight.Bold,
                         color = TextDarkBlack
                     )
@@ -146,7 +149,7 @@ fun MyPurchasesScreen(
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.common_back),
                             tint = TextDarkBlack
                         )
                     }
@@ -155,7 +158,7 @@ fun MyPurchasesScreen(
                     IconButton(onClick = {}) {
                         Icon(
                             imageVector = Icons.Default.Search,
-                            contentDescription = "Search orders",
+                            contentDescription = stringResource(R.string.seller_orders_search_orders),
                             tint = TextDarkBlack
                         )
                     }
@@ -203,14 +206,14 @@ fun MyPurchasesScreen(
                                 .fillMaxSize()
                                 .padding(horizontal = 20.dp),
                             title = if (uiState.orders.isEmpty()) {
-                                "You have no purchases yet"
+                                stringResource(R.string.mypurchases_empty_title)
                             } else {
-                                "No orders in this tab yet"
+                                stringResource(R.string.mypurchases_empty_tab_title)
                             },
                             subtitle = if (uiState.orders.isEmpty()) {
-                                "Orders created for this account will appear here."
+                                stringResource(R.string.mypurchases_empty_subtitle)
                             } else {
-                                "Try a different status tab or pull to refresh."
+                                stringResource(R.string.mypurchases_empty_tab_subtitle)
                             }
                         )
                     }
@@ -230,6 +233,7 @@ fun MyPurchasesScreen(
                                 PurchaseOrderCard(
                                     order = order,
                                     isSubmittingReview = uiState.submittingReviewOrderId == order.id,
+                                    onPendingPaymentClick = onPendingPaymentClick,
                                     onRateSeller = {
                                         reviewTargetOrder = order
                                         pendingRating = order.reviewRating ?: 0
@@ -299,7 +303,7 @@ private fun PurchaseTabBar(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = tab.label,
+                        text = tab.label(),
                         color = if (isSelected) SecondaryBlue else TextGray,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                         fontSize = 13.sp,
@@ -327,15 +331,18 @@ private fun PurchaseTabBar(
 private fun PurchaseOrderCard(
     order: Order,
     isSubmittingReview: Boolean,
+    onPendingPaymentClick: (String) -> Unit,
     onRateSeller: () -> Unit
 ) {
     val totalAmount = if (order.totalAmount > 0) order.totalAmount else order.unitPrice * order.quantity
+    val isWaitingPayment = order.status == OrderStatus.WAITING_PAYMENT
     val isDelivered = order.status == OrderStatus.DELIVERED
     val hasReview = order.reviewRating != null
     val primaryActionLabel = when {
-        hasReview -> "Rated ${order.reviewRating}/5"
-        isDelivered -> "Rate Seller"
-        else -> "Track Order"
+        isWaitingPayment -> stringResource(R.string.mypurchases_pay_now)
+        hasReview -> stringResource(R.string.mypurchases_rated_seller, order.reviewRating ?: 0)
+        isDelivered -> stringResource(R.string.mypurchases_rate_seller)
+        else -> stringResource(R.string.mypurchases_track_order)
     }
 
     Surface(
@@ -429,7 +436,7 @@ private fun PurchaseOrderCard(
                 }
 
                 Text(
-                    text = "Qty:${order.quantity}",
+                    text = stringResource(R.string.common_qty, order.quantity),
                     color = TextGray,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
@@ -444,13 +451,17 @@ private fun PurchaseOrderCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (order.quantity == 1) "1 item" else "${order.quantity} items",
+                    text = if (order.quantity == 1) {
+                        stringResource(R.string.mypurchases_one_item)
+                    } else {
+                        stringResource(R.string.mypurchases_many_items, order.quantity)
+                    },
                     color = TextGray,
                     fontSize = 12.sp
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "Order Total:",
+                        text = stringResource(R.string.mypurchases_order_total),
                         color = TextGray,
                         fontSize = 12.sp
                     )
@@ -477,7 +488,7 @@ private fun PurchaseOrderCard(
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = TextDarkBlack)
                 ) {
                     Text(
-                        text = "Contact Seller",
+                        text = stringResource(R.string.mypurchases_contact_seller),
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 13.sp
                     )
@@ -485,13 +496,15 @@ private fun PurchaseOrderCard(
 
                 Button(
                     onClick = {
-                        if (isDelivered && !hasReview) {
+                        if (isWaitingPayment) {
+                            onPendingPaymentClick(order.id)
+                        } else if (isDelivered && !hasReview) {
                             onRateSeller()
                         }
                     },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp),
-                    enabled = !hasReview && !isSubmittingReview,
+                    enabled = (isWaitingPayment || !hasReview) && !isSubmittingReview,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (hasReview) ProfileAvatarBorder else SecondaryBlue,
                         disabledContainerColor = ProfileAvatarBorder,
@@ -507,7 +520,7 @@ private fun PurchaseOrderCard(
                     } else {
                         Text(
                             text = primaryActionLabel,
-                            color = if (hasReview) TextGray else SurfaceWhite,
+                            color = if (hasReview && !isWaitingPayment) TextGray else SurfaceWhite,
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp
                         )
@@ -533,7 +546,10 @@ private fun ReviewSellerDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "Rate ${order.storeName.ifBlank { "seller" }}",
+                text = stringResource(
+                    R.string.mypurchases_rate_store,
+                    order.storeName.ifBlank { stringResource(R.string.mypurchases_seller_fallback) }
+                ),
                 fontWeight = FontWeight.Bold
             )
         },
@@ -542,7 +558,7 @@ private fun ReviewSellerDialog(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "Sản phẩm: ${order.productName}",
+                    text = stringResource(R.string.mypurchases_product_name, order.productName),
                     color = TextDarkBlack,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -551,7 +567,7 @@ private fun ReviewSellerDialog(
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "Số lượng: ${order.quantity}",
+                    text = stringResource(R.string.mypurchases_quantity_value, order.quantity),
                     color = TextGray,
                     fontSize = 14.sp
                 )
@@ -578,7 +594,7 @@ private fun ReviewSellerDialog(
                                         R.drawable.star_light_gray
                                     }
                                 ),
-                                contentDescription = "Rate $index stars",
+                                contentDescription = stringResource(R.string.mypurchases_rate_stars, index),
                                 tint = Color.Unspecified,
                                 modifier = Modifier
                                     .size(40.dp)
@@ -595,7 +611,7 @@ private fun ReviewSellerDialog(
                     minLines = 3,
                     maxLines = 8,
                     placeholder = {
-                        Text("Share a quick comment about your experience")
+                        Text(stringResource(R.string.mypurchases_comment_placeholder))
                     }
                 )
             }
@@ -612,7 +628,7 @@ private fun ReviewSellerDialog(
                         color = SurfaceWhite
                     )
                 } else {
-                    Text("Submit")
+                    Text(stringResource(R.string.mypurchases_submit))
                 }
             }
         },
@@ -621,7 +637,7 @@ private fun ReviewSellerDialog(
                 onClick = onDismiss,
                 enabled = !isSubmitting
             ) {
-                Text("Cancel")
+                Text(stringResource(R.string.common_cancel))
             }
         }
     )
@@ -661,7 +677,7 @@ private fun ReviewSuccessDialog(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Check,
-                        contentDescription = "Success",
+                        contentDescription = stringResource(R.string.mypurchases_success),
                         tint = SurfaceWhite,
                         modifier = Modifier.size(34.dp)
                     )
@@ -670,7 +686,7 @@ private fun ReviewSuccessDialog(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Text(
-                    text = "Thank You for Your\nFeedback!",
+                    text = stringResource(R.string.mypurchases_review_success_title),
                     color = TextDarkBlack,
                     fontSize = 28.sp,
                     fontWeight = FontWeight.ExtraBold,
@@ -680,7 +696,7 @@ private fun ReviewSuccessDialog(
                 Spacer(modifier = Modifier.height(14.dp))
 
                 Text(
-                    text = "Your review helps the campus\ncommunity find the best items and\ntrusted sellers.",
+                    text = stringResource(R.string.mypurchases_review_success_message),
                     color = TextGray,
                     fontSize = 15.sp,
                     lineHeight = 22.sp
@@ -697,7 +713,7 @@ private fun ReviewSuccessDialog(
                     colors = ButtonDefaults.buttonColors(containerColor = SecondaryBlue)
                 ) {
                     Text(
-                        text = "Back to Orders",
+                        text = stringResource(R.string.mypurchases_back_to_orders),
                         color = SurfaceWhite,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
@@ -707,7 +723,7 @@ private fun ReviewSuccessDialog(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    text = "Share UniMarket",
+                    text = stringResource(R.string.mypurchases_share_unimarket),
                     color = SecondaryBlue,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -716,10 +732,10 @@ private fun ReviewSuccessDialog(
                             type = "text/plain"
                             putExtra(
                                 Intent.EXTRA_TEXT,
-                                "I just left a verified review on UniMarket. Check out trusted campus deals on UniMarket."
+                                context.getString(R.string.mypurchases_share_text)
                             )
                         }
-                        context.startActivity(Intent.createChooser(shareIntent, "Share UniMarket"))
+                        context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.mypurchases_share_unimarket)))
                     }
                 )
 
@@ -750,7 +766,7 @@ private fun ReviewSuccessDialog(
                             )
                         }
                         Text(
-                            text = "VERIFIED REVIEW",
+                            text = stringResource(R.string.mypurchases_verified_review),
                             color = Color(0xFF9C3FA0),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
@@ -809,6 +825,7 @@ private fun StatusBadge(
     statusLabel: String
 ) {
     val (background, contentColor) = when (status) {
+        OrderStatus.WAITING_PAYMENT -> Color(0xFFFFF0D8) to Color(0xFFCB8A16)
         OrderStatus.WAITING_CONFIRMATION -> OrangeBadgeBg to OrangeBadge
         OrderStatus.WAITING_PICKUP -> TagBlueBg to SecondaryBlue
         OrderStatus.SHIPPING -> Color(0xFFFCE9F8) to Color(0xFFC457A8)
@@ -826,11 +843,24 @@ private fun StatusBadge(
             .padding(horizontal = 10.dp, vertical = 5.dp)
     ) {
         Text(
-            text = statusLabel,
+            text = status.localizedLabel(),
             color = contentColor,
             fontWeight = FontWeight.Bold,
             fontSize = 10.sp
         )
+    }
+}
+
+@Composable
+private fun PurchaseOrderTab.label(): String {
+    return when (this) {
+        PurchaseOrderTab.ALL -> stringResource(R.string.orders_tab_all)
+        PurchaseOrderTab.WAITING_PAYMENT -> stringResource(R.string.order_status_waiting_payment)
+        PurchaseOrderTab.WAIT_FOR_CONFIRMATION -> stringResource(R.string.order_status_waiting_confirmation)
+        PurchaseOrderTab.WAIT_FOR_PICKUP -> stringResource(R.string.order_status_waiting_pickup)
+        PurchaseOrderTab.SHIPPING -> stringResource(R.string.order_status_shipping)
+        PurchaseOrderTab.DELIVERED -> stringResource(R.string.order_status_delivered)
+        PurchaseOrderTab.CANCELLED -> stringResource(R.string.order_status_cancelled)
     }
 }
 
@@ -878,6 +908,7 @@ private fun EmptyPurchasesState(
 
 private enum class PurchaseOrderTab(val label: String) {
     ALL("All"),
+    WAITING_PAYMENT("Wait for Payment"),
     WAIT_FOR_CONFIRMATION("Wait for Confirmation"),
     WAIT_FOR_PICKUP("Wait for Pickup"),
     SHIPPING("Shipping"),
@@ -887,6 +918,7 @@ private enum class PurchaseOrderTab(val label: String) {
     fun matches(status: OrderStatus): Boolean {
         return when (this) {
             ALL -> true
+            WAITING_PAYMENT -> status == OrderStatus.WAITING_PAYMENT
             WAIT_FOR_CONFIRMATION -> status == OrderStatus.WAITING_CONFIRMATION
             WAIT_FOR_PICKUP -> status == OrderStatus.WAITING_PICKUP
             SHIPPING -> status in setOf(

@@ -9,5 +9,6 @@ data class UserProfile(
     val boughtCount: Int = 0,
     val soldCount: Int = 0,
     val averageRating: Double = 0.0,
-    val ratingCount: Int = 0
+    val ratingCount: Int = 0,
+    val paymentMethods: List<SellerPaymentMethod> = emptyList()
 )

@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -45,16 +46,40 @@ fun CartScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
+    var itemPendingRemoval by remember { mutableStateOf<CartItem?>(null) }
     val allSelected = uiState.cartItems.isNotEmpty() &&
         uiState.selectedCartItemIds.size == uiState.cartItems.size
+
+    itemPendingRemoval?.let { pendingItem ->
+        AlertDialog(
+            onDismissRequest = { itemPendingRemoval = null },
+            title = { Text(stringResource(R.string.cart_remove_item_title)) },
+            text = { Text(stringResource(R.string.cart_remove_item_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.removeItem(pendingItem.id)
+                        itemPendingRemoval = null
+                    }
+                ) {
+                    Text(stringResource(R.string.common_remove))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { itemPendingRemoval = null }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("My Cart") },
+                title = { Text(stringResource(R.string.cart_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = BackgroundLight)
@@ -91,7 +116,7 @@ fun CartScreen(
                     LoadingAminEmptyCart()
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "My Cart is empty",
+                        text = stringResource(R.string.cart_empty),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -113,7 +138,7 @@ fun CartScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Products",
+                        text = stringResource(R.string.cart_products),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -122,7 +147,7 @@ fun CartScreen(
                             checked = allSelected,
                             onCheckedChange = { viewModel.selectAll(it) }
                         )
-                        Text("Select all")
+                        Text(stringResource(R.string.cart_select_all))
                     }
                 }
 
@@ -132,7 +157,13 @@ fun CartScreen(
                         isSelected = item.id in uiState.selectedCartItemIds,
                         onSelectionChange = { viewModel.toggleSelection(item.id, it) },
                         onIncrease = { viewModel.updateQuantity(item.id, item.quantity + 1) },
-                        onDecrease = { viewModel.updateQuantity(item.id, item.quantity - 1) },
+                        onDecrease = {
+                            if (item.quantity == 1) {
+                                itemPendingRemoval = item
+                            } else {
+                                viewModel.updateQuantity(item.id, item.quantity - 1)
+                            }
+                        },
                         onRemove = { viewModel.removeItem(item.id) }
                     )
                     Spacer(modifier = Modifier.height(12.dp))
@@ -146,14 +177,14 @@ fun CartScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = "Selection Summary",
+                            text = stringResource(R.string.cart_selection_summary),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(bottom = 12.dp)
                         )
 
                         SummaryRow(
-                            "Selected items (${uiState.selectedCartItemIds.size})",
+                            stringResource(R.string.cart_selected_items_count, uiState.selectedCartItemIds.size),
                             formatVnd(uiState.selectedSubtotal)
                         )
 
@@ -168,7 +199,7 @@ fun CartScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                "Selected total",
+                                stringResource(R.string.cart_selected_total),
                                 fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.titleMedium
                             )
@@ -247,7 +278,7 @@ fun CartItemRow(
                     ) {
                         Icon(
                             Icons.Default.Close,
-                            contentDescription = "Remove",
+                            contentDescription = stringResource(R.string.common_remove),
                             tint = Color.Gray,
                             modifier = Modifier.size(16.dp)
                         )
@@ -266,7 +297,10 @@ fun CartItemRow(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "Item total: ${formatVnd(item.product.price * item.quantity)}",
+                    text = stringResource(
+                        R.string.cart_item_total,
+                        formatVnd(item.product.price * item.quantity)
+                    ),
                     color = Color.Gray,
                     style = MaterialTheme.typography.bodySmall
                 )
@@ -281,7 +315,7 @@ fun CartItemRow(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Remove,
-                        contentDescription = "Decrease",
+                        contentDescription = stringResource(R.string.common_decrease),
                         modifier = Modifier
                             .size(16.dp)
                             .clickable { onDecrease() }
@@ -293,7 +327,7 @@ fun CartItemRow(
                     )
                     Icon(
                         imageVector = Icons.Default.Add,
-                        contentDescription = "Increase",
+                        contentDescription = stringResource(R.string.common_increase),
                         modifier = Modifier
                             .size(16.dp)
                             .clickable { onIncrease() }
@@ -339,7 +373,7 @@ fun CartBottomBar(
         ) {
             Column {
                 Text(
-                    "Total Payment",
+                    stringResource(R.string.cart_total_payment),
                     color = Color.Gray,
                     style = MaterialTheme.typography.labelMedium
                 )
@@ -358,7 +392,11 @@ fun CartBottomBar(
                 shape = RoundedCornerShape(24.dp),
                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
             ) {
-                Text("Checkout ($selectedCount)", color = Color.White, fontWeight = FontWeight.Bold)
+                Text(
+                    stringResource(R.string.cart_checkout_count, selectedCount),
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
                 Spacer(modifier = Modifier.width(8.dp))
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
