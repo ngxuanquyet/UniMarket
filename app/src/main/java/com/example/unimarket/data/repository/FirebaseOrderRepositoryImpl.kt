@@ -2,6 +2,7 @@ package com.example.unimarket.data.repository
 
 import com.example.unimarket.BuildConfig
 import com.example.unimarket.data.api.NotificationApiService
+import com.example.unimarket.data.api.SepayApiService
 import com.example.unimarket.data.api.model.CheckoutAddressDto
 import com.example.unimarket.data.api.model.CheckoutPaymentMethodDto
 import com.example.unimarket.data.api.model.OrderDto
@@ -18,8 +19,6 @@ import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
-import com.google.firebase.firestore.Source
 import kotlinx.coroutines.tasks.await
 import org.json.JSONObject
 import javax.inject.Inject
@@ -27,12 +26,19 @@ import javax.inject.Inject
 class FirebaseOrderRepositoryImpl @Inject constructor(
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
-    private val notificationApiService: NotificationApiService
+    private val notificationApiService: NotificationApiService,
+    private val sepayApiService: SepayApiService
 ) : OrderRepository {
 
     override suspend fun getBuyerOrders(): Result<List<Order>> {
+        val now = System.currentTimeMillis()
         return fetchOrdersFromBackend(actorField = ActorField.BUYER) { authorization ->
             notificationApiService.getBuyerOrders(authorization)
+        }.map { orders ->
+            orders.filter { order ->
+                // Filter out orders that are waiting for payment but have already expired
+                order.status != OrderStatus.WAITING_PAYMENT || order.paymentExpiresAt > now
+            }
         }
     }
 
@@ -44,9 +50,15 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
 
     override suspend fun updateOrderStatus(order: Order, status: OrderStatus): Result<Unit> {
         val userId = auth.currentUser?.uid ?: return Result.failure(Exception("No user logged in"))
-        if (order.sellerId != userId) {
-            return Result.failure(Exception("You can only update your own orders"))
+        
+        // Allow the update if the user is the seller OR if the user is the buyer moving it to WAITING_CONFIRMATION
+        val isSeller = order.sellerId == userId
+        val isBuyerConfirmingPayment = order.buyerId == userId && status == OrderStatus.WAITING_CONFIRMATION
+        
+        if (!isSeller && !isBuyerConfirmingPayment) {
+            return Result.failure(Exception("You can only update your own or verified purchases"))
         }
+
         if (BuildConfig.NOTIFICATION_SERVER_BASE_URL.isBlank()) {
             return Result.failure(Exception("Checkout backend is not configured"))
         }
@@ -80,6 +92,73 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
 
     override suspend fun checkTransferPayment(orderId: String): Result<OrderPaymentCheckResult> {
         val currentUser = auth.currentUser ?: return Result.failure(Exception("No user logged in"))
+        
+        // 1. Get current order details to verify amount and content
+        val ordersResult = getBuyerOrders()
+        val order = ordersResult.getOrNull()?.find { it.id == orderId }
+            ?: return Result.failure(Exception("Order not found or not accessible"))
+
+        // 2. If it is a bank transfer to our app account, check via Sepay
+        if (order.paymentMethod == "BANK_TRANSFER") {
+            try {
+                // You should define this in your BuildConfig or local.properties
+                val sepayToken = "Bearer YCHE7BBL0ARFPL4U5AQZFR3UJJPLTZX7FDGHIMW6KZVJMX1XOYSJKBVVRDN31I6O"
+                val response = sepayApiService.getTransactions(
+                    authorization = sepayToken,
+                    accountNumber = "0356433860"
+                )
+
+                if (response.isSuccessful) {
+                    val sepayData = response.body()
+                    val transactions = sepayData?.transactions ?: emptyList()
+                    
+                    // Look for a transaction where:
+                    // - content contains the order ID (e.g. UM<ID>)
+                    // - amount_in matches the order's total amount
+                    val matchingTransaction = transactions.find { tx ->
+                        val content = tx.transaction_content.uppercase()
+                        val expectedContent = order.transferContent.ifBlank { "UM${order.id}" }.uppercase()
+                        val amountMatch = tx.amount_in.toDoubleOrNull() == order.totalAmount
+                        content.contains(expectedContent) && amountMatch
+                    }
+
+                    if (matchingTransaction != null) {
+                        // Found a match! Update order status on backend
+                        updateOrderStatus(order, OrderStatus.WAITING_CONFIRMATION)
+
+                        // Explicitly clear payment expiry and update status in Firestore for immediate UI sync
+                        try {
+                            val path = order.documentPath.ifBlank { "orders/${order.id}" }
+                            firestore.document(path)
+                                .update(
+                                    mapOf(
+                                        "status" to OrderStatus.WAITING_CONFIRMATION.name,
+                                        "paymentExpiresAt" to 0L,
+                                        "updatedAt" to System.currentTimeMillis()
+                                    )
+                                ).await()
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+
+                        return Result.success(
+                            OrderPaymentCheckResult(
+                                orderId = order.id,
+                                status = OrderStatus.WAITING_CONFIRMATION,
+                                statusLabel = "PAID",
+                                paymentExpiresAt = 0L,
+                                paymentConfirmedAt = System.currentTimeMillis()
+                            )
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                // Log error if needed or fallback
+                e.printStackTrace()
+            }
+        }
+
+        // 3. Original logic as fallback or for other methods
         if (BuildConfig.NOTIFICATION_SERVER_BASE_URL.isBlank()) {
             return Result.failure(Exception("Checkout backend is not configured"))
         }
@@ -113,90 +192,6 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
         }
     }
 
-    private suspend fun getOrdersForActor(
-        primaryField: String,
-        fallbackField: String,
-        userId: String,
-        includeUserScopedCollection: Boolean
-    ): Result<List<Order>> {
-        return try {
-            val errors = mutableListOf<Throwable>()
-            val mergedOrders = mutableListOf<Order>()
-
-            runCatching {
-                mergedOrders += fetchRootOrders(userId, primaryField, fallbackField)
-            }.onFailure(errors::add)
-
-            if (includeUserScopedCollection) {
-                runCatching {
-                    mergedOrders += fetchUserScopedOrders(userId)
-                }.onFailure(errors::add)
-            }
-
-            if (mergedOrders.isEmpty() && errors.isNotEmpty()) {
-                return Result.failure(
-                    Exception(
-                        errors.firstNotNullOfOrNull { it.message?.takeIf(String::isNotBlank) }
-                            ?: "Failed to load orders"
-                    )
-                )
-            }
-
-            Result.success(
-                mergedOrders
-                    .distinctBy { it.documentPath.ifBlank { it.id } }
-                    .sortedByDescending { maxOf(it.updatedAt, it.createdAt) }
-            )
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    private suspend fun fetchRootOrders(
-        userId: String,
-        primaryField: String,
-        fallbackField: String
-    ): List<Order> {
-        val documents = mutableListOf<DocumentSnapshot>()
-
-        documents += fetchQueryDocuments(
-            firestore.collection(ORDERS_COLLECTION)
-                .whereEqualTo(primaryField, userId)
-        )
-
-        documents += fetchQueryDocuments(
-            firestore.collection(ORDERS_COLLECTION)
-                .whereEqualTo(fallbackField, userId)
-        )
-
-        return documents
-            .distinctBy { it.reference.path }
-            .mapNotNull(::mapOrder)
-    }
-
-    private suspend fun fetchUserScopedOrders(userId: String): List<Order> {
-        val collection = firestore.collection(USERS_COLLECTION)
-            .document(userId)
-            .collection(ORDERS_COLLECTION)
-
-        val snapshot = try {
-            collection.get(Source.SERVER).await()
-        } catch (_: Exception) {
-            collection.get(Source.CACHE).await()
-        }
-
-        return snapshot.documents.mapNotNull(::mapOrder)
-    }
-
-    private suspend fun fetchQueryDocuments(query: Query): List<DocumentSnapshot> {
-        val snapshot = try {
-            query.get(Source.SERVER).await()
-        } catch (_: Exception) {
-            query.get(Source.CACHE).await()
-        }
-
-        return snapshot.documents
-    }
 
     private fun mapOrder(document: DocumentSnapshot): Order? {
         return try {

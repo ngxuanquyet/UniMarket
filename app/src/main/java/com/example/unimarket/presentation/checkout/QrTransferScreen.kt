@@ -74,13 +74,12 @@ import kotlin.math.roundToInt
 fun QrTransferScreen(
     orderIds: List<String>,
     onBackClick: () -> Unit,
-    onTransferCompleted: () -> Unit,
+    onTransferCompleted: (Order) -> Unit,
     viewModel: QrTransferViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
-    var confirmedOrderId by remember { mutableStateOf<String?>(null) }
     val saveQrComingSoonMessage = stringResource(R.string.checkout_qr_save_coming_soon)
     val qrUnavailableMessage = stringResource(R.string.checkout_qr_save_unavailable)
 
@@ -96,11 +95,11 @@ fun QrTransferScreen(
                 }
 
                 is QrTransferViewModel.UiEvent.PaymentConfirmed -> {
-                    confirmedOrderId = event.orderId
+                    viewModel.onPaymentSuccessHandled(event.orderId)
                 }
 
-                QrTransferViewModel.UiEvent.AllTransfersCompleted -> {
-                    onTransferCompleted()
+                is QrTransferViewModel.UiEvent.AllTransfersCompleted -> {
+                    onTransferCompleted(event.order)
                 }
             }
         }
@@ -123,23 +122,6 @@ fun QrTransferScreen(
         }
     }
 
-    confirmedOrderId?.let { orderId ->
-        AlertDialog(
-            onDismissRequest = {},
-            title = { Text(stringResource(R.string.checkout_payment_success_title)) },
-            text = { Text(stringResource(R.string.checkout_payment_success_message)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        confirmedOrderId = null
-                        viewModel.onPaymentSuccessHandled(orderId)
-                    }
-                ) {
-                    Text(stringResource(R.string.auth_continue))
-                }
-            }
-        )
-    }
 
     if (uiState.isLoading) {
         Scaffold(
@@ -252,8 +234,12 @@ fun QrTransferScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = paymentMethod?.accountName.orEmpty().ifBlank {
-                            stringResource(R.string.profile_default_user)
+                        text = if (paymentMethod?.type == SellerPaymentMethodType.BANK_TRANSFER) {
+                            "NGUYEN XUAN QUYET"
+                        } else {
+                            paymentMethod?.accountName.orEmpty().ifBlank {
+                                stringResource(R.string.profile_default_user)
+                            }
                         },
                         fontWeight = FontWeight.Bold,
                         fontSize = 24.sp,
@@ -419,14 +405,13 @@ fun QrTransferScreen(
                     if (paymentMethod?.type == SellerPaymentMethodType.BANK_TRANSFER) {
                         TransferInfoRow(
                             label = stringResource(R.string.payment_methods_bank_name),
-                            value = paymentMethod.bankName
+                            value = "MBBank (MB)"
                         )
                         TransferInfoRow(
                             label = stringResource(R.string.payment_methods_account_number),
-                            value = paymentMethod.accountNumber
+                            value = "0356433860"
                         )
-                    }
-                    if (paymentMethod?.type == SellerPaymentMethodType.MOMO) {
+                    } else if (paymentMethod?.type == SellerPaymentMethodType.MOMO) {
                         TransferInfoRow(
                             label = stringResource(R.string.payment_methods_phone_number),
                             value = paymentMethod.phoneNumber
@@ -599,11 +584,18 @@ private fun rememberRemainingSeconds(paymentExpiresAt: Long): androidx.compose.r
 
 private fun Order.qrImageUrl(): String? {
     val method = paymentMethodDetails ?: return null
-    if (method.type != SellerPaymentMethodType.BANK_TRANSFER || !method.supportsQr()) {
-        return null
-    }
     val amount = totalAmount.roundToInt().coerceAtLeast(0)
     val addInfo = Uri.encode(transferContent.ifBlank { "UM$id" })
+    
+    if (method.type == SellerPaymentMethodType.BANK_TRANSFER) {
+        val accountName = Uri.encode("NGUYEN XUAN QUYET")
+        return "https://img.vietqr.io/image/MB-0356433860-compact2.png?amount=$amount&addInfo=$addInfo&accountName=$accountName"
+    }
+    
+    if (!method.supportsQr()) {
+        return null
+    }
+    
     val accountName = Uri.encode(method.accountName)
     return "https://img.vietqr.io/image/${method.bankCode}-${method.accountNumber}-compact2.png?amount=$amount&addInfo=$addInfo&accountName=$accountName"
 }

@@ -44,7 +44,7 @@ class QrTransferViewModel @Inject constructor(
     sealed class UiEvent {
         data class ShowSnackbar(val message: String) : UiEvent()
         data class PaymentConfirmed(val orderId: String) : UiEvent()
-        object AllTransfersCompleted : UiEvent()
+        data class AllTransfersCompleted(val order: Order) : UiEvent()
     }
 
     fun loadOrders(orderIds: List<String>) {
@@ -74,10 +74,11 @@ class QrTransferViewModel @Inject constructor(
 
     fun moveToNextOrder() {
         val state = _uiState.value
+        val currentOrder = state.currentOrder
         if (state.currentIndex < state.orders.lastIndex) {
             _uiState.update { it.copy(currentIndex = it.currentIndex + 1) }
-        } else {
-            emitAllTransfersCompleted()
+        } else if (currentOrder != null) {
+            emitAllTransfersCompleted(currentOrder)
         }
     }
 
@@ -89,7 +90,7 @@ class QrTransferViewModel @Inject constructor(
         if (state.currentIndex < state.orders.lastIndex) {
             _uiState.update { it.copy(currentIndex = it.currentIndex + 1) }
         } else {
-            emitAllTransfersCompleted()
+            emitAllTransfersCompleted(currentOrder)
         }
     }
 
@@ -202,9 +203,9 @@ class QrTransferViewModel @Inject constructor(
             }
     }
 
-    private fun emitAllTransfersCompleted() {
+    private fun emitAllTransfersCompleted(order: Order) {
         viewModelScope.launch {
-            _uiEvent.emit(UiEvent.AllTransfersCompleted)
+            _uiEvent.emit(UiEvent.AllTransfersCompleted(order))
         }
     }
 }

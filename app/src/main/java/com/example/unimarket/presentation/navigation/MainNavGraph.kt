@@ -6,10 +6,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.dialog
 import com.example.unimarket.presentation.auth.AuthViewModel
 import com.example.unimarket.presentation.cart.CartScreen
 import com.example.unimarket.presentation.checkout.CheckoutScreen
 import com.example.unimarket.presentation.checkout.QrTransferScreen
+import com.example.unimarket.presentation.checkout.PaymentSuccessScreen
 import com.example.unimarket.presentation.explore.ExploreScreen
 import com.example.unimarket.presentation.messages.ChatDetailScreen
 import com.example.unimarket.presentation.messages.MessagesScreen
@@ -209,10 +211,46 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
             QrTransferScreen(
                 orderIds = orderIds,
                 onBackClick = { navController.popBackStack() },
-                onTransferCompleted = {
+                onTransferCompleted = { order ->
+                    navController.navigate(
+                        Screen.PaymentSuccess.route +
+                                "?orderId=${order.id}" +
+                                "&productName=${Uri.encode(order.productName)}" +
+                                "&quantity=${order.quantity}" +
+                                "&totalAmount=${order.totalAmount}"
+                    ) {
+                        popUpTo(Screen.QrTransfer.route + "?orderIds={orderIds}") { inclusive = true }
+                    }
+                }
+            )
+        }
+        dialog(
+            route = Screen.PaymentSuccess.route + "?orderId={orderId}&productName={productName}&quantity={quantity}&totalAmount={totalAmount}",
+            arguments = listOf(
+                androidx.navigation.navArgument("orderId") { type = androidx.navigation.NavType.StringType },
+                androidx.navigation.navArgument("productName") { type = androidx.navigation.NavType.StringType },
+                androidx.navigation.navArgument("quantity") { type = androidx.navigation.NavType.IntType },
+                androidx.navigation.navArgument("totalAmount") { type = androidx.navigation.NavType.FloatType }
+            )
+        ) { backStackEntry ->
+            val orderId = backStackEntry.arguments?.getString("orderId").orEmpty()
+            val productName = backStackEntry.arguments?.getString("productName").orEmpty()
+            val quantity = backStackEntry.arguments?.getInt("quantity") ?: 1
+            val totalAmount = backStackEntry.arguments?.getFloat("totalAmount")?.toDouble() ?: 0.0
+
+            PaymentSuccessScreen(
+                orderId = orderId,
+                productName = productName,
+                quantity = quantity,
+                totalAmount = totalAmount,
+                onTrackOrderClick = {
+                    navController.navigate(Screen.MyPurchases.route) {
+                        popUpTo(Screen.PaymentSuccess.route + "?orderId={orderId}&productName={productName}&quantity={quantity}&totalAmount={totalAmount}") { inclusive = true }
+                    }
+                },
+                onBackToMarketplaceClick = {
                     navController.navigate(Screen.Explore.route) {
-                        popUpTo(Screen.Explore.route) { inclusive = false }
-                        launchSingleTop = true
+                        popUpTo(Screen.Explore.route) { inclusive = true }
                     }
                 }
             )

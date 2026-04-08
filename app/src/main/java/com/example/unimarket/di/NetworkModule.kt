@@ -4,6 +4,7 @@ import com.example.unimarket.BuildConfig
 import com.example.unimarket.data.api.GeminiApiService
 import com.example.unimarket.data.api.ImageApiService
 import com.example.unimarket.data.api.NotificationApiService
+import com.example.unimarket.data.api.SepayApiService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -19,6 +20,7 @@ import javax.inject.Singleton
 object  NetworkModule {
     private const val IMAGE_BASE_URL = "https://api.imgbb.com/1/"
     private const val GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/"
+    private const val SEPAY_BASE_URL = "https://my.sepay.vn/"
 
     @Provides
     @Singleton
@@ -66,5 +68,16 @@ object  NetworkModule {
             .client(okHttpClient)
             .build()
             .create(GeminiApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSepayApiService(okHttpClient: OkHttpClient): SepayApiService {
+        return Retrofit.Builder()
+            .baseUrl(SEPAY_BASE_URL)
+            .addConverterFactory(GsonConverterFactory.create())
+            .client(okHttpClient)
+            .build()
+            .create(SepayApiService::class.java)
     }
 }
