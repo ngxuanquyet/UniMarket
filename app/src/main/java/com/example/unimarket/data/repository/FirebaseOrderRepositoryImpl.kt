@@ -92,73 +92,7 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
 
     override suspend fun checkTransferPayment(orderId: String): Result<OrderPaymentCheckResult> {
         val currentUser = auth.currentUser ?: return Result.failure(Exception("No user logged in"))
-        
-        // 1. Get current order details to verify amount and content
-        val ordersResult = getBuyerOrders()
-        val order = ordersResult.getOrNull()?.find { it.id == orderId }
-            ?: return Result.failure(Exception("Order not found or not accessible"))
 
-        // 2. If it is a bank transfer to our app account, check via Sepay
-        if (order.paymentMethod == "BANK_TRANSFER") {
-            try {
-                // You should define this in your BuildConfig or local.properties
-                val sepayToken = "Bearer YCHE7BBL0ARFPL4U5AQZFR3UJJPLTZX7FDGHIMW6KZVJMX1XOYSJKBVVRDN31I6O"
-                val response = sepayApiService.getTransactions(
-                    authorization = sepayToken,
-                    accountNumber = "0356433860"
-                )
-
-                if (response.isSuccessful) {
-                    val sepayData = response.body()
-                    val transactions = sepayData?.transactions ?: emptyList()
-                    
-                    // Look for a transaction where:
-                    // - content contains the order ID (e.g. UM<ID>)
-                    // - amount_in matches the order's total amount
-                    val matchingTransaction = transactions.find { tx ->
-                        val content = tx.transaction_content.uppercase()
-                        val expectedContent = order.transferContent.ifBlank { "UM${order.id}" }.uppercase()
-                        val amountMatch = tx.amount_in.toDoubleOrNull() == order.totalAmount
-                        content.contains(expectedContent) && amountMatch
-                    }
-
-                    if (matchingTransaction != null) {
-                        // Found a match! Update order status on backend
-                        updateOrderStatus(order, OrderStatus.WAITING_CONFIRMATION)
-
-                        // Explicitly clear payment expiry and update status in Firestore for immediate UI sync
-                        try {
-                            val path = order.documentPath.ifBlank { "orders/${order.id}" }
-                            firestore.document(path)
-                                .update(
-                                    mapOf(
-                                        "status" to OrderStatus.WAITING_CONFIRMATION.name,
-                                        "paymentExpiresAt" to 0L,
-                                        "updatedAt" to System.currentTimeMillis()
-                                    )
-                                ).await()
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
-
-                        return Result.success(
-                            OrderPaymentCheckResult(
-                                orderId = order.id,
-                                status = OrderStatus.WAITING_CONFIRMATION,
-                                statusLabel = "PAID",
-                                paymentExpiresAt = 0L,
-                                paymentConfirmedAt = System.currentTimeMillis()
-                            )
-                        )
-                    }
-                }
-            } catch (e: Exception) {
-                // Log error if needed or fallback
-                e.printStackTrace()
-            }
-        }
-
-        // 3. Original logic as fallback or for other methods
         if (BuildConfig.NOTIFICATION_SERVER_BASE_URL.isBlank()) {
             return Result.failure(Exception("Checkout backend is not configured"))
         }

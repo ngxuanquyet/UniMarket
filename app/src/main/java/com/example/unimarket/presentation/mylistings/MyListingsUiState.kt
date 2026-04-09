@@ -18,9 +18,9 @@ data class MyListingsUiState(
             else -> emptyList()
         }
         
-    val liveItemsCount: Int
-        get() = activeListings.size
+    val statItemsCount: Int
+        get() = displayedListings.size
 
     val estimatedValue: Double
-        get() = activeListings.sumOf { it.price }
+        get() = displayedListings.sumOf { it.price }
 }

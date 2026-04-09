@@ -103,6 +103,8 @@ import com.example.unimarket.presentation.util.localizedLabel
 fun MyPurchasesScreen(
     onBackClick: () -> Unit,
     onPendingPaymentClick: (String) -> Unit = {},
+    onTrackOrderClick: (String) -> Unit = {},
+    onConversationOpen: (String) -> Unit = {},
     viewModel: MyPurchasesViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -131,6 +133,14 @@ fun MyPurchasesScreen(
             pendingComment = ""
             showReviewSuccessDialog = true
             viewModel.clearMessages()
+        }
+    }
+
+    LaunchedEffect(viewModel.events) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is MyPurchasesEvent.OpenConversation -> onConversationOpen(event.conversationId)
+            }
         }
     }
 
@@ -234,6 +244,8 @@ fun MyPurchasesScreen(
                                     order = order,
                                     isSubmittingReview = uiState.submittingReviewOrderId == order.id,
                                     onPendingPaymentClick = onPendingPaymentClick,
+                                    onTrackOrderClick = onTrackOrderClick,
+                                    onContactSeller = { viewModel.contactSeller(order) },
                                     onRateSeller = {
                                         reviewTargetOrder = order
                                         pendingRating = order.reviewRating ?: 0
@@ -332,6 +344,8 @@ private fun PurchaseOrderCard(
     order: Order,
     isSubmittingReview: Boolean,
     onPendingPaymentClick: (String) -> Unit,
+    onTrackOrderClick: (String) -> Unit,
+    onContactSeller: () -> Unit,
     onRateSeller: () -> Unit
 ) {
     val totalAmount = if (order.totalAmount > 0) order.totalAmount else order.unitPrice * order.quantity
@@ -482,7 +496,7 @@ private fun PurchaseOrderCard(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 OutlinedButton(
-                    onClick = {},
+                    onClick = onContactSeller,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = TextDarkBlack)
@@ -500,6 +514,8 @@ private fun PurchaseOrderCard(
                             onPendingPaymentClick(order.id)
                         } else if (isDelivered && !hasReview) {
                             onRateSeller()
+                        } else {
+                            onTrackOrderClick(order.id)
                         }
                     },
                     modifier = Modifier.weight(1f),

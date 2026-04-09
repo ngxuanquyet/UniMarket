@@ -2,6 +2,8 @@ package com.example.unimarket.presentation.mylistings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.unimarket.domain.model.Order
+import com.example.unimarket.domain.model.OrderStatus
 import com.example.unimarket.domain.usecase.explore.GetAllProductsUseCase
 import com.example.unimarket.domain.usecase.auth.GetCurrentUserUseCase
 import com.example.unimarket.domain.usecase.product.DeleteProductUseCase
@@ -9,6 +11,8 @@ import com.example.unimarket.data.local.DraftProduct
 import com.example.unimarket.domain.model.Product
 import com.example.unimarket.domain.usecase.draft.DeleteDraftUseCase
 import com.example.unimarket.domain.usecase.draft.GetDraftsUseCase
+import com.example.unimarket.domain.usecase.order.GetSellerOrdersUseCase
+import com.example.unimarket.presentation.util.toRelativeTimeLabel
 import com.google.firebase.auth.FirebaseUser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -26,7 +30,8 @@ class MyListingsViewModel @Inject constructor(
     private val getCurrentUserUseCase: GetCurrentUserUseCase,
     private val deleteProductUseCase: DeleteProductUseCase,
     private val getDraftsUseCase: GetDraftsUseCase,
-    private val deleteDraftUseCase: DeleteDraftUseCase
+    private val deleteDraftUseCase: DeleteDraftUseCase,
+    private val getSellerOrdersUseCase: GetSellerOrdersUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MyListingsUiState(isLoading = true))
@@ -59,6 +64,11 @@ class MyListingsViewModel @Inject constructor(
                 val products = getAllProductsUseCase().first()
                 val drafts = getDraftsUseCase(currentUid ?: "").first()
                 val myProducts = products.filter { it.userId == currentUid }
+                val activeProducts = myProducts.filter { it.quantityAvailable > 0 }
+                val deliveredOrders = getSellerOrdersUseCase()
+                    .getOrDefault(emptyList())
+                    .filter { it.status == OrderStatus.DELIVERED }
+                val soldProducts = resolveSoldProducts(myProducts, deliveredOrders)
 
                 val mappedDrafts = drafts.map { draftItem ->
                     Product(
@@ -84,8 +94,8 @@ class MyListingsViewModel @Inject constructor(
                 }
 
                 _uiState.value = _uiState.value.copy(
-                    activeListings = myProducts,
-                    soldListings = emptyList(),
+                    activeListings = activeProducts,
+                    soldListings = soldProducts,
                     draftListings = mappedDrafts,
                     isLoading = false,
                 )
@@ -107,12 +117,16 @@ class MyListingsViewModel @Inject constructor(
         deleteJob?.cancel()
 
         val isDraft = _uiState.value.currentTab == 2
+        val isSold = _uiState.value.currentTab == 1
 
         // 1. Optimistic UI update: Remove from list temporarily
         pendingDeleteProduct = product
         if (isDraft) {
             val updatedListings = _uiState.value.draftListings.filter { it.id != product.id }
             _uiState.value = _uiState.value.copy(draftListings = updatedListings)
+        } else if (isSold) {
+            val updatedListings = _uiState.value.soldListings.filter { it.id != product.id }
+            _uiState.value = _uiState.value.copy(soldListings = updatedListings)
         } else {
             val updatedListings = _uiState.value.activeListings.filter { it.id != product.id }
             _uiState.value = _uiState.value.copy(activeListings = updatedListings)
@@ -151,10 +165,15 @@ class MyListingsViewModel @Inject constructor(
         pendingDeleteProduct?.let { product ->
             // Add it back to the list
             val isDraft = _uiState.value.currentTab == 2
+            val isSold = _uiState.value.currentTab == 1
             if (isDraft) {
                 val updatedListings = _uiState.value.draftListings.toMutableList()
                 updatedListings.add(product)
                 _uiState.value = _uiState.value.copy(draftListings = updatedListings)
+            } else if (isSold) {
+                val updatedListings = _uiState.value.soldListings.toMutableList()
+                updatedListings.add(product)
+                _uiState.value = _uiState.value.copy(soldListings = updatedListings)
             } else {
                 val updatedListings = _uiState.value.activeListings.toMutableList()
                 updatedListings.add(product)
@@ -162,5 +181,49 @@ class MyListingsViewModel @Inject constructor(
             }
         }
         pendingDeleteProduct = null
+    }
+
+    private fun resolveSoldProducts(myProducts: List<Product>, deliveredOrders: List<Order>): List<Product> {
+        if (deliveredOrders.isEmpty()) return emptyList()
+
+        val listingById = myProducts.associateBy { it.id }
+
+        // Keep one card per delivered seller order so Sold tab matches Seller Orders data.
+        return deliveredOrders.map { order ->
+            val sourceListing = listingById[order.productId]
+            Product(
+                id = order.productId.ifBlank { sourceListing?.id.orEmpty().ifBlank { order.id } },
+                name = order.productName.ifBlank { sourceListing?.name.orEmpty().ifBlank { "Sold item" } },
+                price = when {
+                    order.totalAmount > 0.0 -> order.totalAmount
+                    order.unitPrice > 0.0 -> order.unitPrice * order.quantity
+                    else -> sourceListing?.price ?: 0.0
+                },
+                description = order.productDetail.ifBlank { sourceListing?.description.orEmpty() },
+                imageUrls = listOfNotNull(
+                    order.productImageUrl.takeIf { it.isNotBlank() }
+                        ?: sourceListing?.imageUrls?.firstOrNull()
+                ),
+                categoryId = sourceListing?.categoryId.orEmpty(),
+                condition = sourceListing?.condition.orEmpty(),
+                sellerName = order.storeName.ifBlank { sourceListing?.sellerName.orEmpty() },
+                rating = sourceListing?.rating ?: 0.0,
+                location = sourceListing?.location.orEmpty(),
+                timeAgo = order.updatedAt
+                    .takeIf { it > 0L }
+                    ?.toRelativeTimeLabel()
+                    .orEmpty()
+                    .ifBlank { order.createdAt.toRelativeTimeLabel() }
+                    .ifBlank { "Delivered" },
+                postedAt = order.updatedAt.takeIf { it > 0L } ?: order.createdAt,
+                isFavorite = sourceListing?.isFavorite ?: false,
+                isNegotiable = sourceListing?.isNegotiable ?: false,
+                quantityAvailable = 0,
+                userId = order.sellerId.ifBlank { sourceListing?.userId.orEmpty() },
+                specifications = sourceListing?.specifications ?: emptyMap(),
+                deliveryMethodsAvailable = sourceListing?.deliveryMethodsAvailable ?: emptyList(),
+                sellerPickupAddress = sourceListing?.sellerPickupAddress
+            )
+        }
     }
 }

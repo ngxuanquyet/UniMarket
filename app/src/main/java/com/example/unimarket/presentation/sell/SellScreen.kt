@@ -32,6 +32,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
@@ -603,6 +604,13 @@ fun SellScreen(
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize()
                             )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.AddPhotoAlternate,
+                                contentDescription = stringResource(R.string.sell_main_photo),
+                                tint = SlateGrey.copy(alpha = 0.75f),
+                                modifier = Modifier.size(34.dp)
+                            )
                         }
                     }
                     if (firstImage != null) {
@@ -720,424 +728,486 @@ fun SellScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Title Input
-            Text(
-                stringResource(R.string.sell_item_title),
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-                modifier = Modifier.padding(bottom = 8.dp),
-                color = TextDarkBlack
-            )
-            CustomTextField(
-                value = title,
-                onValueChange = { title = it },
-                placeholder = stringResource(R.string.sell_item_title_placeholder)
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Category Dropdown
-            Text(
-                stringResource(R.string.sell_category),
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-                modifier = Modifier.padding(bottom = 8.dp),
-                color = TextDarkBlack
-            )
-            Box(modifier = Modifier.fillMaxWidth()) {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                        .clickable { categoryExpanded = true },
-                    shape = RoundedCornerShape(28.dp),
-                    color = Color.White,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderLightBlue)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .padding(horizontal = 24.dp)
-                            .fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            localizedCategoryLabel(category),
-                            color = if (category == "Select a category") Color.Gray else TextDarkBlack,
-                            fontSize = 16.sp
-                        )
-                        Icon(
-                            Icons.Default.ArrowDropDown,
-                            contentDescription = stringResource(R.string.sell_open_category_dropdown),
-                            tint = Color.Gray
-                        )
-                    }
-                }
-                DropdownMenu(
-                    expanded = categoryExpanded,
-                    onDismissRequest = { categoryExpanded = false },
-                    modifier = Modifier.fillMaxWidth(0.9f)
-                ) {
-                    categories.forEach { selection ->
-                        DropdownMenuItem(
-                            text = { Text(localizedCategoryLabel(selection)) },
-                            onClick = {
-                                category = selection
-                                categoryExpanded = false
-                            }
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Price & Negotiable Row
-            Text(
-                stringResource(R.string.sell_price),
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-                modifier = Modifier.padding(bottom = 8.dp),
-                color = TextDarkBlack
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                CustomTextField(
-                    value = price,
-                    onValueChange = { input -> price = input.filter(Char::isDigit) },
-                    placeholder = stringResource(R.string.sell_price_placeholder),
-                    modifier = Modifier.weight(1f),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
-
-                Spacer(modifier = Modifier.width(16.dp))
-
-                Switch(
-                    checked = isNegotiable,
-                    onCheckedChange = { isNegotiable = it },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = AppBlue,
-                        uncheckedThumbColor = Color.White,
-                        uncheckedTrackColor = Color.LightGray,
-                        uncheckedBorderColor = Color.Transparent
-                    )
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    stringResource(R.string.sell_negotiable),
-                    color = TextGray,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                stringResource(R.string.sell_quantity),
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-                modifier = Modifier.padding(bottom = 8.dp),
-                color = TextDarkBlack
-            )
-            CustomTextField(
-                value = quantity,
-                onValueChange = { input -> quantity = input.filter(Char::isDigit) },
-                placeholder = stringResource(R.string.sell_quantity_placeholder),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Item Condition
-            Text(
-                stringResource(R.string.sell_item_condition),
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-                modifier = Modifier.padding(bottom = 8.dp),
-                color = TextDarkBlack
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color.White)
+                    .border(1.dp, BorderLightBlue, RoundedCornerShape(20.dp))
+                    .padding(14.dp)
             ) {
-                conditions.forEach { cond ->
-                    val isSelected = condition == cond
-                    Surface(
-                        modifier = Modifier
-                            .height(40.dp)
-                            .clip(RoundedCornerShape(20.dp))
-                            .clickable { condition = cond },
-                        color = if (isSelected) LightBlueSelection else Color.White,
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            if (isSelected) AppBlue else BorderLightBlue
-                        )
-                    ) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier.padding(horizontal = 16.dp)
+                Column {
+                    // Title Input
+                    Text(
+                        stringResource(R.string.sell_item_title),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                        color = TextDarkBlack
+                    )
+                    CustomTextField(
+                        value = title,
+                        onValueChange = { title = it },
+                        placeholder = stringResource(R.string.sell_item_title_placeholder)
+                    )
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // Category Dropdown
+                    Text(
+                        stringResource(R.string.sell_category),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                        color = TextDarkBlack
+                    )
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp)
+                                .clickable { categoryExpanded = true },
+                            shape = RoundedCornerShape(28.dp),
+                            color = Color.White,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderLightBlue)
                         ) {
-                            Text(
-                                text = localizedConditionLabel(cond),
-                                color = if (isSelected) LightBlueAction else TextGray,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium
-                            )
+                            Row(
+                                modifier = Modifier
+                                    .padding(horizontal = 24.dp)
+                                    .fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    localizedCategoryLabel(category),
+                                    color = if (category == "Select a category") Color.Gray else TextDarkBlack,
+                                    fontSize = 16.sp
+                                )
+                                Icon(
+                                    Icons.Default.ArrowDropDown,
+                                    contentDescription = stringResource(R.string.sell_open_category_dropdown),
+                                    tint = Color.Gray
+                                )
+                            }
                         }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                stringResource(R.string.sell_delivery_methods),
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-                modifier = Modifier.padding(bottom = 8.dp),
-                color = TextDarkBlack
-            )
-            Text(
-                stringResource(R.string.sell_delivery_methods_hint),
-                color = TextGray,
-                fontSize = 13.sp
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                DeliveryMethod.entries.chunked(2).forEach { rowItems ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        rowItems.forEach { method ->
-                            FilterChip(
-                                selected = selectedDeliveryMethods.contains(method),
-                                onClick = {
-                                    if (selectedDeliveryMethods.contains(method)) {
-                                        selectedDeliveryMethods.remove(method)
-                                    } else {
-                                        selectedDeliveryMethods.add(method)
+                        DropdownMenu(
+                            expanded = categoryExpanded,
+                            onDismissRequest = { categoryExpanded = false },
+                            modifier = Modifier.fillMaxWidth(0.9f)
+                        ) {
+                            categories.forEach { selection ->
+                                DropdownMenuItem(
+                                    text = { Text(localizedCategoryLabel(selection)) },
+                                    onClick = {
+                                        category = selection
+                                        categoryExpanded = false
                                     }
-                                },
-                                label = { Text(method.localizedTitle()) },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                        if (rowItems.size == 1) {
-                            Spacer(modifier = Modifier.weight(1f))
-                        }
-                    }
-                }
-            }
-
-            if (selectedDeliveryMethods.contains(DeliveryMethod.BUYER_TO_SELLER)) {
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    stringResource(R.string.sell_pickup_address),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    modifier = Modifier.padding(bottom = 8.dp),
-                    color = TextDarkBlack
-                )
-                Text(
-                    stringResource(R.string.sell_pickup_address_hint),
-                    color = TextGray,
-                    fontSize = 13.sp
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    PickupAddressOptionChip(
-                        title = stringResource(R.string.sell_pickup_source_my_addresses),
-                        selected = pickupAddressSource == PickupAddressSource.MY_ADDRESSES,
-                        onClick = { pickupAddressSource = PickupAddressSource.MY_ADDRESSES },
-                        modifier = Modifier.weight(1f)
-                    )
-                    PickupAddressOptionChip(
-                        title = stringResource(R.string.sell_pickup_source_other_address),
-                        selected = pickupAddressSource == PickupAddressSource.OTHER_ADDRESS,
-                        onClick = { pickupAddressSource = PickupAddressSource.OTHER_ADDRESS },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                if (pickupAddressSource == PickupAddressSource.MY_ADDRESSES) {
-                    if (uiState.myAddresses.isEmpty()) {
-                        Text(
-                            text = stringResource(R.string.sell_no_saved_addresses),
-                            color = TextGray,
-                            fontSize = 13.sp
-                        )
-                    } else {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            uiState.myAddresses.forEach { address ->
-                                PickupAddressSelectionCard(
-                                    address = address,
-                                    isSelected = selectedPickupAddressId == address.id,
-                                    onClick = { selectedPickupAddressId = address.id }
                                 )
                             }
                         }
                     }
-                } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        CustomTextField(
-                            value = customPickupRecipientName,
-                            onValueChange = { customPickupRecipientName = it },
-                            placeholder = stringResource(R.string.sell_recipient_name_placeholder)
-                        )
-                        CustomTextField(
-                            value = customPickupPhoneNumber,
-                            onValueChange = { customPickupPhoneNumber = it },
-                            placeholder = stringResource(R.string.sell_phone_number_placeholder),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
-                        )
-                        OutlinedTextField(
-                            value = customPickupAddressLine,
-                            onValueChange = { customPickupAddressLine = it },
-                            placeholder = { Text(stringResource(R.string.sell_pickup_address_placeholder)) },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(20.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                unfocusedBorderColor = BorderLightBlue,
-                                focusedBorderColor = AppBlue,
-                                unfocusedContainerColor = Color.White,
-                                focusedContainerColor = Color.White
-                            ),
-                            minLines = 3
-                        )
-                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Description Input
-            Text(
-                stringResource(R.string.sell_description),
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-                modifier = Modifier.padding(bottom = 8.dp),
-                color = TextDarkBlack
-            )
-            Button(
-                onClick = {
-                    viewModel.generateListingSuggestion(
-                        title = title,
-                        description = description,
-                        category = category,
-                        condition = condition,
-                        priceStr = price,
-                        quantityStr = quantity,
-                        isNegotiable = isNegotiable,
-                        specifications = specifications
-                            .filter { it.key.isNotBlank() && it.value.isNotBlank() }
-                            .associate { it.key to it.value },
-                        deliveryMethodsAvailable = selectedDeliveryMethods.toList()
-                    )
-                },
-                enabled = !uiState.isGeneratingWithAi && !uiState.isLoading,
-                shape = RoundedCornerShape(20.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = LightBlueAction)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color.White)
+                    .border(1.dp, BorderLightBlue, RoundedCornerShape(20.dp))
+                    .padding(14.dp)
             ) {
-                if (uiState.isGeneratingWithAi) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp
+                Column {
+                    // Price & Negotiable Row
+                    Text(
+                        stringResource(R.string.sell_price),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                        color = TextDarkBlack
                     )
-                } else {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.AutoAwesome,
-                            contentDescription = stringResource(R.string.sell_ai_write),
-                            tint = Color.White
+                        CustomTextField(
+                            value = price,
+                            onValueChange = { input -> price = input.filter(Char::isDigit) },
+                            placeholder = stringResource(R.string.sell_price_placeholder),
+                            modifier = Modifier.weight(1f),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        )
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        Switch(
+                            checked = isNegotiable,
+                            onCheckedChange = { isNegotiable = it },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = AppBlue,
+                                uncheckedThumbColor = Color.White,
+                                uncheckedTrackColor = Color.LightGray,
+                                uncheckedBorderColor = Color.Transparent
+                            )
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            stringResource(R.string.sell_ai_write),
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
+                            stringResource(R.string.sell_negotiable),
+                            color = TextGray,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
                         )
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Text(
+                        stringResource(R.string.sell_quantity),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                        color = TextDarkBlack
+                    )
+                    CustomTextField(
+                        value = quantity,
+                        onValueChange = { input -> quantity = input.filter(Char::isDigit) },
+                        placeholder = stringResource(R.string.sell_quantity_placeholder),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color.White)
+                    .border(1.dp, BorderLightBlue, RoundedCornerShape(20.dp))
+                    .padding(14.dp)
+            ) {
+                Column {
+                    // Item Condition
+                    Text(
+                        stringResource(R.string.sell_item_condition),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                        color = TextDarkBlack
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        conditions.forEach { cond ->
+                            val isSelected = condition == cond
+                            Surface(
+                                modifier = Modifier
+                                    .height(40.dp)
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .clickable { condition = cond },
+                                color = if (isSelected) AppBlue else SurfaceLightBlue
+                            ) {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                ) {
+                                    Text(
+                                        text = localizedConditionLabel(cond),
+                                        color = if (isSelected) Color.White else TextGray,
+                                        fontSize = 14.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Text(
+                        stringResource(R.string.sell_delivery_methods),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                        color = TextDarkBlack
+                    )
+                    Text(
+                        stringResource(R.string.sell_delivery_methods_hint),
+                        color = TextGray,
+                        fontSize = 13.sp
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        DeliveryMethod.entries.chunked(2).forEach { rowItems ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                rowItems.forEach { method ->
+                                    val isSelected = selectedDeliveryMethods.contains(method)
+                                    Surface(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(40.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .clickable {
+                                                if (isSelected) {
+                                                    selectedDeliveryMethods.remove(method)
+                                                } else {
+                                                    selectedDeliveryMethods.add(method)
+                                                }
+                                            },
+                                        color = if (isSelected) AppBlue else SurfaceLightBlue
+                                    ) {
+                                        Box(
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = method.localizedTitle(),
+                                                color = if (isSelected) Color.White else TextGray,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                            )
+                                        }
+                                    }
+                                }
+                                if (rowItems.size == 1) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+                    if (selectedDeliveryMethods.contains(DeliveryMethod.BUYER_TO_SELLER)) {
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Text(
+                            stringResource(R.string.sell_pickup_address),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            modifier = Modifier.padding(bottom = 8.dp),
+                            color = TextDarkBlack
+                        )
+                        Text(
+                            stringResource(R.string.sell_pickup_address_hint),
+                            color = TextGray,
+                            fontSize = 13.sp
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            PickupAddressOptionChip(
+                                title = stringResource(R.string.sell_pickup_source_my_addresses),
+                                selected = pickupAddressSource == PickupAddressSource.MY_ADDRESSES,
+                                onClick = { pickupAddressSource = PickupAddressSource.MY_ADDRESSES },
+                                modifier = Modifier.weight(1f)
+                            )
+                            PickupAddressOptionChip(
+                                title = stringResource(R.string.sell_pickup_source_other_address),
+                                selected = pickupAddressSource == PickupAddressSource.OTHER_ADDRESS,
+                                onClick = { pickupAddressSource = PickupAddressSource.OTHER_ADDRESS },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        if (pickupAddressSource == PickupAddressSource.MY_ADDRESSES) {
+                            if (uiState.myAddresses.isEmpty()) {
+                                Text(
+                                    text = stringResource(R.string.sell_no_saved_addresses),
+                                    color = TextGray,
+                                    fontSize = 13.sp
+                                )
+                            } else {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    uiState.myAddresses.forEach { address ->
+                                        PickupAddressSelectionCard(
+                                            address = address,
+                                            isSelected = selectedPickupAddressId == address.id,
+                                            onClick = { selectedPickupAddressId = address.id }
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                CustomTextField(
+                                    value = customPickupRecipientName,
+                                    onValueChange = { customPickupRecipientName = it },
+                                    placeholder = stringResource(R.string.sell_recipient_name_placeholder)
+                                )
+                                CustomTextField(
+                                    value = customPickupPhoneNumber,
+                                    onValueChange = { customPickupPhoneNumber = it },
+                                    placeholder = stringResource(R.string.sell_phone_number_placeholder),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+                                )
+                                OutlinedTextField(
+                                    value = customPickupAddressLine,
+                                    onValueChange = { customPickupAddressLine = it },
+                                    placeholder = { Text(stringResource(R.string.sell_pickup_address_placeholder)) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(20.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        unfocusedBorderColor = BorderLightBlue,
+                                        focusedBorderColor = AppBlue,
+                                        unfocusedContainerColor = Color.White,
+                                        focusedContainerColor = Color.White
+                                    ),
+                                    minLines = 3
+                                )
+                            }
+                        }
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(12.dp))
-            OutlinedTextField(
-                value = description,
-                onValueChange = { description = it },
-                placeholder = {
-                    Text(
-                        stringResource(R.string.sell_description_placeholder),
-                        color = Color.Gray.copy(alpha = 0.7f),
-                        lineHeight = 22.sp
-                    )
-                },
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(160.dp),
-                shape = RoundedCornerShape(24.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = BorderLightBlue,
-                    focusedBorderColor = AppBlue,
-                    unfocusedContainerColor = Color.White,
-                    focusedContainerColor = Color.White
-                ),
-                maxLines = 6
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Specifications
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color.White)
+                    .border(1.dp, BorderLightBlue, RoundedCornerShape(20.dp))
+                    .padding(14.dp)
             ) {
-                Text(
-                    stringResource(R.string.sell_specifications),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    color = TextDarkBlack
-                )
-                TextButton(onClick = { specifications.add(SpecItem(specCounter++, "", "")) }) {
-                    Text(stringResource(R.string.sell_add_spec), color = AppBlue, fontWeight = FontWeight.Bold)
-                }
-            }
+                Column {
+                    // Description Input
+                    Text(
+                        stringResource(R.string.sell_description),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                        color = TextDarkBlack
+                    )
+                    Button(
+                        onClick = {
+                            viewModel.generateListingSuggestion(
+                                title = title,
+                                description = description,
+                                category = category,
+                                condition = condition,
+                                priceStr = price,
+                                quantityStr = quantity,
+                                isNegotiable = isNegotiable,
+                                specifications = specifications
+                                    .filter { it.key.isNotBlank() && it.value.isNotBlank() }
+                                    .associate { it.key to it.value },
+                                deliveryMethodsAvailable = selectedDeliveryMethods.toList()
+                            )
+                        },
+                        enabled = !uiState.isGeneratingWithAi && !uiState.isLoading,
+                        shape = RoundedCornerShape(20.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = LightBlueAction)
+                    ) {
+                        if (uiState.isGeneratingWithAi) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.AutoAwesome,
+                                    contentDescription = stringResource(R.string.sell_ai_write),
+                                    tint = Color.White
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    stringResource(R.string.sell_ai_write),
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = description,
+                        onValueChange = { description = it },
+                        placeholder = {
+                            Text(
+                                stringResource(R.string.sell_description_placeholder),
+                                color = Color.Gray.copy(alpha = 0.7f),
+                                lineHeight = 22.sp
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(160.dp),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            unfocusedBorderColor = BorderLightBlue,
+                            focusedBorderColor = AppBlue,
+                            unfocusedContainerColor = Color.White,
+                            focusedContainerColor = Color.White
+                        ),
+                        maxLines = 6
+                    )
 
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                specifications.forEachIndexed { index, spec ->
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // Specifications
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        CustomTextField(
-                            value = spec.key,
-                            onValueChange = { specifications[index] = spec.copy(key = it) },
-                            placeholder = stringResource(R.string.sell_spec_key_placeholder),
-                            modifier = Modifier.weight(1f)
+                        Text(
+                            stringResource(R.string.sell_specifications),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            color = TextDarkBlack
                         )
-                        CustomTextField(
-                            value = spec.value,
-                            onValueChange = { specifications[index] = spec.copy(value = it) },
-                            placeholder = stringResource(R.string.sell_spec_value_placeholder),
-                            modifier = Modifier.weight(1f)
-                        )
-                        IconButton(onClick = { specifications.removeAt(index) }) {
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = stringResource(R.string.common_remove),
-                                tint = Color.Red
-                            )
+                        TextButton(onClick = { specifications.add(SpecItem(specCounter++, "", "")) }) {
+                            Text(stringResource(R.string.sell_add_spec), color = AppBlue, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        specifications.forEachIndexed { index, spec ->
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(SurfaceLightBlue)
+                                    .border(1.dp, BorderLightBlue, RoundedCornerShape(16.dp))
+                                    .padding(8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    CustomTextField(
+                                        value = spec.key,
+                                        onValueChange = { specifications[index] = spec.copy(key = it) },
+                                        placeholder = stringResource(R.string.sell_spec_key_placeholder),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    CustomTextField(
+                                        value = spec.value,
+                                        onValueChange = { specifications[index] = spec.copy(value = it) },
+                                        placeholder = stringResource(R.string.sell_spec_value_placeholder),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    IconButton(onClick = { specifications.removeAt(index) }) {
+                                        Icon(
+                                            Icons.Default.Delete,
+                                            contentDescription = stringResource(R.string.common_remove),
+                                            tint = Color.Red
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -1248,24 +1318,21 @@ private fun PickupAddressOptionChip(
 ) {
     Surface(
         modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
+            .height(40.dp)
+            .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick),
-        color = if (selected) LightBlueSelection else Color.White,
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            if (selected) AppBlue else BorderLightBlue
-        )
+        color = if (selected) AppBlue else SurfaceLightBlue
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 12.dp),
+                .fillMaxHeight(),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = title,
-                color = if (selected) AppBlue else TextGray,
-                fontWeight = FontWeight.Medium
+                color = if (selected) Color.White else TextGray,
+                fontWeight = if(selected) FontWeight.Bold else FontWeight.Medium
             )
         }
     }
@@ -1338,18 +1405,25 @@ fun SmallImageBox(
     isAdd: Boolean = false,
     modifier: Modifier
 ) {
+    val smallCorner = 40.dp
     Box(
         modifier = modifier
             .clickable { onClick() }
             .drawBehind {
                 if (uri == null) {
-                    drawCircle(
+                    drawRoundRect(
                         color = DashColor,
                         style = Stroke(
                             width = 3.dp.toPx(),
-                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f)
+                            pathEffect = PathEffect.dashPathEffect(
+                                floatArrayOf(15f, 15f),
+                                0f
+                            )
                         ),
-                        radius = size.minDimension / 2
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(
+                            smallCorner.toPx(),
+                            smallCorner.toPx()
+                        )
                     )
                 }
             },
@@ -1358,7 +1432,7 @@ fun SmallImageBox(
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .clip(CircleShape)
+                .clip(RoundedCornerShape(smallCorner))
                 .background(if (uri == null) SurfaceLightBlue else Color.Transparent),
             contentAlignment = Alignment.Center
         ) {
@@ -1371,7 +1445,7 @@ fun SmallImageBox(
                 )
             } else {
                 Icon(
-                    imageVector = if (isAdd) Icons.Default.AddPhotoAlternate else Icons.Default.Image,
+                    imageVector =Icons.Default.AddPhotoAlternate,
                     contentDescription = null,
                     tint = SlateGrey,
                     modifier = Modifier.size(24.dp)

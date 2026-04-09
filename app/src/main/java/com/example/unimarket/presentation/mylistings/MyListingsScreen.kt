@@ -118,7 +118,7 @@ fun MyListingsScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(stringResource(R.string.profile_my_listings), fontWeight = FontWeight.Bold, fontSize = 20.sp, color = TextDarkBlack)
+                    Text(stringResource(R.string.my_listings_title), fontWeight = FontWeight.Bold, fontSize = 20.sp, color = TextDarkBlack)
                 },
                 navigationIcon = {
                     IconButton(onClick = { onBackClick() }) {
@@ -209,9 +209,16 @@ fun MyListingsScreen(
                         ) {
                             // Stat Card
                             item {
+                                val isDraftTab = uiState.currentTab == 2
+                                val statTitle = when (uiState.currentTab) {
+                                    1 -> stringResource(R.string.my_listings_sold_items)
+                                    2 -> stringResource(R.string.my_listings_draft_items)
+                                    else -> stringResource(R.string.my_listings_live_items)
+                                }
+
                                 Surface(
                                     shape = RoundedCornerShape(32.dp),
-                                    color = LightBlueSelection, // Light blue tint
+                                    color = LightBlueSelection,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
@@ -220,14 +227,16 @@ fun MyListingsScreen(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Column {
-                                            Text(stringResource(R.string.my_listings_live_items).uppercase(), color = AppBlue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                            Text(statTitle.uppercase(), color = AppBlue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                             Spacer(modifier = Modifier.height(4.dp))
-                                            Text(stringResource(R.string.my_listings_items_count, uiState.liveItemsCount), color = TextDarkBlack, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+                                            Text(stringResource(R.string.my_listings_items_count, uiState.statItemsCount), color = TextDarkBlack, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
                                         }
-                                        Column(horizontalAlignment = Alignment.End) {
-                                            Text(stringResource(R.string.my_listings_est_value).uppercase(), color = TextGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Text(formatVnd(uiState.estimatedValue), color = TextDarkBlack, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+                                        if (!isDraftTab) {
+                                            Column(horizontalAlignment = Alignment.End) {
+                                                Text(stringResource(R.string.my_listings_est_value).uppercase(), color = TextGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Text(formatVnd(uiState.estimatedValue), color = TextDarkBlack, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+                                            }
                                         }
                                     }
                                 }
@@ -237,6 +246,7 @@ fun MyListingsScreen(
                             items(uiState.displayedListings) { product ->
                                 ListingCard(
                                     product = product,
+                                    currentTab = uiState.currentTab,
                                     onEditClick = { onEditClick(it) },
                                     onDeleteClick = {
                                         itemToDelete = product
@@ -255,6 +265,7 @@ fun MyListingsScreen(
 @Composable
 fun ListingCard(
     product: Product,
+    currentTab: Int,
     onEditClick: (String) -> Unit,
     onDeleteClick: () -> Unit
 ) {
@@ -288,20 +299,24 @@ fun ListingCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     val isUnderReview = product.name.contains("Watch", ignoreCase = true)
-                    val isDraft = product.sellerName == "Draft"
+                    val isDraft = product.sellerName == "Draft" || currentTab == 2
+                    val isSold = currentTab == 1
 
                     val badgeText = when {
                         isDraft -> stringResource(R.string.my_listings_status_draft)
+                        isSold -> stringResource(R.string.my_listings_status_sold)
                         isUnderReview -> stringResource(R.string.my_listings_status_under_review)
                         else -> stringResource(R.string.my_listings_status_active)
                     }
                     val badgeColor = when {
                         isDraft -> TextGray
+                        isSold -> AppBlue
                         isUnderReview -> OrangeBadge
                         else -> GreenBadge
                     }
                     val badgeBg = when {
                         isDraft -> BorderLightGray
+                        isSold -> LightBlueSelection
                         isUnderReview -> OrangeBadgeBg
                         else -> GreenBadgeBg
                     }
@@ -354,28 +369,31 @@ fun ListingCard(
             }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-            HorizontalDivider(color = ActionChipBg)
-            Spacer(modifier = Modifier.height(16.dp))
-
             // Action Buttons
             val isUnderReview = product.name.contains("Watch", ignoreCase = true)
-            val isDraft = product.sellerName == "Draft"
+            val isDraft = product.sellerName == "Draft" || currentTab == 2
+            val isSold = currentTab == 1
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                if (isDraft) {
-                    ActionChip(stringResource(R.string.my_listings_edit_draft), Icons.Default.Edit, TextDarkBlack, ActionChipBg, Modifier.weight(1f)) { onEditClick(product.id) }
-                    ActionChip(stringResource(R.string.my_listings_delete_draft), Icons.Default.DeleteOutline, RedDanger, RedDangerBg, Modifier.weight(1f)) { onDeleteClick() }
-                } else if (isUnderReview) {
-                    ActionChip(stringResource(R.string.my_listings_edit_listing), Icons.Default.Edit, TextDarkBlack, ActionChipBg, Modifier.weight(1f)) { onEditClick(product.id) }
-                    ActionChip(stringResource(R.string.common_cancel), Icons.Outlined.Cancel, RedDanger, RedDangerBg, Modifier.weight(1f)) { onDeleteClick() }
-                } else {
-                    ActionChip(stringResource(R.string.common_edit), Icons.Default.Edit, TextDarkBlack, ActionChipBg, Modifier.weight(1f)) { onEditClick(product.id) }
-                    ActionChip(stringResource(R.string.my_listings_tab_sold), Icons.Default.CheckCircleOutline, AppBlue, LightBlueSelection, Modifier.weight(1f)) { /* TODO */ }
-                    ActionChip(stringResource(R.string.common_delete), Icons.Default.DeleteOutline, RedDanger, RedDangerBg, Modifier.weight(1f)) { onDeleteClick() }
+            if (!isSold) {
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(color = ActionChipBg)
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (isDraft) {
+                        ActionChip(stringResource(R.string.my_listings_edit_draft), Icons.Default.Edit, TextDarkBlack, ActionChipBg, Modifier.weight(1f)) { onEditClick(product.id) }
+                        ActionChip(stringResource(R.string.my_listings_delete_draft), Icons.Default.DeleteOutline, RedDanger, RedDangerBg, Modifier.weight(1f)) { onDeleteClick() }
+                    } else if (isUnderReview) {
+                        ActionChip(stringResource(R.string.my_listings_edit_listing), Icons.Default.Edit, TextDarkBlack, ActionChipBg, Modifier.weight(1f)) { onEditClick(product.id) }
+                        ActionChip(stringResource(R.string.common_cancel), Icons.Outlined.Cancel, RedDanger, RedDangerBg, Modifier.weight(1f)) { onDeleteClick() }
+                    } else {
+                        ActionChip(stringResource(R.string.common_edit), Icons.Default.Edit, TextDarkBlack, ActionChipBg, Modifier.weight(1f)) { onEditClick(product.id) }
+                        ActionChip(stringResource(R.string.my_listings_tab_sold), Icons.Default.CheckCircleOutline, AppBlue, LightBlueSelection, Modifier.weight(1f)) { /* TODO */ }
+                        ActionChip(stringResource(R.string.common_delete), Icons.Default.DeleteOutline, RedDanger, RedDangerBg, Modifier.weight(1f)) { onDeleteClick() }
+                    }
                 }
             }
         }

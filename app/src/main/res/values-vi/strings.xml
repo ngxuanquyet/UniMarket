@@ -25,6 +25,7 @@
     <string name="bottom_nav_explore">Khám phá</string>
     <string name="bottom_nav_sell">Đăng bán</string>
     <string name="bottom_nav_my_listings">Tin của tôi</string>
+    <string name="bottom_nav_my_listings_short">Tin đăng</string>
     <string name="bottom_nav_messages">Tin nhắn</string>
     <string name="bottom_nav_profile">Cá nhân</string>
 
@@ -46,6 +47,7 @@
     <string name="profile_bought">Đã mua</string>
     <string name="profile_rating">Đánh giá</string>
     <string name="profile_my_listings">Tin của tôi</string>
+    <string name="my_listings_title">Tin đăng</string>
     <string name="profile_income_expense">Thống kê thu chi</string>
     <string name="profile_seller_orders">Đơn bán</string>
     <string name="profile_my_addresses">Địa chỉ của tôi</string>
@@ -241,9 +243,12 @@
     <string name="my_listings_tab_sold">Đã bán</string>
     <string name="my_listings_tab_drafts">Bản nháp</string>
     <string name="my_listings_live_items">Tin đang hoạt động</string>
+    <string name="my_listings_sold_items">Tin đã bán</string>
+    <string name="my_listings_draft_items">Tin bản nháp</string>
     <string name="my_listings_items_count">%1$d tin</string>
     <string name="my_listings_est_value">Giá trị ước tính</string>
     <string name="my_listings_status_draft">BẢN NHÁP</string>
+    <string name="my_listings_status_sold">ĐÃ BÁN</string>
     <string name="my_listings_status_under_review">ĐANG DUYỆT</string>
     <string name="my_listings_status_active">ĐANG BÁN</string>
     <string name="my_listings_views_time">%1$s • %2$d lượt xem</string>
@@ -424,6 +429,16 @@
     <string name="mypurchases_verified_review">Đánh giá đã xác minh</string>
 
     <string name="orders_tab_all">Tất cả</string>
+
+    <string name="order_tracking_title">Chi tiết đơn hàng</string>
+    <string name="order_tracking_not_found">Không tìm thấy đơn hàng</string>
+    <string name="order_tracking_sold_by">Bán bởi %1$s</string>
+    <string name="order_tracking_eta_title">Dự kiến giao</string>
+    <string name="order_tracking_journey_title">Hành trình đơn hàng</string>
+    <string name="order_tracking_payment_summary">Tóm tắt thanh toán</string>
+    <string name="order_tracking_free">MIỄN PHÍ</string>
+    <string name="order_tracking_track_live_location">Theo dõi vị trí trực tiếp</string>
+    <string name="order_tracking_get_help">Trợ giúp</string>
 
     <string name="stats_title">Thống kê thu chi</string>
     <string name="stats_period_7_days">7 ngày</string>

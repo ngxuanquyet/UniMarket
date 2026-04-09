@@ -3,11 +3,16 @@ package com.example.unimarket.presentation.mypurchases
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.unimarket.domain.model.Order
+import com.example.unimarket.domain.model.Product
+import com.example.unimarket.domain.usecase.chat.CreateOrGetConversationUseCase
 import com.example.unimarket.domain.usecase.order.GetBuyerOrdersUseCase
 import com.example.unimarket.domain.usecase.review.GetBuyerReviewsUseCase
 import com.example.unimarket.domain.usecase.review.SubmitReviewUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -18,11 +23,14 @@ import javax.inject.Inject
 class MyPurchasesViewModel @Inject constructor(
     private val getBuyerOrdersUseCase: GetBuyerOrdersUseCase,
     private val getBuyerReviewsUseCase: GetBuyerReviewsUseCase,
-    private val submitReviewUseCase: SubmitReviewUseCase
+    private val submitReviewUseCase: SubmitReviewUseCase,
+    private val createOrGetConversationUseCase: CreateOrGetConversationUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MyPurchasesUiState(isLoading = true))
     val uiState: StateFlow<MyPurchasesUiState> = _uiState.asStateFlow()
+    private val _events = MutableSharedFlow<MyPurchasesEvent>()
+    val events: SharedFlow<MyPurchasesEvent> = _events.asSharedFlow()
 
     init {
         loadOrders()
@@ -34,6 +42,27 @@ class MyPurchasesViewModel @Inject constructor(
 
     fun clearMessages() {
         _uiState.update { it.copy(errorMessage = null, successMessage = null) }
+    }
+
+    fun contactSeller(order: Order) {
+        if (order.productId.isBlank() || order.sellerId.isBlank()) {
+            _uiState.update {
+                it.copy(errorMessage = "Missing seller or product information to contact seller")
+            }
+            return
+        }
+
+        viewModelScope.launch {
+            createOrGetConversationUseCase(order.toChatProduct())
+                .onSuccess { conversationId ->
+                    _events.emit(MyPurchasesEvent.OpenConversation(conversationId))
+                }
+                .onFailure { error ->
+                    _uiState.update {
+                        it.copy(errorMessage = error.message ?: "Failed to contact seller")
+                    }
+                }
+        }
     }
 
     fun submitReview(order: Order, rating: Int, comment: String) {
@@ -130,4 +159,25 @@ class MyPurchasesViewModel @Inject constructor(
                 }
         }
     }
+
+    private fun Order.toChatProduct(): Product {
+        return Product(
+            id = productId,
+            name = productName,
+            price = unitPrice,
+            description = productDetail,
+            imageUrls = listOfNotNull(productImageUrl.takeIf { it.isNotBlank() }),
+            categoryId = "",
+            condition = "",
+            sellerName = storeName,
+            rating = 0.0,
+            location = "",
+            timeAgo = "",
+            userId = sellerId
+        )
+    }
+}
+
+sealed interface MyPurchasesEvent {
+    data class OpenConversation(val conversationId: String) : MyPurchasesEvent
 }

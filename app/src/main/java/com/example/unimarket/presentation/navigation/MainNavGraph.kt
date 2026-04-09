@@ -16,6 +16,7 @@ import com.example.unimarket.presentation.explore.ExploreScreen
 import com.example.unimarket.presentation.messages.ChatDetailScreen
 import com.example.unimarket.presentation.messages.MessagesScreen
 import com.example.unimarket.presentation.mypurchases.MyPurchasesScreen
+import com.example.unimarket.presentation.ordertracking.OrderTrackingScreen
 import com.example.unimarket.presentation.profile.MyAddressesScreen
 import com.example.unimarket.presentation.profile.PaymentMethodsScreen
 import com.example.unimarket.presentation.profile.ProfileScreen
@@ -106,7 +107,23 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
                     navController.navigate(
                         Screen.QrTransfer.route + "?orderIds=" + Uri.encode(orderId)
                     )
+                },
+                onTrackOrderClick = { orderId ->
+                    navController.navigate(Screen.OrderTracking.route + "/$orderId")
+                },
+                onConversationOpen = { conversationId ->
+                    navController.navigate(Screen.ChatDetail.route + "/$conversationId")
                 }
+            )
+        }
+        composable(
+            route = Screen.OrderTracking.route + "/{orderId}",
+            arguments = listOf(androidx.navigation.navArgument("orderId") {
+                type = androidx.navigation.NavType.StringType
+            })
+        ) {
+            OrderTrackingScreen(
+                onBackClick = { navController.popBackStack() }
             )
         }
         composable(Screen.SellerOrders.route) {

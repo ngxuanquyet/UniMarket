@@ -25,6 +25,7 @@
     <string name="bottom_nav_explore">Explore</string>
     <string name="bottom_nav_sell">Sell</string>
     <string name="bottom_nav_my_listings">My Listings</string>
+    <string name="bottom_nav_my_listings_short">Listings</string>
     <string name="bottom_nav_messages">Messages</string>
     <string name="bottom_nav_profile">Profile</string>
 
@@ -46,6 +47,7 @@
     <string name="profile_bought">Bought</string>
     <string name="profile_rating">Rating</string>
     <string name="profile_my_listings">My Listings</string>
+    <string name="my_listings_title">Listings</string>
     <string name="profile_income_expense">Income &amp; Expense</string>
     <string name="profile_seller_orders">Seller Orders</string>
     <string name="profile_my_addresses">My Addresses</string>
@@ -241,9 +243,12 @@
     <string name="my_listings_tab_sold">Sold</string>
     <string name="my_listings_tab_drafts">Drafts</string>
     <string name="my_listings_live_items">Live items</string>
+    <string name="my_listings_sold_items">Sold items</string>
+    <string name="my_listings_draft_items">Draft items</string>
     <string name="my_listings_items_count">%1$d items</string>
     <string name="my_listings_est_value">Est. value</string>
     <string name="my_listings_status_draft">DRAFT</string>
+    <string name="my_listings_status_sold">SOLD</string>
     <string name="my_listings_status_under_review">UNDER REVIEW</string>
     <string name="my_listings_status_active">ACTIVE</string>
     <string name="my_listings_views_time">%1$s • %2$d views</string>
@@ -424,6 +429,16 @@
     <string name="mypurchases_verified_review">Verified review</string>
 
     <string name="orders_tab_all">All</string>
+
+    <string name="order_tracking_title">Order Details</string>
+    <string name="order_tracking_not_found">Order not found</string>
+    <string name="order_tracking_sold_by">Sold by %1$s</string>
+    <string name="order_tracking_eta_title">Estimated arrival</string>
+    <string name="order_tracking_journey_title">Order journey</string>
+    <string name="order_tracking_payment_summary">Payment summary</string>
+    <string name="order_tracking_free">FREE</string>
+    <string name="order_tracking_track_live_location">Track Live Location</string>
+    <string name="order_tracking_get_help">Get Help</string>
 
     <string name="stats_title">Income &amp; Expense</string>
     <string name="stats_period_7_days">7 days</string>

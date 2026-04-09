@@ -277,7 +277,10 @@ fun QrTransferScreen(
                     .background(Color.White)
                     .padding(20.dp)
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     Text(
                         text = stringResource(R.string.checkout_qr_total_amount_label),
                         color = Color.Gray,
@@ -330,6 +333,35 @@ fun QrTransferScreen(
                     }
 
                     Spacer(modifier = Modifier.height(18.dp))
+
+                    TextButton(
+                        onClick = {
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar(
+                                    if (qrUrl != null) {
+                                        saveQrComingSoonMessage
+                                    } else {
+                                        qrUnavailableMessage
+                                    }
+                                )
+                            }
+                        },
+                        modifier = Modifier.height(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Download,
+                            contentDescription = null,
+                            tint = SecondaryBlue
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.checkout_qr_button_save),
+                            color = SecondaryBlue,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     if (isPendingPayment && remainingSeconds > 0) {
                         Row(
@@ -433,78 +465,43 @@ fun QrTransferScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            Button(
-                onClick = {
-                    if (isPendingPayment) {
-                        viewModel.checkCurrentOrderPayment(showPendingMessage = true)
+            if (!isPendingPayment) {
+                Button(
+                    onClick = { viewModel.moveToNextOrder() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(54.dp),
+                    shape = RoundedCornerShape(27.dp),
+                    enabled = !uiState.isCheckingPayment,
+                    colors = ButtonDefaults.buttonColors(containerColor = SecondaryBlue)
+                ) {
+                    if (uiState.isCheckingPayment) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.checkout_payment_checking),
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
                     } else {
-                        viewModel.moveToNextOrder()
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp),
-                shape = RoundedCornerShape(27.dp),
-                enabled = !uiState.isCheckingPayment,
-                colors = ButtonDefaults.buttonColors(containerColor = SecondaryBlue)
-            ) {
-                if (uiState.isCheckingPayment) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp,
-                        color = Color.White
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = stringResource(R.string.checkout_payment_checking),
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
-                    )
-                } else {
-                    Text(
-                        text = when {
-                            isPendingPayment -> stringResource(R.string.checkout_qr_button_done)
-                            uiState.currentIndex < uiState.orders.lastIndex -> stringResource(R.string.auth_continue)
-                            else -> stringResource(R.string.checkout_qr_button_complete)
-                        },
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            TextButton(
-                onClick = {
-                    coroutineScope.launch {
-                        snackbarHostState.showSnackbar(
-                            if (qrUrl != null) {
-                                saveQrComingSoonMessage
+                        Text(
+                            text = if (uiState.currentIndex < uiState.orders.lastIndex) {
+                                stringResource(R.string.auth_continue)
                             } else {
-                                qrUnavailableMessage
-                            }
+                                stringResource(R.string.checkout_qr_button_complete)
+                            },
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
                         )
                     }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Download,
-                    contentDescription = null,
-                    tint = SecondaryBlue
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = stringResource(R.string.checkout_qr_button_save),
-                    color = SecondaryBlue,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
+                }
 
-            Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
             Text(
                 text = if (isPendingPayment) {

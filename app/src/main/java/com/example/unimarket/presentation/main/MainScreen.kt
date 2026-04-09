@@ -33,9 +33,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -88,14 +91,23 @@ fun BottomNavigationBar(
     navController: NavHostController,
     unreadMessageCount: Int
 ) {
+    val screenWidthDp = LocalConfiguration.current.screenWidthDp
+    val compactScreen = screenWidthDp < 380
+    val iconSize = if (compactScreen) 20.dp else 24.dp
+    val labelFontSize = if (compactScreen) 10.sp else 11.sp
     val coroutineScope = rememberCoroutineScope()
     var isAnimatingToSell by remember { mutableStateOf(false) }
     val items = listOf(
-        BottomNavItem(R.string.bottom_nav_explore, Screen.Explore.route, Icons.Default.Explore),
-        BottomNavItem(R.string.bottom_nav_sell, Screen.Sell.route, Icons.Default.AddCircleOutline),
-        BottomNavItem(R.string.bottom_nav_my_listings, Screen.MyListings.route, Icons.AutoMirrored.Filled.ListAlt),
-        BottomNavItem(R.string.bottom_nav_messages, Screen.Messages.route, Icons.Default.ChatBubbleOutline),
-        BottomNavItem(R.string.bottom_nav_profile, Screen.Profile.route, Icons.Default.PersonOutline)
+        BottomNavItem(R.string.bottom_nav_explore, route = Screen.Explore.route, icon = Icons.Default.Explore),
+        BottomNavItem(R.string.bottom_nav_sell, route = Screen.Sell.route, icon = Icons.Default.AddCircleOutline),
+        BottomNavItem(
+            R.string.bottom_nav_my_listings,
+            shortLabelRes = R.string.bottom_nav_my_listings_short,
+            route = Screen.MyListings.route,
+            icon = Icons.AutoMirrored.Filled.ListAlt
+        ),
+        BottomNavItem(R.string.bottom_nav_messages, route = Screen.Messages.route, icon = Icons.Default.ChatBubbleOutline),
+        BottomNavItem(R.string.bottom_nav_profile, route = Screen.Profile.route, icon = Icons.Default.PersonOutline)
     )
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -120,7 +132,11 @@ fun BottomNavigationBar(
             tonalElevation = 8.dp
         ) {
             items.forEach { item ->
-                val label = stringResource(item.labelRes)
+                val label = if (compactScreen && item.shortLabelRes != null) {
+                    stringResource(item.shortLabelRes)
+                } else {
+                    stringResource(item.labelRes)
+                }
                 NavigationBarItem(
                     selected = normalizedRoute == item.route,
                     onClick = {
@@ -159,13 +175,20 @@ fun BottomNavigationBar(
                                     }
                                 }
                             ) {
-                                Icon(item.icon, contentDescription = label)
+                                Icon(item.icon, contentDescription = label, modifier = Modifier.size(iconSize))
                             }
                         } else {
-                            Icon(item.icon, contentDescription = label)
+                            Icon(item.icon, contentDescription = label, modifier = Modifier.size(iconSize))
                         }
                     },
-                    label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+                    label = {
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = labelFontSize),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = Color.White,
                         selectedTextColor = AppBlue,
