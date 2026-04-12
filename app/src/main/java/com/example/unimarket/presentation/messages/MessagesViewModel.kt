@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.unimarket.domain.usecase.auth.GetCurrentUserUseCase
 import com.example.unimarket.domain.usecase.chat.ObserveConversationsUseCase
+import com.example.unimarket.presentation.util.localizedText
 import com.google.firebase.auth.FirebaseUser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -50,7 +51,10 @@ class MessagesViewModel @Inject constructor(
             _uiState.value = MessagesUiState(
                 isLoading = false,
                 isRefreshing = false,
-                errorMessage = "Please log in to see messages"
+                errorMessage = localizedText(
+                    english = "Please log in to see messages",
+                    vietnamese = "Vui lòng đăng nhập để xem tin nhắn"
+                )
             )
             return
         }
@@ -63,7 +67,10 @@ class MessagesViewModel @Inject constructor(
                         isLoading = false,
                         isRefreshing = false,
                         conversations = emptyList(),
-                        errorMessage = "Please log in to see messages"
+                        errorMessage = localizedText(
+                            english = "Please log in to see messages",
+                            vietnamese = "Vui lòng đăng nhập để xem tin nhắn"
+                        )
                     )
                 }
                 .collect { conversations ->

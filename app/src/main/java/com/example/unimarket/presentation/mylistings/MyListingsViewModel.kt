@@ -12,6 +12,7 @@ import com.example.unimarket.domain.model.Product
 import com.example.unimarket.domain.usecase.draft.DeleteDraftUseCase
 import com.example.unimarket.domain.usecase.draft.GetDraftsUseCase
 import com.example.unimarket.domain.usecase.order.GetSellerOrdersUseCase
+import com.example.unimarket.presentation.util.localizedText
 import com.example.unimarket.presentation.util.toRelativeTimeLabel
 import com.google.firebase.auth.FirebaseUser
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -102,7 +103,10 @@ class MyListingsViewModel @Inject constructor(
             } catch (error: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    errorMessage = error.message ?: "Failed to load listings"
+                    errorMessage = error.message ?: localizedText(
+                        english = "Failed to load listings",
+                        vietnamese = "Không thể tải danh sách tin đăng"
+                    )
                 )
             }
         }
@@ -143,7 +147,10 @@ class MyListingsViewModel @Inject constructor(
                 } catch (e: Exception) {
                     undoDelete()
                     _uiState.value = _uiState.value.copy(
-                        errorMessage = "Failed to delete draft: ${e.message}"
+                        errorMessage = localizedText(
+                            english = "Failed to delete draft: ${e.message}",
+                            vietnamese = "Xóa bản nháp thất bại: ${e.message}"
+                        )
                     )
                 }
             } else {
@@ -152,7 +159,10 @@ class MyListingsViewModel @Inject constructor(
                     // If deletion fails, put it back and show error
                     undoDelete() 
                     _uiState.value = _uiState.value.copy(
-                        errorMessage = "Failed to delete listing: ${error.message}"
+                        errorMessage = localizedText(
+                            english = "Failed to delete listing: ${error.message}",
+                            vietnamese = "Xóa tin đăng thất bại: ${error.message}"
+                        )
                     )
                 }
             }

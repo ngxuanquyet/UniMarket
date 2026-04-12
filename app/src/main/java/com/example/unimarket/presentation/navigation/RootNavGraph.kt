@@ -2,6 +2,9 @@ package com.example.unimarket.presentation.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -105,5 +108,18 @@ fun RootNavGraph(
                 onConversationIntentConsumed = onConversationIntentConsumed
             )
         }
+    }
+
+    if (sessionState.value.isAccountLocked) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text("Tài khoản đã bị khóa") },
+            text = { Text("Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên để được hỗ trợ.") },
+            confirmButton = {
+                TextButton(onClick = { sessionViewModel.consumeAccountLockedNotice() }) {
+                    Text("Đã hiểu")
+                }
+            }
+        )
     }
 }

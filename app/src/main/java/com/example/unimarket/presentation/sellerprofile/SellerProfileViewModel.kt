@@ -6,8 +6,11 @@ import androidx.lifecycle.viewModelScope
 import com.example.unimarket.domain.model.Product
 import com.example.unimarket.domain.usecase.chat.CreateOrGetConversationUseCase
 import com.example.unimarket.domain.usecase.explore.GetAllProductsUseCase
+import com.example.unimarket.presentation.util.localizedText
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
+import com.google.firebase.firestore.FieldValue
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +28,7 @@ import javax.inject.Inject
 @HiltViewModel
 class SellerProfileViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
+    private val firebaseAuth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
     private val getAllProductsUseCase: GetAllProductsUseCase,
     private val createOrGetConversationUseCase: CreateOrGetConversationUseCase
@@ -47,7 +51,14 @@ class SellerProfileViewModel @Inject constructor(
         val product = _uiState.value.selectedProductForChat ?: _uiState.value.activeListings.firstOrNull()
         if (product == null) {
             viewModelScope.launch {
-                _events.emit(SellerProfileEvent.ShowMessage("Seller has no active listing to start a chat"))
+                _events.emit(
+                    SellerProfileEvent.ShowMessage(
+                        localizedText(
+                            english = "Seller has no active listing to start a chat",
+                            vietnamese = "Người bán chưa có tin đang bán để bắt đầu trò chuyện"
+                        )
+                    )
+                )
             }
             return
         }
@@ -60,7 +71,10 @@ class SellerProfileViewModel @Inject constructor(
                 .onFailure { error ->
                     _events.emit(
                         SellerProfileEvent.ShowMessage(
-                            error.message ?: "Failed to open conversation"
+                            error.message ?: localizedText(
+                                english = "Failed to open conversation",
+                                vietnamese = "Không thể mở cuộc trò chuyện"
+                            )
                         )
                     )
                 }
@@ -71,7 +85,10 @@ class SellerProfileViewModel @Inject constructor(
         if (sellerId.isBlank()) {
             _uiState.value = SellerProfileUiState(
                 isLoading = false,
-                errorMessage = "Seller not found"
+                errorMessage = localizedText(
+                    english = "Seller not found",
+                    vietnamese = "Không tìm thấy người bán"
+                )
             )
             return
         }
@@ -131,7 +148,10 @@ class SellerProfileViewModel @Inject constructor(
                 _uiState.value = SellerProfileUiState(
                     isLoading = false,
                     sellerId = sellerId,
-                    errorMessage = error.message ?: "Unable to load seller profile"
+                    errorMessage = error.message ?: localizedText(
+                        english = "Unable to load seller profile",
+                        vietnamese = "Không thể tải hồ sơ người bán"
+                    )
                 )
             }
         }
@@ -146,6 +166,77 @@ class SellerProfileViewModel @Inject constructor(
         if (createdAtMillis == null || createdAtMillis <= 0) return ""
         val calendar = Calendar.getInstance().apply { timeInMillis = createdAtMillis }
         return calendar.get(Calendar.YEAR).toString()
+    }
+
+    fun submitSellerReport(
+        reasonCode: String,
+        reasonLabel: String,
+        details: String
+    ) {
+        val reporterId = firebaseAuth.currentUser?.uid.orEmpty()
+        if (reporterId.isBlank()) {
+            viewModelScope.launch {
+                _events.emit(
+                    SellerProfileEvent.ShowMessage(
+                        localizedText(
+                            english = "Please sign in before submitting a report",
+                            vietnamese = "Vui lòng đăng nhập trước khi gửi báo cáo"
+                        )
+                    )
+                )
+            }
+            return
+        }
+
+        val targetSellerId = _uiState.value.sellerId.ifBlank { sellerId }
+        if (targetSellerId.isBlank()) {
+            viewModelScope.launch {
+                _events.emit(
+                    SellerProfileEvent.ShowMessage(
+                        localizedText(
+                            english = "Unable to identify seller for reporting",
+                            vietnamese = "Không xác định được người bán để báo cáo"
+                        )
+                    )
+                )
+            }
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                val payload = hashMapOf<String, Any>(
+                    "targetType" to "SELLER",
+                    "targetId" to targetSellerId,
+                    "sellerId" to targetSellerId,
+                    "reasonCode" to reasonCode,
+                    "reasonLabel" to reasonLabel,
+                    "description" to details,
+                    "reporterId" to reporterId,
+                    "status" to "OPEN",
+                    "source" to "ANDROID_APP",
+                    "createdAt" to FieldValue.serverTimestamp()
+                )
+                firestore.collection("reports").add(payload).await()
+                _events.emit(
+                    SellerProfileEvent.ShowMessage(
+                        localizedText(
+                            english = "Report submitted. We will review it soon.",
+                            vietnamese = "Đã gửi báo cáo. Chúng tôi sẽ xem xét sớm."
+                        )
+                    )
+                )
+            } catch (_: Exception) {
+                _events.emit(
+                    SellerProfileEvent.ShowMessage(
+                        localizedText(
+                            english = "Failed to submit report. Please try again.",
+                            vietnamese = "Gửi báo cáo thất bại. Vui lòng thử lại."
+                        )
+                    )
+                )
+            }
+        }
     }
 }
 

@@ -8,8 +8,11 @@ import com.example.unimarket.domain.repository.CartRepository
 import com.example.unimarket.domain.usecase.explore.GetAllProductsUseCase
 import com.example.unimarket.domain.usecase.chat.CreateOrGetConversationUseCase
 import com.example.unimarket.domain.usecase.image.GetUserAvatarUrl
+import com.example.unimarket.presentation.util.localizedText
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
+import com.google.firebase.firestore.FieldValue
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,6 +33,7 @@ class ProductDetailViewModel @Inject constructor(
     private val cartRepository: CartRepository,
     private val createOrGetConversationUseCase: CreateOrGetConversationUseCase,
     private val getUserAvatarUrlUseCase: GetUserAvatarUrl,
+    private val firebaseAuth: FirebaseAuth,
     private val firestore: FirebaseFirestore
 ) : ViewModel() {
 
@@ -54,7 +58,10 @@ class ProductDetailViewModel @Inject constructor(
                 .catch { error ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        errorMessage = error.message ?: "Failed to load product"
+                        errorMessage = error.message ?: localizedText(
+                            english = "Failed to load product",
+                            vietnamese = "Không thể tải sản phẩm"
+                        )
                     )
                 }
                 .collect { products ->
@@ -73,7 +80,10 @@ class ProductDetailViewModel @Inject constructor(
                     } else {
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
-                            errorMessage = "Product not found"
+                            errorMessage = localizedText(
+                                english = "Product not found",
+                                vietnamese = "Không tìm thấy sản phẩm"
+                            )
                         )
                     }
                 }
@@ -142,9 +152,23 @@ class ProductDetailViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 cartRepository.addToCart(product, quantity)
-                _uiEvent.emit(UiEvent.ShowSnackbar("Added $quantity item(s) to cart"))
+                _uiEvent.emit(
+                    UiEvent.ShowSnackbar(
+                        localizedText(
+                            english = "Added $quantity item(s) to cart",
+                            vietnamese = "Đã thêm $quantity sản phẩm vào giỏ hàng"
+                        )
+                    )
+                )
             } catch (e: Exception) {
-                _uiEvent.emit(UiEvent.ShowSnackbar("Failed to add to cart: ${e.message}"))
+                _uiEvent.emit(
+                    UiEvent.ShowSnackbar(
+                        localizedText(
+                            english = "Failed to add to cart: ${e.message}",
+                            vietnamese = "Thêm vào giỏ thất bại: ${e.message}"
+                        )
+                    )
+                )
             }
         }
     }
@@ -158,10 +182,72 @@ class ProductDetailViewModel @Inject constructor(
                 .onFailure { error ->
                     _uiEvent.emit(
                         UiEvent.ShowSnackbar(
-                            error.message ?: "Failed to open conversation"
+                            error.message ?: localizedText(
+                                english = "Failed to open conversation",
+                                vietnamese = "Không thể mở cuộc trò chuyện"
+                            )
                         )
                     )
                 }
+        }
+    }
+
+    fun submitProductReport(
+        productId: String,
+        sellerId: String,
+        reasonCode: String,
+        reasonLabel: String,
+        details: String
+    ) {
+        val reporterId = firebaseAuth.currentUser?.uid.orEmpty()
+        if (reporterId.isBlank()) {
+            viewModelScope.launch {
+                _uiEvent.emit(
+                    UiEvent.ShowSnackbar(
+                        localizedText(
+                            english = "Please sign in before submitting a report",
+                            vietnamese = "Vui lòng đăng nhập trước khi gửi báo cáo"
+                        )
+                    )
+                )
+            }
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                val payload = hashMapOf<String, Any>(
+                    "targetType" to "PRODUCT",
+                    "targetId" to productId,
+                    "productId" to productId,
+                    "sellerId" to sellerId,
+                    "reasonCode" to reasonCode,
+                    "reasonLabel" to reasonLabel,
+                    "description" to details,
+                    "reporterId" to reporterId,
+                    "status" to "OPEN",
+                    "source" to "ANDROID_APP",
+                    "createdAt" to FieldValue.serverTimestamp()
+                )
+                firestore.collection("reports").add(payload).await()
+                _uiEvent.emit(
+                    UiEvent.ShowSnackbar(
+                        localizedText(
+                            english = "Report submitted. We will review it soon.",
+                            vietnamese = "Đã gửi báo cáo. Chúng tôi sẽ xem xét sớm."
+                        )
+                    )
+                )
+            } catch (_: Exception) {
+                _uiEvent.emit(
+                    UiEvent.ShowSnackbar(
+                        localizedText(
+                            english = "Failed to submit report. Please try again.",
+                            vietnamese = "Gửi báo cáo thất bại. Vui lòng thử lại."
+                        )
+                    )
+                )
+            }
         }
     }
 }

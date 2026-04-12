@@ -1,5 +1,7 @@
 package com.example.unimarket.presentation.ordertracking
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -19,27 +21,36 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material.icons.filled.Verified
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -58,17 +69,47 @@ import com.example.unimarket.presentation.theme.TextDarkBlack
 import com.example.unimarket.presentation.theme.TextGray
 import com.example.unimarket.presentation.util.formatVnd
 import com.example.unimarket.presentation.util.localizedLabel
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OrderTrackingScreen(
     onBackClick: () -> Unit,
+    onConversationOpen: (String) -> Unit = {},
     viewModel: OrderTrackingViewModel = hiltViewModel()
 ) {
     val uiState = viewModel.uiState.collectAsStateWithLifecycle().value
     val order = uiState.order
+    val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    var showCancelOrderDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(viewModel.events) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is OrderTrackingEvent.OpenConversation -> onConversationOpen(event.conversationId)
+            }
+        }
+    }
+
+    LaunchedEffect(uiState.errorMessage) {
+        uiState.errorMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            viewModel.clearMessages()
+        }
+    }
+
+    LaunchedEffect(uiState.successMessage) {
+        uiState.successMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            viewModel.clearMessages()
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -120,6 +161,10 @@ fun OrderTrackingScreen(
             else -> {
                 OrderTrackingContent(
                     order = order,
+                    onContactSeller = { viewModel.contactSeller(order) },
+                    onCancelOrder = { showCancelOrderDialog = true },
+                    onGetHelp = { context.openSupportEmail(order.id) },
+                    isCancellingOrder = uiState.isCancellingOrder,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(padding)
@@ -127,15 +172,59 @@ fun OrderTrackingScreen(
             }
         }
     }
+
+    if (showCancelOrderDialog && order != null) {
+        AlertDialog(
+            onDismissRequest = {
+                if (!uiState.isCancellingOrder) {
+                    showCancelOrderDialog = false
+                }
+            },
+            title = { Text(stringResource(R.string.order_tracking_cancel_confirm_title)) },
+            text = { Text(stringResource(R.string.order_tracking_cancel_confirm_message)) },
+            confirmButton = {
+                Button(
+                    onClick = { viewModel.cancelOrder(order) },
+                    enabled = !uiState.isCancellingOrder
+                ) {
+                    if (uiState.isCancellingOrder) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = Color.White
+                        )
+                    } else {
+                        Text(stringResource(R.string.order_tracking_cancel_confirm_action))
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showCancelOrderDialog = false },
+                    enabled = !uiState.isCancellingOrder
+                ) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            }
+        )
+    }
 }
 
 @Composable
-private fun OrderTrackingContent(order: Order, modifier: Modifier = Modifier) {
+private fun OrderTrackingContent(
+    order: Order,
+    onContactSeller: () -> Unit,
+    onCancelOrder: () -> Unit,
+    onGetHelp: () -> Unit,
+    isCancellingOrder: Boolean,
+    modifier: Modifier = Modifier
+) {
     val subtotal = order.unitPrice * order.quantity
     val total = if (order.totalAmount > 0) order.totalAmount else subtotal
     val fee = (total - subtotal).coerceAtLeast(0.0)
     val stages = orderStages()
     val activeStageIndex = stages.activeIndex(order.status)
+    val journeySteps = orderJourney(order, activeStageIndex)
 
     Column(
         modifier = modifier
@@ -267,13 +356,14 @@ private fun OrderTrackingContent(order: Order, modifier: Modifier = Modifier) {
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp
                 )
-                orderJourney(order.status).forEachIndexed { index, step ->
+                journeySteps.forEachIndexed { index, step ->
                     JourneyItem(
                         title = step.title,
                         subtitle = step.subtitle,
+                        completedTime = step.completedTime,
                         isDone = step.isDone,
                         isCurrent = step.isCurrent,
-                        showLine = index < orderJourney(order.status).lastIndex
+                        showLine = index < journeySteps.lastIndex
                     )
                 }
             }
@@ -310,28 +400,12 @@ private fun OrderTrackingContent(order: Order, modifier: Modifier = Modifier) {
             }
         }
 
-        Button(
-            onClick = {},
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp),
-            shape = RoundedCornerShape(26.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = SecondaryBlue)
-        ) {
-            Icon(imageVector = Icons.Default.LocationOn, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = stringResource(R.string.order_tracking_track_live_location),
-                fontWeight = FontWeight.Bold
-            )
-        }
-
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             OutlinedButton(
-                onClick = {},
+                onClick = onContactSeller,
                 modifier = Modifier
                     .weight(1f)
                     .height(48.dp),
@@ -343,7 +417,7 @@ private fun OrderTrackingContent(order: Order, modifier: Modifier = Modifier) {
                 )
             }
             OutlinedButton(
-                onClick = {},
+                onClick = onGetHelp,
                 modifier = Modifier
                     .weight(1f)
                     .height(48.dp),
@@ -360,6 +434,31 @@ private fun OrderTrackingContent(order: Order, modifier: Modifier = Modifier) {
                     color = TextDarkBlack,
                     fontWeight = FontWeight.SemiBold
                 )
+            }
+        }
+
+        if (order.status == OrderStatus.WAITING_PAYMENT || order.status == OrderStatus.WAITING_CONFIRMATION) {
+            OutlinedButton(
+                onClick = onCancelOrder,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                enabled = !isCancellingOrder,
+                shape = RoundedCornerShape(24.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFD32F2F))
+            ) {
+                if (isCancellingOrder) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = Color(0xFFD32F2F)
+                    )
+                } else {
+                    Text(
+                        text = stringResource(R.string.order_tracking_cancel_order),
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
         }
     }
@@ -425,6 +524,7 @@ private fun InfoCard(title: String, body: String) {
 private fun JourneyItem(
     title: String,
     subtitle: String,
+    completedTime: String?,
     isDone: Boolean,
     isCurrent: Boolean,
     showLine: Boolean
@@ -455,12 +555,26 @@ private fun JourneyItem(
         }
         Spacer(modifier = Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                color = TextDarkBlack,
-                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
-                fontSize = 14.sp
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = title,
+                    color = TextDarkBlack,
+                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
+                    fontSize = 14.sp
+                )
+                if (!completedTime.isNullOrBlank()) {
+                    Text(
+                        text = completedTime,
+                        color = TextGray,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = subtitle,
@@ -495,6 +609,7 @@ private fun SummaryRow(label: String, value: String, isStrong: Boolean = false) 
 private data class JourneyStep(
     val title: String,
     val subtitle: String,
+    val completedTime: String?,
     val isDone: Boolean,
     val isCurrent: Boolean
 )
@@ -502,8 +617,8 @@ private data class JourneyStep(
 private fun orderStages(): List<OrderStatus> {
     return listOf(
         OrderStatus.WAITING_CONFIRMATION,
+        OrderStatus.WAITING_PICKUP,
         OrderStatus.SHIPPING,
-        OrderStatus.OUT_FOR_DELIVERY,
         OrderStatus.DELIVERED
     )
 }
@@ -511,10 +626,10 @@ private fun orderStages(): List<OrderStatus> {
 private fun List<OrderStatus>.activeIndex(current: OrderStatus): Int {
     return when (current) {
         OrderStatus.WAITING_PAYMENT,
-        OrderStatus.WAITING_CONFIRMATION,
-        OrderStatus.WAITING_PICKUP -> 0
+        OrderStatus.WAITING_CONFIRMATION -> 0
+        OrderStatus.WAITING_PICKUP -> 1
         OrderStatus.SHIPPING,
-        OrderStatus.IN_TRANSIT -> 1
+        OrderStatus.IN_TRANSIT,
         OrderStatus.OUT_FOR_DELIVERY -> 2
         OrderStatus.DELIVERED -> 3
         OrderStatus.CANCELLED,
@@ -522,54 +637,128 @@ private fun List<OrderStatus>.activeIndex(current: OrderStatus): Int {
     }
 }
 
-private fun orderJourney(status: OrderStatus): List<JourneyStep> {
-    val index = orderStages().activeIndex(status)
+@Composable
+private fun orderJourney(order: Order, activeIndex: Int): List<JourneyStep> {
     val titles = listOf(
-        "Order placed",
-        "Payment processed",
-        "Shipped from hub",
-        "Estimated delivery"
+        stringResource(R.string.order_tracking_stage_waiting_confirmation),
+        stringResource(R.string.order_tracking_stage_waiting_pickup),
+        stringResource(R.string.order_tracking_stage_shipping),
+        stringResource(R.string.order_tracking_stage_delivered)
     )
     val subtitles = listOf(
-        "Your order was confirmed by the seller.",
-        "Payment has been received.",
-        "Your package is moving to your campus.",
-        "Pending arrival at your selected location."
+        stringResource(R.string.order_tracking_journey_waiting_confirmation),
+        stringResource(R.string.order_tracking_journey_waiting_pickup),
+        stringResource(R.string.order_tracking_journey_shipping),
+        stringResource(R.string.order_tracking_journey_delivered)
     )
     return titles.indices.map { i ->
+        val isDone = i < activeIndex
+        val isCurrent = i == activeIndex
         JourneyStep(
             title = titles[i],
             subtitle = subtitles[i],
-            isDone = i < index,
-            isCurrent = i == index
+            completedTime = order.stageCompletedTime(i, activeIndex)
+                ?.toJourneyTimeLabel(),
+            isDone = isDone,
+            isCurrent = isCurrent
         )
     }
 }
 
+@Composable
 private fun Order.arrivingHeadline(): String {
     return when (status) {
-        OrderStatus.DELIVERED -> "Delivered"
-        OrderStatus.OUT_FOR_DELIVERY -> "Arriving today"
+        OrderStatus.DELIVERED -> stringResource(R.string.order_tracking_headline_delivered)
+        OrderStatus.OUT_FOR_DELIVERY -> stringResource(R.string.order_tracking_headline_arriving_today)
         OrderStatus.SHIPPING,
-        OrderStatus.IN_TRANSIT -> "In transit"
+        OrderStatus.IN_TRANSIT -> stringResource(R.string.order_tracking_headline_in_transit)
         OrderStatus.WAITING_CONFIRMATION,
-        OrderStatus.WAITING_PICKUP -> "Preparing order"
-        OrderStatus.WAITING_PAYMENT -> "Waiting payment"
-        OrderStatus.CANCELLED -> "Order cancelled"
-        OrderStatus.UNKNOWN -> "Order in progress"
+        OrderStatus.WAITING_PICKUP -> stringResource(R.string.order_tracking_headline_preparing)
+        OrderStatus.WAITING_PAYMENT -> stringResource(R.string.order_tracking_headline_waiting_payment)
+        OrderStatus.CANCELLED -> stringResource(R.string.order_tracking_headline_cancelled)
+        OrderStatus.UNKNOWN -> stringResource(R.string.order_tracking_headline_in_progress)
     }
 }
 
+@Composable
 private fun Order.etaSubtitle(): String {
     return when (status) {
-        OrderStatus.DELIVERED -> "Delivered successfully"
-        OrderStatus.OUT_FOR_DELIVERY -> "Today, between 2:00 PM - 4:00 PM"
+        OrderStatus.DELIVERED -> stringResource(R.string.order_tracking_eta_delivered)
+        OrderStatus.OUT_FOR_DELIVERY -> stringResource(R.string.order_tracking_eta_out_for_delivery)
         OrderStatus.SHIPPING,
-        OrderStatus.IN_TRANSIT -> "Expected in the next 1-2 days"
+        OrderStatus.IN_TRANSIT -> stringResource(R.string.order_tracking_eta_in_transit)
         OrderStatus.WAITING_CONFIRMATION,
-        OrderStatus.WAITING_PICKUP -> "Seller is preparing your order"
-        OrderStatus.WAITING_PAYMENT -> "Waiting for payment confirmation"
-        OrderStatus.CANCELLED -> "This order has been cancelled"
-        OrderStatus.UNKNOWN -> "Delivery window will be updated soon"
+        OrderStatus.WAITING_PICKUP -> stringResource(R.string.order_tracking_eta_preparing)
+        OrderStatus.WAITING_PAYMENT -> stringResource(R.string.order_tracking_eta_waiting_payment)
+        OrderStatus.CANCELLED -> stringResource(R.string.order_tracking_eta_cancelled)
+        OrderStatus.UNKNOWN -> stringResource(R.string.order_tracking_eta_unknown)
     }
+}
+
+private fun Order.stageCompletedTime(stageIndex: Int, activeIndex: Int): Long? {
+    if (stageIndex > activeIndex) return null
+
+    return when (stageIndex) {
+        0 -> paymentConfirmedAt.takeIf { it > 0L }
+            ?: createdAt.takeIf { it > 0L }
+            ?: updatedAt.takeIf { it > 0L }
+
+        1 -> if (activeIndex == 1) {
+            updatedAt.takeIf { it > 0L }
+                ?: paymentConfirmedAt.takeIf { it > 0L }
+                ?: createdAt.takeIf { it > 0L }
+        } else {
+            paymentConfirmedAt.takeIf { it > 0L }
+                ?: createdAt.takeIf { it > 0L }
+                ?: updatedAt.takeIf { it > 0L }
+        }
+
+        2 -> if (activeIndex == 2) {
+            updatedAt.takeIf { it > 0L }
+                ?: paymentConfirmedAt.takeIf { it > 0L }
+                ?: createdAt.takeIf { it > 0L }
+        } else {
+            paymentConfirmedAt.takeIf { it > 0L }
+                ?: createdAt.takeIf { it > 0L }
+                ?: updatedAt.takeIf { it > 0L }
+        }
+
+        3 -> updatedAt.takeIf { it > 0L }
+            ?: paymentConfirmedAt.takeIf { it > 0L }
+            ?: createdAt.takeIf { it > 0L }
+
+        else -> null
+    }
+}
+
+private fun Long.toJourneyTimeLabel(): String {
+    val formatter = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
+    return formatter.format(Date(this))
+}
+
+private fun android.content.Context.openSupportEmail(orderId: String) {
+    val recipient = "nguyenxuanquyetk17@gmail.com"
+    val subject = getString(R.string.order_tracking_support_email_subject, orderId)
+    val body = getString(R.string.order_tracking_support_email_body, orderId)
+
+    val gmailIntent = Intent(Intent.ACTION_SENDTO).apply {
+        data = Uri.parse("mailto:$recipient")
+        putExtra(Intent.EXTRA_SUBJECT, subject)
+        putExtra(Intent.EXTRA_TEXT, body)
+        setPackage("com.google.android.gm")
+    }
+
+    val fallbackIntent = Intent(Intent.ACTION_SENDTO).apply {
+        data = Uri.parse("mailto:$recipient")
+        putExtra(Intent.EXTRA_SUBJECT, subject)
+        putExtra(Intent.EXTRA_TEXT, body)
+    }
+
+    val resolvedIntent = if (gmailIntent.resolveActivity(packageManager) != null) {
+        gmailIntent
+    } else {
+        fallbackIntent
+    }
+
+    startActivity(resolvedIntent)
 }

@@ -10,7 +10,10 @@ import com.example.unimarket.domain.usecase.chat.ObserveConversationsUseCase
 import com.example.unimarket.domain.usecase.chat.ObserveMessagesUseCase
 import com.example.unimarket.domain.usecase.chat.SendMessageUseCase
 import com.example.unimarket.domain.usecase.image.UploadImageUseCase
+import com.example.unimarket.presentation.util.localizedText
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -21,6 +24,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.util.UUID
 import javax.inject.Inject
 
@@ -32,7 +36,8 @@ class ChatViewModel @Inject constructor(
     private val observeConversationsUseCase: ObserveConversationsUseCase,
     private val observeMessagesUseCase: ObserveMessagesUseCase,
     private val sendMessageUseCase: SendMessageUseCase,
-    private val uploadImageUseCase: UploadImageUseCase
+    private val uploadImageUseCase: UploadImageUseCase,
+    private val firestore: FirebaseFirestore
 ) : ViewModel() {
 
     private val conversationId: String = savedStateHandle.get<String>("conversationId").orEmpty()
@@ -54,7 +59,10 @@ class ChatViewModel @Inject constructor(
         if (conversationId.isBlank() || currentUser == null) {
             _uiState.value = ChatUiState(
                 isLoading = false,
-                errorMessage = "Conversation not found"
+                errorMessage = localizedText(
+                    english = "Conversation not found",
+                    vietnamese = "Không tìm thấy cuộc trò chuyện"
+                )
             )
         } else {
             observeConversation()
@@ -116,10 +124,18 @@ class ChatViewModel @Inject constructor(
                             it.copy(
                                 isSending = false,
                                 messages = mergeMessages(syncedMessages, pendingMessages),
-                                errorMessage = error.message ?: "Failed to upload image"
+                                errorMessage = error.message ?: localizedText(
+                                    english = "Failed to upload image",
+                                    vietnamese = "Không thể tải ảnh lên"
+                                )
                             )
                         }
-                        _events.emit(error.message ?: "Failed to upload image")
+                        _events.emit(
+                            error.message ?: localizedText(
+                                english = "Failed to upload image",
+                                vietnamese = "Không thể tải ảnh lên"
+                            )
+                        )
                         return@launch
                     }
             } else {
@@ -138,10 +154,18 @@ class ChatViewModel @Inject constructor(
                         it.copy(
                             isSending = false,
                             messages = mergeMessages(syncedMessages, pendingMessages),
-                            errorMessage = error.message ?: "Failed to send message"
+                            errorMessage = error.message ?: localizedText(
+                                english = "Failed to send message",
+                                vietnamese = "Không thể gửi tin nhắn"
+                            )
                         )
                     }
-                    _events.emit(error.message ?: "Failed to send message")
+                    _events.emit(
+                        error.message ?: localizedText(
+                            english = "Failed to send message",
+                            vietnamese = "Không thể gửi tin nhắn"
+                        )
+                    )
                 }
         }
     }
@@ -159,7 +183,10 @@ class ChatViewModel @Inject constructor(
                             isLoading = false,
                             conversation = null,
                             messages = emptyList(),
-                            errorMessage = "Chat is unavailable. Please log in again."
+                            errorMessage = localizedText(
+                                english = "Chat is unavailable. Please log in again.",
+                                vietnamese = "Trò chuyện hiện không khả dụng. Vui lòng đăng nhập lại."
+                            )
                         )
                     }
                 }
@@ -172,7 +199,14 @@ class ChatViewModel @Inject constructor(
                         it.copy(
                             isLoading = false,
                             conversation = conversation,
-                            errorMessage = if (conversation == null) "Conversation not found" else null
+                            errorMessage = if (conversation == null) {
+                                localizedText(
+                                    english = "Conversation not found",
+                                    vietnamese = "Không tìm thấy cuộc trò chuyện"
+                                )
+                            } else {
+                                null
+                            }
                         )
                     }
                 }
@@ -188,7 +222,10 @@ class ChatViewModel @Inject constructor(
                         it.copy(
                             isLoading = false,
                             messages = emptyList(),
-                            errorMessage = "Chat is unavailable. Please log in again."
+                            errorMessage = localizedText(
+                                english = "Chat is unavailable. Please log in again.",
+                                vietnamese = "Trò chuyện hiện không khả dụng. Vui lòng đăng nhập lại."
+                            )
                         )
                     }
                 }
@@ -225,6 +262,63 @@ class ChatViewModel @Inject constructor(
         if (conversationId.isBlank() || markSeenJob?.isActive == true) return
         markSeenJob = viewModelScope.launch {
             markConversationAsSeenUseCase(conversationId)
+        }
+    }
+
+    fun submitConversationReport(
+        reasonCode: String,
+        reasonLabel: String,
+        details: String
+    ) {
+        val user = currentUser
+        val conversation = _uiState.value.conversation
+        if (user == null || conversation == null) {
+            viewModelScope.launch {
+                _events.emit(
+                    localizedText(
+                        english = "Unable to submit report right now",
+                        vietnamese = "Hiện không thể gửi báo cáo"
+                    )
+                )
+            }
+            return
+        }
+
+        val payload = hashMapOf<String, Any>(
+            "targetType" to "CONVERSATION",
+            "targetId" to conversation.id,
+            "conversationId" to conversation.id,
+            "productId" to conversation.productId,
+            "reportedUserId" to conversation.otherUser.id,
+            "reasonCode" to reasonCode,
+            "reasonLabel" to reasonLabel,
+            "description" to details,
+            "reporterId" to user.uid,
+            "status" to "OPEN",
+            "source" to "ANDROID_APP",
+            "createdAt" to FieldValue.serverTimestamp()
+        )
+        submitReport(payload)
+    }
+
+    private fun submitReport(payload: Map<String, Any>) {
+        viewModelScope.launch {
+            try {
+                firestore.collection("reports").add(payload).await()
+                _events.emit(
+                    localizedText(
+                        english = "Report submitted. We will review it soon.",
+                        vietnamese = "Đã gửi báo cáo. Chúng tôi sẽ xem xét sớm."
+                    )
+                )
+            } catch (_: Exception) {
+                _events.emit(
+                    localizedText(
+                        english = "Failed to submit report. Please try again.",
+                        vietnamese = "Gửi báo cáo thất bại. Vui lòng thử lại."
+                    )
+                )
+            }
         }
     }
 }

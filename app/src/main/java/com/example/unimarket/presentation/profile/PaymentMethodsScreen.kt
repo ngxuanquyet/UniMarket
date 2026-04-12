@@ -289,6 +289,7 @@ private fun PaymentMethodCard(
                             SellerPaymentMethodType.BANK_TRANSFER -> Icons.Default.AccountBalance
                             SellerPaymentMethodType.MOMO -> Icons.Default.PhoneAndroid
                             SellerPaymentMethodType.CASH_ON_DELIVERY -> Icons.Default.CreditCard
+                            SellerPaymentMethodType.WALLET -> Icons.Default.AccountBalance
                         },
                         contentDescription = null,
                         tint = SecondaryBlue
@@ -348,6 +349,7 @@ private fun PaymentMethodCard(
                 }
 
                 SellerPaymentMethodType.CASH_ON_DELIVERY -> Unit
+                SellerPaymentMethodType.WALLET -> Unit
             }
 
             if (method.note.isNotBlank()) {
@@ -432,7 +434,7 @@ private fun PaymentMethodEditorDialog(
                     FilterChip(
                         selected = type == SellerPaymentMethodType.MOMO,
                         onClick = { type = SellerPaymentMethodType.MOMO },
-                        label = { Text("MoMo") }
+                        label = { Text(stringResource(R.string.payment_momo)) }
                     )
                 }
 

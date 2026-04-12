@@ -28,11 +28,13 @@ class UserSessionLocalDataSource @Inject constructor(
             .putString(KEY_DISPLAY_NAME, userProfile.displayName)
             .putString(KEY_EMAIL, userProfile.email)
             .putString(KEY_AVATAR_URL, userProfile.avatarUrl)
+            .putBoolean(KEY_IS_LOCK, userProfile.isLock)
             .putString(KEY_STUDENT_ID, userProfile.studentId)
             .putInt(KEY_BOUGHT_COUNT, userProfile.boughtCount)
             .putInt(KEY_SOLD_COUNT, userProfile.soldCount)
             .putFloat(KEY_AVERAGE_RATING, userProfile.averageRating.toFloat())
             .putInt(KEY_RATING_COUNT, userProfile.ratingCount)
+            .putString(KEY_WALLET_BALANCE, userProfile.walletBalance.toString())
             .putString(KEY_PAYMENT_METHODS, paymentMethodsToJson(userProfile.paymentMethods))
             .apply()
 
@@ -53,11 +55,15 @@ class UserSessionLocalDataSource @Inject constructor(
             displayName = sharedPreferences.getString(KEY_DISPLAY_NAME, null).orEmpty(),
             email = sharedPreferences.getString(KEY_EMAIL, null).orEmpty(),
             avatarUrl = sharedPreferences.getString(KEY_AVATAR_URL, null).orEmpty(),
+            isLock = sharedPreferences.getBoolean(KEY_IS_LOCK, false),
             studentId = sharedPreferences.getString(KEY_STUDENT_ID, null).orEmpty(),
             boughtCount = sharedPreferences.getInt(KEY_BOUGHT_COUNT, 0),
             soldCount = sharedPreferences.getInt(KEY_SOLD_COUNT, 0),
             averageRating = sharedPreferences.getFloat(KEY_AVERAGE_RATING, 0f).toDouble(),
             ratingCount = sharedPreferences.getInt(KEY_RATING_COUNT, 0),
+            walletBalance = sharedPreferences.getString(KEY_WALLET_BALANCE, null)
+                ?.toDoubleOrNull()
+                ?: 0.0,
             paymentMethods = paymentMethodsFromJson(
                 sharedPreferences.getString(KEY_PAYMENT_METHODS, null).orEmpty()
             )
@@ -113,11 +119,13 @@ class UserSessionLocalDataSource @Inject constructor(
         const val KEY_DISPLAY_NAME = "display_name"
         const val KEY_EMAIL = "email"
         const val KEY_AVATAR_URL = "avatar_url"
+        const val KEY_IS_LOCK = "is_lock"
         const val KEY_STUDENT_ID = "student_id"
         const val KEY_BOUGHT_COUNT = "bought_count"
         const val KEY_SOLD_COUNT = "sold_count"
         const val KEY_AVERAGE_RATING = "average_rating"
         const val KEY_RATING_COUNT = "rating_count"
+        const val KEY_WALLET_BALANCE = "wallet_balance"
         const val KEY_PAYMENT_METHODS = "payment_methods"
     }
 }

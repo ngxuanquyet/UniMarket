@@ -47,6 +47,7 @@ fun ProfileScreen(
     onLogoutClick: () -> Unit,
     onMyAddressesClick: () -> Unit = {},
     onMyPurchasesClick: () -> Unit = {},
+    onWalletClick: () -> Unit = {},
     onPaymentMethodsClick: () -> Unit = {},
     onSellerOrdersClick: () -> Unit = {},
     onStatisticsClick: () -> Unit = {},
@@ -131,6 +132,7 @@ fun ProfileScreen(
                     currentLanguage = currentLanguage,
                     onMyAddressesClick = onMyAddressesClick,
                     onMyPurchasesClick = onMyPurchasesClick,
+                    onWalletClick = onWalletClick,
                     onPaymentMethodsClick = onPaymentMethodsClick,
                     onSellerOrdersClick = onSellerOrdersClick,
                     onStatisticsClick = onStatisticsClick,
@@ -393,6 +395,7 @@ fun ProfileActionsList(
     currentLanguage: LanguageOption,
     onMyAddressesClick: () -> Unit = {},
     onMyPurchasesClick: () -> Unit = {},
+    onWalletClick: () -> Unit = {},
     onPaymentMethodsClick: () -> Unit = {},
     onSellerOrdersClick: () -> Unit = {},
     onStatisticsClick: () -> Unit = {},
@@ -407,6 +410,20 @@ fun ProfileActionsList(
             onClick = onStatisticsClick
         )
         ActionRowItem(
+            title = stringResource(R.string.profile_my_purchases),
+            icon = Icons.Default.ShoppingBag,
+            iconBgColor = LightBlueReviewBg,
+            iconColor = BlueReview,
+            onClick = onMyPurchasesClick
+        )
+        ActionRowItem(
+            title = stringResource(R.string.profile_wallet),
+            icon = Icons.Default.AccountBalance,
+            iconBgColor = LightBlueReviewBg,
+            iconColor = BlueReview,
+            onClick = onWalletClick
+        )
+        ActionRowItem(
             title = stringResource(R.string.profile_seller_orders),
             icon = Icons.Default.Inventory2,
             iconBgColor = LightBlueReviewBg,
@@ -414,12 +431,11 @@ fun ProfileActionsList(
             onClick = onSellerOrdersClick
         )
         ActionRowItem(
-            title = stringResource(R.string.language_label),
-            subtitle = currentLanguage.displayName(),
-            icon = Icons.Default.Language,
+            title = stringResource(R.string.profile_payment_methods),
+            icon = Icons.Default.CreditCard,
             iconBgColor = LightBlueReviewBg,
             iconColor = BlueReview,
-            onClick = onLanguageClick
+            onClick = onPaymentMethodsClick
         )
         ActionRowItem(
             title = stringResource(R.string.profile_my_addresses),
@@ -429,18 +445,12 @@ fun ProfileActionsList(
             onClick = onMyAddressesClick
         )
         ActionRowItem(
-            title = stringResource(R.string.profile_my_purchases),
-            icon = Icons.Default.ShoppingBag,
+            title = stringResource(R.string.language_label),
+            subtitle = currentLanguage.displayName(),
+            icon = Icons.Default.Language,
             iconBgColor = LightBlueReviewBg,
             iconColor = BlueReview,
-            onClick = onMyPurchasesClick
-        )
-        ActionRowItem(
-            title = stringResource(R.string.profile_payment_methods),
-            icon = Icons.Default.CreditCard,
-            iconBgColor = LightBlueReviewBg,
-            iconColor = BlueReview,
-            onClick = onPaymentMethodsClick
+            onClick = onLanguageClick
         )
     }
 }

@@ -28,6 +28,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Report
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -45,7 +46,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,6 +61,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
 import com.example.unimarket.R
 import com.example.unimarket.domain.model.ChatMessage
+import com.example.unimarket.presentation.components.ReportIssueDialog
 import com.example.unimarket.presentation.theme.AppBlue
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -73,6 +77,7 @@ fun ChatDetailScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val listState = rememberLazyListState()
     val currentUserId = viewModel.currentUserId()
+    var showConversationReportDialog by remember { mutableStateOf(false) }
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
@@ -113,22 +118,32 @@ fun ChatDetailScreen(
 
                         Column {
                             Text(
-                                text = uiState.conversation?.otherUser?.name ?: stringResource(R.string.chat_title_fallback),
+                                text = uiState.conversation?.otherUser?.name
+                                    ?: stringResource(R.string.chat_title_fallback),
                                 fontWeight = FontWeight.SemiBold
                             )
-                            uiState.conversation?.productName?.takeIf { it.isNotBlank() }?.let { productName ->
-                                Text(
-                                    text = productName,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = Color.Gray
-                                )
-                            }
+                            uiState.conversation?.productName?.takeIf { it.isNotBlank() }
+                                ?.let { productName ->
+                                    Text(
+                                        text = productName,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color.Gray
+                                    )
+                                }
                         }
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.common_back)
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { showConversationReportDialog = true }) {
+                        Icon(Icons.Default.Report, contentDescription = "Report conversation")
                     }
                 }
             )
@@ -204,8 +219,8 @@ fun ChatDetailScreen(
                         TextButton(
                             onClick = viewModel::sendMessage,
                             enabled = !uiState.isSending && (
-                                uiState.messageText.isNotBlank() || uiState.selectedImageUri != null
-                            )
+                                    uiState.messageText.isNotBlank() || uiState.selectedImageUri != null
+                                    )
                         ) {
                             Icon(
                                 Icons.AutoMirrored.Filled.Send,
@@ -237,7 +252,10 @@ fun ChatDetailScreen(
                         .padding(paddingValues),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(uiState.errorMessage ?: stringResource(R.string.chat_load_error), color = Color.Gray)
+                    Text(
+                        uiState.errorMessage ?: stringResource(R.string.chat_load_error),
+                        color = Color.Gray
+                    )
                 }
             }
 
@@ -262,6 +280,20 @@ fun ChatDetailScreen(
                 }
             }
         }
+    }
+
+    if (showConversationReportDialog) {
+        ReportIssueDialog(
+            onDismiss = { showConversationReportDialog = false },
+            onSubmit = { reasonCode, reasonLabel, details ->
+                showConversationReportDialog = false
+                viewModel.submitConversationReport(
+                    reasonCode = reasonCode,
+                    reasonLabel = reasonLabel,
+                    details = details
+                )
+            }
+        )
     }
 }
 

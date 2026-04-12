@@ -53,11 +53,13 @@ enum class OrderStatus(val label: String) {
                 .replace(" ", "_")
 
             return when (normalized) {
+                "WAIT_PAYMENT",
                 "WAITING_PAYMENT",
                 "WAIT_FOR_PAYMENT",
                 "PENDING_PAYMENT",
                 "AWAITING_PAYMENT" -> WAITING_PAYMENT
 
+                "WAIT_CONFIRMATION",
                 "WAITING",
                 "WAITING_CONFIRMATION",
                 "WAIT_FOR_CONFIRMATION",

@@ -2,11 +2,9 @@ package com.example.unimarket.data.repository
 
 import com.example.unimarket.BuildConfig
 import com.example.unimarket.data.api.NotificationApiService
-import com.example.unimarket.data.api.SepayApiService
 import com.example.unimarket.data.api.model.CheckoutAddressDto
 import com.example.unimarket.data.api.model.CheckoutPaymentMethodDto
 import com.example.unimarket.data.api.model.OrderDto
-import com.example.unimarket.data.api.model.OrderPaymentCheckResponseDto
 import com.example.unimarket.data.api.model.OrderStatusUpdateRequestDto
 import com.example.unimarket.domain.model.Order
 import com.example.unimarket.domain.model.OrderPaymentCheckResult
@@ -26,8 +24,7 @@ import javax.inject.Inject
 class FirebaseOrderRepositoryImpl @Inject constructor(
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
-    private val notificationApiService: NotificationApiService,
-    private val sepayApiService: SepayApiService
+    private val notificationApiService: NotificationApiService
 ) : OrderRepository {
 
     override suspend fun getBuyerOrders(): Result<List<Order>> {
@@ -51,11 +48,15 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
     override suspend fun updateOrderStatus(order: Order, status: OrderStatus): Result<Unit> {
         val userId = auth.currentUser?.uid ?: return Result.failure(Exception("No user logged in"))
         
-        // Allow the update if the user is the seller OR if the user is the buyer moving it to WAITING_CONFIRMATION
+        // Allow the update if the user is the seller OR if the user is the buyer moving it to
+        // WAITING_CONFIRMATION or cancelling their own order while waiting payment/confirmation.
         val isSeller = order.sellerId == userId
         val isBuyerConfirmingPayment = order.buyerId == userId && status == OrderStatus.WAITING_CONFIRMATION
+        val isBuyerCancellingWaitingOrder = order.buyerId == userId &&
+            order.status in setOf(OrderStatus.WAITING_PAYMENT, OrderStatus.WAITING_CONFIRMATION) &&
+            status == OrderStatus.CANCELLED
         
-        if (!isSeller && !isBuyerConfirmingPayment) {
+        if (!isSeller && !isBuyerConfirmingPayment && !isBuyerCancellingWaitingOrder) {
             return Result.failure(Exception("You can only update your own or verified purchases"))
         }
 
@@ -93,10 +94,6 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
     override suspend fun checkTransferPayment(orderId: String): Result<OrderPaymentCheckResult> {
         val currentUser = auth.currentUser ?: return Result.failure(Exception("No user logged in"))
 
-        if (BuildConfig.NOTIFICATION_SERVER_BASE_URL.isBlank()) {
-            return Result.failure(Exception("Checkout backend is not configured"))
-        }
-
         return try {
             val idToken = currentUser.getIdToken(false).await().token.orEmpty()
             if (idToken.isBlank()) {
@@ -107,7 +104,6 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
                 authorization = "Bearer $idToken",
                 orderId = orderId
             )
-
             if (!response.isSuccessful) {
                 return Result.failure(
                     Exception(
@@ -120,7 +116,15 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
             val body = response.body()
                 ?: return Result.failure(Exception("Empty response from payment check service"))
 
-            Result.success(body.toDomain())
+            Result.success(
+                OrderPaymentCheckResult(
+                    orderId = body.orderId.ifBlank { orderId },
+                    status = OrderStatus.fromRaw(body.status),
+                    statusLabel = body.statusLabel,
+                    paymentExpiresAt = body.paymentExpiresAt,
+                    paymentConfirmedAt = body.paymentConfirmedAt
+                )
+            )
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -478,17 +482,6 @@ class FirebaseOrderRepositoryImpl @Inject constructor(
             phoneNumber = phoneNumber,
             note = note,
             isDefault = isDefault
-        )
-    }
-
-    private fun OrderPaymentCheckResponseDto.toDomain(): OrderPaymentCheckResult {
-        val normalizedStatus = OrderStatus.fromRaw(status)
-        return OrderPaymentCheckResult(
-            orderId = orderId,
-            status = normalizedStatus,
-            statusLabel = statusLabel.ifBlank { normalizedStatus.label },
-            paymentExpiresAt = paymentExpiresAt,
-            paymentConfirmedAt = paymentConfirmedAt
         )
     }
 

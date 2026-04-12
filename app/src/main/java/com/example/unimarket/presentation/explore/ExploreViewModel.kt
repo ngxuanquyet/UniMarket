@@ -92,6 +92,18 @@ class ExploreViewModel @Inject constructor(
         _uiState.value = updateFilteredProducts(currentState.copy(selectedPriceSort = priceSort))
     }
 
+    fun resetExploreState() {
+        val currentState = _uiState.value
+        _uiState.value = updateFilteredProducts(
+            currentState.copy(
+                searchQuery = "",
+                selectedCategory = "All Items",
+                selectedPriceFilter = ExplorePriceFilter.ALL,
+                selectedPriceSort = ExplorePriceSort.RECOMMENDED
+            )
+        )
+    }
+
     private fun updateFilteredProducts(state: ExploreUiState): ExploreUiState {
         val filteredProducts = filterProducts(
             products = state.products,

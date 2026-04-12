@@ -21,6 +21,7 @@ import com.example.unimarket.domain.usecase.explore.GetAllProductsUseCase
 import com.example.unimarket.domain.usecase.image.UploadImageUseCase
 import com.example.unimarket.domain.usecase.product.AddProductUseCase
 import com.example.unimarket.domain.usecase.product.UpdateProductUseCase
+import com.example.unimarket.presentation.util.localizedText
 import com.example.unimarket.presentation.util.toRelativeTimeLabel
 import com.google.firebase.auth.FirebaseUser
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -69,7 +70,10 @@ class SellViewModel @Inject constructor(
                 }
                 .onFailure { error ->
                     _uiState.value = _uiState.value.copy(
-                        errorMessage = error.message ?: "Failed to load addresses"
+                        errorMessage = error.message ?: localizedText(
+                            english = "Failed to load addresses",
+                            vietnamese = "Không thể tải địa chỉ"
+                        )
                     )
                 }
         }
@@ -128,7 +132,10 @@ class SellViewModel @Inject constructor(
                 } else {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        errorMessage = "Product or Draft not found"
+                        errorMessage = localizedText(
+                            english = "Product or Draft not found",
+                            vietnamese = "Không tìm thấy sản phẩm hoặc bản nháp"
+                        )
                     )
                 }
             }
@@ -175,7 +182,10 @@ class SellViewModel @Inject constructor(
 
         if (!hasEnoughContext) {
             _uiState.value = _uiState.value.copy(
-                errorMessage = "Add at least a title, description, category, or specifications before using AI"
+                errorMessage = localizedText(
+                    english = "Add at least a title, description, category, or specifications before using AI",
+                    vietnamese = "Hãy nhập ít nhất tiêu đề, mô tả, danh mục hoặc thông số trước khi dùng AI"
+                )
             )
             return
         }
@@ -202,12 +212,18 @@ class SellViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(
                     isGeneratingWithAi = false,
                     aiSuggestion = suggestion,
-                    successMessage = "AI updated title, description, and specifications"
+                    successMessage = localizedText(
+                        english = "AI updated title, description, and specifications",
+                        vietnamese = "AI đã cập nhật tiêu đề, mô tả và thông số"
+                    )
                 )
             }.onFailure { error ->
                 _uiState.value = _uiState.value.copy(
                     isGeneratingWithAi = false,
-                    errorMessage = error.message ?: "Failed to generate listing with AI"
+                    errorMessage = error.message ?: localizedText(
+                        english = "Failed to generate listing with AI",
+                        vietnamese = "Không thể tạo nội dung bằng AI"
+                    )
                 )
             }
         }
@@ -223,7 +239,10 @@ class SellViewModel @Inject constructor(
         val imageUri = _uiState.value.selectedImageUris.firstOrNull()
         if (imageUri == null) {
             _uiState.value = _uiState.value.copy(
-                errorMessage = "Please select at least one image before using AI autofill"
+                errorMessage = localizedText(
+                    english = "Please select at least one image before using AI autofill",
+                    vietnamese = "Vui lòng chọn ít nhất một ảnh trước khi dùng AI điền tự động"
+                )
             )
             return
         }
@@ -247,12 +266,18 @@ class SellViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(
                     isGeneratingWithAiFromImage = false,
                     aiImageSuggestion = suggestion,
-                    successMessage = "AI autofilled details from the selected image"
+                    successMessage = localizedText(
+                        english = "AI autofilled details from the selected image",
+                        vietnamese = "AI đã tự điền thông tin từ ảnh đã chọn"
+                    )
                 )
             }.onFailure { error ->
                 _uiState.value = _uiState.value.copy(
                     isGeneratingWithAiFromImage = false,
-                    errorMessage = error.message ?: "Failed to autofill listing from image"
+                    errorMessage = error.message ?: localizedText(
+                        english = "Failed to autofill listing from image",
+                        vietnamese = "Không thể tự điền thông tin từ ảnh"
+                    )
                 )
             }
         }
@@ -272,36 +297,64 @@ class SellViewModel @Inject constructor(
     ) {
         val uris = _uiState.value.selectedImageUris
         if (uris.isEmpty()) {
-            _uiState.value = _uiState.value.copy(errorMessage = "Please select at least one image")
+            _uiState.value = _uiState.value.copy(
+                errorMessage = localizedText(
+                    english = "Please select at least one image",
+                    vietnamese = "Vui lòng chọn ít nhất một ảnh"
+                )
+            )
             return
         }
 
         if (title.isBlank() || priceStr.isBlank() || description.isBlank() || category == "Select a category" || condition == "" || quantityStr.isBlank()) {
-            _uiState.value = _uiState.value.copy(errorMessage = "Please fill in all required fields")
+            _uiState.value = _uiState.value.copy(
+                errorMessage = localizedText(
+                    english = "Please fill in all required fields",
+                    vietnamese = "Vui lòng điền đầy đủ các trường bắt buộc"
+                )
+            )
             return
         }
 
         if (deliveryMethodsAvailable.isEmpty()) {
-            _uiState.value = _uiState.value.copy(errorMessage = "Please select at least one delivery method")
+            _uiState.value = _uiState.value.copy(
+                errorMessage = localizedText(
+                    english = "Please select at least one delivery method",
+                    vietnamese = "Vui lòng chọn ít nhất một phương thức giao hàng"
+                )
+            )
             return
         }
 
         if (deliveryMethodsAvailable.contains(DeliveryMethod.BUYER_TO_SELLER) && sellerPickupAddress == null) {
             _uiState.value = _uiState.value.copy(
-                errorMessage = "Please choose or enter a pickup address for buyer pickup"
+                errorMessage = localizedText(
+                    english = "Please choose or enter a pickup address for buyer pickup",
+                    vietnamese = "Vui lòng chọn hoặc nhập địa chỉ lấy hàng cho người mua đến lấy"
+                )
             )
             return
         }
 
         val price = priceStr.toDoubleOrNull()
         if (price == null) {
-            _uiState.value = _uiState.value.copy(errorMessage = "Invalid price format")
+            _uiState.value = _uiState.value.copy(
+                errorMessage = localizedText(
+                    english = "Invalid price format",
+                    vietnamese = "Định dạng giá không hợp lệ"
+                )
+            )
             return
         }
 
         val quantityAvailable = quantityStr.toIntOrNull()
         if (quantityAvailable == null || quantityAvailable <= 0) {
-            _uiState.value = _uiState.value.copy(errorMessage = "Quantity must be a number greater than 0")
+            _uiState.value = _uiState.value.copy(
+                errorMessage = localizedText(
+                    english = "Quantity must be a number greater than 0",
+                    vietnamese = "Số lượng phải là số lớn hơn 0"
+                )
+            )
             return
         }
 
@@ -336,7 +389,10 @@ class SellViewModel @Inject constructor(
             if (uploadError != null) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    errorMessage = "Failed to upload image: $uploadError"
+                    errorMessage = localizedText(
+                        english = "Failed to upload image: $uploadError",
+                        vietnamese = "Tải ảnh lên thất bại: $uploadError"
+                    )
                 )
                 Log.d("ccc", "${_uiState.value.errorMessage}")
                 return@launch
@@ -387,13 +443,26 @@ class SellViewModel @Inject constructor(
                 
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    successMessage = if (editingProductId != null && !isEditingDraft) "Product updated successfully!" else "Product listed successfully!",
+                    successMessage = if (editingProductId != null && !isEditingDraft) {
+                        localizedText(
+                            english = "Product updated successfully!",
+                            vietnamese = "Cập nhật sản phẩm thành công!"
+                        )
+                    } else {
+                        localizedText(
+                            english = "Product listed successfully!",
+                            vietnamese = "Đăng bán sản phẩm thành công!"
+                        )
+                    },
                     selectedImageUris = emptyList()
                 )
             }.onFailure { error ->
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    errorMessage = "Failed to save product: ${error.message}"
+                    errorMessage = localizedText(
+                        english = "Failed to save product: ${error.message}",
+                        vietnamese = "Lưu sản phẩm thất bại: ${error.message}"
+                    )
                 )
             }
         }
@@ -452,13 +521,19 @@ class SellViewModel @Inject constructor(
                 saveDraftUseCase(draftProduct)
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    successMessage = "Draft saved successfully"
+                    successMessage = localizedText(
+                        english = "Draft saved successfully",
+                        vietnamese = "Đã lưu bản nháp thành công"
+                    )
                 )
                 onDraftSaved()
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    errorMessage = "Failed to save draft: ${e.message}"
+                    errorMessage = localizedText(
+                        english = "Failed to save draft: ${e.message}",
+                        vietnamese = "Lưu bản nháp thất bại: ${e.message}"
+                    )
                 )
             }
         }

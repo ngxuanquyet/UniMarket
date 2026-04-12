@@ -20,6 +20,8 @@ import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Redo
+import androidx.compose.material.icons.filled.Report
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
@@ -43,6 +45,7 @@ import com.example.unimarket.R
 import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
 import com.example.unimarket.domain.model.DeliveryMethod
+import com.example.unimarket.presentation.components.ReportIssueDialog
 import com.example.unimarket.presentation.theme.*
 import com.example.unimarket.presentation.util.formatVnd
 import com.example.unimarket.presentation.util.localizedConditionLabel
@@ -89,6 +92,7 @@ fun ProductDetailScreen(
                 is ProductDetailViewModel.UiEvent.ShowSnackbar -> {
                     snackbarHostState.showSnackbar(event.message)
                 }
+
                 is ProductDetailViewModel.UiEvent.OpenConversation -> {
                     onConversationOpen(event.conversationId)
                 }
@@ -104,6 +108,7 @@ fun ProductDetailScreen(
     var isFavorite by remember(product?.id) { mutableStateOf(product?.isFavorite ?: false) }
     var purchaseAction by remember { mutableStateOf<PurchaseAction?>(null) }
     var selectedQuantity by remember(product?.id) { mutableIntStateOf(1) }
+    var isReportDialogVisible by remember { mutableStateOf(false) }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -127,6 +132,9 @@ fun ProductDetailScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { isReportDialogVisible = true }) {
+                        Icon(Icons.Default.Report, contentDescription = "Report")
+                    }
                     IconButton(
                         onClick = { /* Share */ },
                         modifier = Modifier
@@ -134,20 +142,10 @@ fun ProductDetailScreen(
                             .clip(CircleShape)
                             .background(Color.White.copy(alpha = 0.8f))
                     ) {
-                        Icon(Icons.Default.Share, contentDescription = stringResource(R.string.product_share), tint = Color.Black)
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    IconButton(
-                        onClick = { isFavorite = !isFavorite },
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.8f))
-                    ) {
                         Icon(
-                            imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            contentDescription = stringResource(R.string.explore_favorite),
-                            tint = if (isFavorite) RedDanger else Color.Black
+                            Icons.Default.Share,
+                            contentDescription = stringResource(R.string.product_share),
+                            tint = Color.Black
                         )
                     }
                     Spacer(modifier = Modifier.width(8.dp))
@@ -313,7 +311,11 @@ fun ProductDetailScreen(
                                 ) { page ->
                                     Image(
                                         painter = rememberAsyncImagePainter(model = product.imageUrls[page]),
-                                        contentDescription = stringResource(R.string.product_image_page, product.name, page + 1),
+                                        contentDescription = stringResource(
+                                            R.string.product_image_page,
+                                            product.name,
+                                            page + 1
+                                        ),
                                         contentScale = ContentScale.Crop,
                                         modifier = Modifier.fillMaxSize()
                                     )
@@ -370,7 +372,10 @@ fun ProductDetailScreen(
                                     ) {
                                         Image(
                                             painter = rememberAsyncImagePainter(model = product.imageUrls[index]),
-                                            contentDescription = stringResource(R.string.product_thumbnail, index + 1),
+                                            contentDescription = stringResource(
+                                                R.string.product_thumbnail,
+                                                index + 1
+                                            ),
                                             contentScale = ContentScale.Crop,
                                             modifier = Modifier.fillMaxSize()
                                         )
@@ -425,7 +430,10 @@ fun ProductDetailScreen(
 
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = stringResource(R.string.product_available, product.quantityAvailable),
+                            text = stringResource(
+                                R.string.product_available,
+                                product.quantityAvailable
+                            ),
                             fontSize = 14.sp,
                             color = if (product.quantityAvailable > 0) Color.Gray else RedDanger,
                             fontWeight = FontWeight.Medium
@@ -485,7 +493,12 @@ fun ProductDetailScreen(
                     ) {
                         val sellerAvatarPainter = rememberAsyncImagePainter(
                             model = uiState.sellerAvatarUrl.ifBlank {
-                                "https://ui-avatars.com/api/?name=${product.sellerName.replace(" ", "+")}&background=random"
+                                "https://ui-avatars.com/api/?name=${
+                                    product.sellerName.replace(
+                                        " ",
+                                        "+"
+                                    )
+                                }&background=random"
                             }
                         )
                         val sellerInitial = product.sellerName
@@ -563,7 +576,10 @@ fun ProductDetailScreen(
                                 )
                             }
                             Text(
-                                text = stringResource(R.string.product_sold_count, uiState.sellerSoldCount),
+                                text = stringResource(
+                                    R.string.product_sold_count,
+                                    uiState.sellerSoldCount
+                                ),
                                 color = Color.Gray,
                                 fontSize = 12.sp
                             )
@@ -612,6 +628,22 @@ fun ProductDetailScreen(
                 }
             }
         }
+    }
+
+    if (isReportDialogVisible && product != null) {
+        ReportIssueDialog(
+            onDismiss = { isReportDialogVisible = false },
+            onSubmit = { reasonCode, reasonLabel, details ->
+                isReportDialogVisible = false
+                viewModel.submitProductReport(
+                    productId = product.id,
+                    sellerId = product.userId,
+                    reasonCode = reasonCode,
+                    reasonLabel = reasonLabel,
+                    details = details
+                )
+            }
+        )
     }
 
     if (purchaseAction != null && product != null) {
@@ -681,7 +713,10 @@ private fun QuantityPickerSheet(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(stringResource(R.string.product_available_stock, availableQuantity), fontWeight = FontWeight.Medium)
+            Text(
+                stringResource(R.string.product_available_stock, availableQuantity),
+                fontWeight = FontWeight.Medium
+            )
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -715,7 +750,11 @@ private fun QuantityPickerSheet(
             shape = RoundedCornerShape(24.dp),
             colors = ButtonDefaults.buttonColors(containerColor = PrimaryYellowDark)
         ) {
-            Text(stringResource(R.string.product_confirm), color = Color.Black, fontWeight = FontWeight.Bold)
+            Text(
+                stringResource(R.string.product_confirm),
+                color = Color.Black,
+                fontWeight = FontWeight.Bold
+            )
         }
         Spacer(modifier = Modifier.height(12.dp))
     }

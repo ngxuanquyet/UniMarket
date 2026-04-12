@@ -81,10 +81,12 @@ class AuthRepositoryImpl @Inject constructor(
                         boughtCount = 0,
                         soldCount = 0,
                         averageRating = 0.0,
-                        ratingCount = 0
+                        ratingCount = 0,
+                        walletBalance = 0.0
                     ),
                     includeBoughtCount = true,
-                        includeSoldCount = true
+                    includeSoldCount = true,
+                    includeWalletBalance = true
                 )
 
                 user.sendEmailVerification().await()
@@ -145,7 +147,8 @@ class AuthRepositoryImpl @Inject constructor(
                 syncUserDocument(
                     profile = userProfile,
                     includeBoughtCount = true,
-                    includeSoldCount = true
+                    includeSoldCount = true,
+                    includeWalletBalance = true
                 )
             }
 
@@ -375,12 +378,14 @@ class AuthRepositoryImpl @Inject constructor(
     private suspend fun syncUserDocument(
         profile: UserProfile,
         includeBoughtCount: Boolean = false,
-        includeSoldCount: Boolean = false
+        includeSoldCount: Boolean = false,
+        includeWalletBalance: Boolean = false
     ) {
         val updateMap = mutableMapOf<String, Any>(
             "displayName" to profile.displayName,
             "name" to profile.displayName,
             "avatarUrl" to profile.avatarUrl,
+            "isLock" to profile.isLock,
             "photoUrl" to FieldValue.delete()
         )
 
@@ -395,6 +400,9 @@ class AuthRepositoryImpl @Inject constructor(
         }
         if (includeSoldCount) {
             updateMap["soldCount"] = profile.soldCount
+        }
+        if (includeWalletBalance) {
+            updateMap["walletBalance"] = profile.walletBalance
         }
 
         firestore.collection(USERS_COLLECTION)
@@ -411,7 +419,9 @@ class AuthRepositoryImpl @Inject constructor(
                 userDoc.getString("email").isNullOrBlank() ||
                 userDoc.getString("avatarUrl").isNullOrBlank() ||
                 !documentData.containsKey("boughtCount") ||
-                !documentData.containsKey("soldCount")
+                !documentData.containsKey("soldCount") ||
+                !documentData.containsKey("walletBalance") ||
+                !documentData.containsKey("isLock")
     }
 
     private fun DocumentSnapshot.toUserProfile(user: FirebaseUser): UserProfile {
@@ -426,11 +436,13 @@ class AuthRepositoryImpl @Inject constructor(
             displayName = displayName,
             email = getString("email").orEmpty().ifBlank { user.email.orEmpty() },
             avatarUrl = avatarUrl,
+            isLock = getBoolean("isLock") ?: false,
             studentId = getString("studentId").orEmpty(),
             boughtCount = getLong("boughtCount")?.toInt() ?: 0,
             soldCount = getLong("soldCount")?.toInt() ?: 0,
             averageRating = getDouble("averageRating") ?: 0.0,
             ratingCount = getLong("ratingCount")?.toInt() ?: 0,
+            walletBalance = getDouble("walletBalance") ?: 0.0,
             paymentMethods = toPaymentMethods()
         )
     }

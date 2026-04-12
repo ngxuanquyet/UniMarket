@@ -14,6 +14,7 @@ import com.example.unimarket.domain.usecase.auth.RefreshCurrentUserProfileUseCas
 import com.example.unimarket.domain.usecase.auth.UpdateProfileUseCase
 import com.example.unimarket.domain.usecase.auth.UpdateUserAddressUseCase
 import com.example.unimarket.domain.usecase.image.UploadImageUseCase
+import com.example.unimarket.presentation.util.localizedText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -48,7 +49,8 @@ class ProfileViewModel @Inject constructor(
                         boughtCount = cachedUser.boughtCount,
                         soldCount = cachedUser.soldCount,
                         averageRating = cachedUser.averageRating,
-                        ratingCount = cachedUser.ratingCount
+                        ratingCount = cachedUser.ratingCount,
+                        walletBalance = cachedUser.walletBalance
                     )
                 }
             }
@@ -72,7 +74,10 @@ class ProfileViewModel @Inject constructor(
             refreshCurrentUserProfileUseCase()
                 .onFailure { error ->
                     _uiState.value = _uiState.value.copy(
-                        errorMessage = error.message ?: "Failed to refresh profile"
+                        errorMessage = error.message ?: localizedText(
+                            english = "Failed to refresh profile",
+                            vietnamese = "Không thể làm mới hồ sơ"
+                        )
                     )
                 }
 
@@ -93,7 +98,10 @@ class ProfileViewModel @Inject constructor(
             }.onFailure { error ->
                 _uiState.value = _uiState.value.copy(
                     isLoadingAddresses = false,
-                    errorMessage = error.message ?: "Failed to load addresses"
+                    errorMessage = error.message ?: localizedText(
+                        english = "Failed to load addresses",
+                        vietnamese = "Không thể tải danh sách địa chỉ"
+                    )
                 )
             }
         }
@@ -108,18 +116,27 @@ class ProfileViewModel @Inject constructor(
                 updateResult.onSuccess {
                     _uiState.value = _uiState.value.copy(
                         isUploading = false,
-                        successMessage = "Avatar updated successfully"
+                        successMessage = localizedText(
+                            english = "Avatar updated successfully",
+                            vietnamese = "Cập nhật ảnh đại diện thành công"
+                        )
                     )
                 }.onFailure { error ->
                     _uiState.value = _uiState.value.copy(
                         isUploading = false,
-                        errorMessage = error.message ?: "Failed to update profile"
+                        errorMessage = error.message ?: localizedText(
+                            english = "Failed to update profile",
+                            vietnamese = "Không thể cập nhật hồ sơ"
+                        )
                     )
                 }
             }.onFailure { error ->
                 _uiState.value = _uiState.value.copy(
                     isUploading = false,
-                    errorMessage = error.message ?: "Failed to upload image"
+                    errorMessage = error.message ?: localizedText(
+                        english = "Failed to upload image",
+                        vietnamese = "Không thể tải ảnh lên"
+                    )
                 )
             }
             Log.d("ProfileViewModel", "err: ${_uiState.value}")
@@ -128,7 +145,12 @@ class ProfileViewModel @Inject constructor(
 
     fun updateDisplayName(newName: String) {
         if (newName.isBlank()) {
-            _uiState.value = _uiState.value.copy(errorMessage = "Display name cannot be empty")
+            _uiState.value = _uiState.value.copy(
+                errorMessage = localizedText(
+                    english = "Display name cannot be empty",
+                    vietnamese = "Tên hiển thị không được để trống"
+                )
+            )
             return
         }
         
@@ -138,12 +160,18 @@ class ProfileViewModel @Inject constructor(
             updateResult.onSuccess {
                 _uiState.value = _uiState.value.copy(
                     isUploading = false,
-                    successMessage = "Display name updated successfully"
+                    successMessage = localizedText(
+                        english = "Display name updated successfully",
+                        vietnamese = "Cập nhật tên hiển thị thành công"
+                    )
                 )
             }.onFailure { error ->
                 _uiState.value = _uiState.value.copy(
                     isUploading = false,
-                    errorMessage = error.message ?: "Failed to update display name"
+                    errorMessage = error.message ?: localizedText(
+                        english = "Failed to update display name",
+                        vietnamese = "Không thể cập nhật tên hiển thị"
+                    )
                 )
             }
         }
@@ -155,7 +183,12 @@ class ProfileViewModel @Inject constructor(
 
     fun saveAddress(address: UserAddress) {
         if (address.recipientName.isBlank() || address.phoneNumber.isBlank() || address.addressLine.isBlank()) {
-            _uiState.value = _uiState.value.copy(errorMessage = "Vui long nhap day du thong tin dia chi")
+            _uiState.value = _uiState.value.copy(
+                errorMessage = localizedText(
+                    english = "Please fill in all required address fields",
+                    vietnamese = "Vui lòng nhập đầy đủ thông tin địa chỉ"
+                )
+            )
             return
         }
 
@@ -169,11 +202,19 @@ class ProfileViewModel @Inject constructor(
 
             result.onSuccess {
                 loadAddresses()
-                _uiState.value = _uiState.value.copy(successMessage = "Da luu dia chi")
+                _uiState.value = _uiState.value.copy(
+                    successMessage = localizedText(
+                        english = "Address saved",
+                        vietnamese = "Đã lưu địa chỉ"
+                    )
+                )
             }.onFailure { error ->
                 _uiState.value = _uiState.value.copy(
                     isLoadingAddresses = false,
-                    errorMessage = error.message ?: "Failed to save address"
+                    errorMessage = error.message ?: localizedText(
+                        english = "Failed to save address",
+                        vietnamese = "Không thể lưu địa chỉ"
+                    )
                 )
             }
         }
@@ -186,12 +227,18 @@ class ProfileViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(
                 addresses = _uiState.value.addresses.filterNot { it.id == addressId },
                 isLoadingAddresses = false,
-                successMessage = "Da xoa dia chi"
+                successMessage = localizedText(
+                    english = "Address deleted",
+                    vietnamese = "Đã xóa địa chỉ"
+                )
             )
         }.onFailure { error ->
             _uiState.value = _uiState.value.copy(
                 isLoadingAddresses = false,
-                errorMessage = error.message ?: "Failed to delete address"
+                errorMessage = error.message ?: localizedText(
+                    english = "Failed to delete address",
+                    vietnamese = "Không thể xóa địa chỉ"
+                )
             )
         }
         return result
@@ -205,4 +252,3 @@ class ProfileViewModel @Inject constructor(
         logoutUseCase()
     }
 }
-

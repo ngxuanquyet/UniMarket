@@ -74,6 +74,8 @@ fun localizedPaymentMethodLabel(rawValue: String): String {
         "BANK_TRANSFER",
         "Bank Transfer" -> stringResource(R.string.payment_bank_transfer)
         "MOMO" -> stringResource(R.string.payment_momo)
+        "WALLET",
+        "WALLET_PAYMENT" -> stringResource(R.string.payment_wallet)
         else -> rawValue.ifBlank { stringResource(R.string.payment_unknown) }
     }
 }

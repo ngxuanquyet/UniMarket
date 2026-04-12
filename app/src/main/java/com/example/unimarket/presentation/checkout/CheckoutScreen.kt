@@ -774,6 +774,16 @@ private fun DeliveryMethod.icon(): ImageVector {
 
 @Composable
 private fun CheckoutPaymentOption.localizedTitle(): String {
+    if (id == "transfer") {
+        return localizedPaymentMethodLabel("BANK_TRANSFER")
+    }
+    if (id == "wallet") {
+        return localizedPaymentMethodLabel("WALLET")
+    }
+    if (id == "cash_on_delivery") {
+        return localizedPaymentMethodLabel("CASH_ON_DELIVERY")
+    }
+
     return sellerMethod?.displayTitle?.ifBlank { null }
         ?: localizedPaymentMethodLabel(paymentMethodCode)
 }
@@ -783,6 +793,7 @@ private fun CheckoutPaymentOption.localizedSubtitle(): String? {
         SellerPaymentMethodType.CASH_ON_DELIVERY -> null
         SellerPaymentMethodType.BANK_TRANSFER -> sellerMethod?.shortSubtitle
         SellerPaymentMethodType.MOMO -> sellerMethod?.shortSubtitle
+        SellerPaymentMethodType.WALLET -> null
     }
 }
 
@@ -791,5 +802,6 @@ private fun CheckoutPaymentOption.icon(): ImageVector {
         SellerPaymentMethodType.CASH_ON_DELIVERY -> Icons.Default.Money
         SellerPaymentMethodType.BANK_TRANSFER -> Icons.Default.AccountBalance
         SellerPaymentMethodType.MOMO -> Icons.Default.PhoneAndroid
+        SellerPaymentMethodType.WALLET -> Icons.Default.AccountBalance
     }
 }

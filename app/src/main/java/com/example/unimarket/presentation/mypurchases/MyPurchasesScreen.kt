@@ -111,10 +111,13 @@ fun MyPurchasesScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
     var reviewTargetOrder by remember { mutableStateOf<Order?>(null) }
+    var pendingCancelOrder by remember { mutableStateOf<Order?>(null) }
     var pendingRating by rememberSaveable { mutableIntStateOf(0) }
     var pendingComment by rememberSaveable { mutableStateOf("") }
     var showReviewSuccessDialog by rememberSaveable { mutableStateOf(false) }
     val selectedTab = PurchaseOrderTab.entries[selectedTabIndex]
+    val isInitialLoading = uiState.isLoading && uiState.orders.isEmpty()
+    val isPullRefreshing = uiState.isLoading && uiState.orders.isNotEmpty()
     val filteredOrders = remember(uiState.orders, selectedTabIndex) {
         uiState.orders.filter { selectedTab.matches(it.status) }
     }
@@ -194,14 +197,14 @@ fun MyPurchasesScreen(
             )
 
             PullToRefreshBox(
-                isRefreshing = uiState.isLoading,
+                isRefreshing = isPullRefreshing,
                 onRefresh = viewModel::refresh,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
             ) {
                 when {
-                    uiState.isLoading && uiState.orders.isEmpty() -> {
+                    isInitialLoading -> {
                         Box(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
@@ -243,7 +246,9 @@ fun MyPurchasesScreen(
                                 PurchaseOrderCard(
                                     order = order,
                                     isSubmittingReview = uiState.submittingReviewOrderId == order.id,
+                                    isCancellingPayment = uiState.cancellingOrderId == order.id,
                                     onPendingPaymentClick = onPendingPaymentClick,
+                                    onCancelPaymentClick = { pendingCancelOrder = order },
                                     onTrackOrderClick = onTrackOrderClick,
                                     onContactSeller = { viewModel.contactSeller(order) },
                                     onRateSeller = {
@@ -276,6 +281,45 @@ fun MyPurchasesScreen(
             onRatingChange = { pendingRating = it },
             onCommentChange = { pendingComment = it },
             onSubmit = { viewModel.submitReview(order, pendingRating, pendingComment) }
+        )
+    }
+
+    pendingCancelOrder?.let { order ->
+        AlertDialog(
+            onDismissRequest = {
+                if (uiState.cancellingOrderId == null) {
+                    pendingCancelOrder = null
+                }
+            },
+            title = { Text(stringResource(R.string.mypurchases_cancel_payment_title)) },
+            text = { Text(stringResource(R.string.mypurchases_cancel_payment_message)) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.cancelPendingPayment(order)
+                        pendingCancelOrder = null
+                    },
+                    enabled = uiState.cancellingOrderId == null
+                ) {
+                    if (uiState.cancellingOrderId == order.id) {
+                        CircularProgressIndicator(
+                            color = SurfaceWhite,
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(stringResource(R.string.mypurchases_cancel_payment_confirm))
+                    }
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { pendingCancelOrder = null },
+                    enabled = uiState.cancellingOrderId == null
+                ) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            }
         )
     }
 
@@ -343,7 +387,9 @@ private fun PurchaseTabBar(
 private fun PurchaseOrderCard(
     order: Order,
     isSubmittingReview: Boolean,
+    isCancellingPayment: Boolean,
     onPendingPaymentClick: (String) -> Unit,
+    onCancelPaymentClick: () -> Unit,
     onTrackOrderClick: (String) -> Unit,
     onContactSeller: () -> Unit,
     onRateSeller: () -> Unit
@@ -409,7 +455,11 @@ private fun PurchaseOrderCard(
             Spacer(modifier = Modifier.height(14.dp))
 
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable { onTrackOrderClick(order.id) }
+                    .padding(2.dp),
                 verticalAlignment = Alignment.Top
             ) {
                 PurchaseProductImage(
@@ -538,6 +588,31 @@ private fun PurchaseOrderCard(
                             text = primaryActionLabel,
                             color = if (hasReview && !isWaitingPayment) TextGray else SurfaceWhite,
                             fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+            }
+
+            if (isWaitingPayment) {
+                Spacer(modifier = Modifier.height(10.dp))
+                OutlinedButton(
+                    onClick = onCancelPaymentClick,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    enabled = !isCancellingPayment,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = RedDanger)
+                ) {
+                    if (isCancellingPayment) {
+                        CircularProgressIndicator(
+                            color = RedDanger,
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(
+                            text = stringResource(R.string.mypurchases_cancel_payment),
+                            fontWeight = FontWeight.SemiBold,
                             fontSize = 13.sp
                         )
                     }
@@ -871,7 +946,6 @@ private fun StatusBadge(
 private fun PurchaseOrderTab.label(): String {
     return when (this) {
         PurchaseOrderTab.ALL -> stringResource(R.string.orders_tab_all)
-        PurchaseOrderTab.WAITING_PAYMENT -> stringResource(R.string.order_status_waiting_payment)
         PurchaseOrderTab.WAIT_FOR_CONFIRMATION -> stringResource(R.string.order_status_waiting_confirmation)
         PurchaseOrderTab.WAIT_FOR_PICKUP -> stringResource(R.string.order_status_waiting_pickup)
         PurchaseOrderTab.SHIPPING -> stringResource(R.string.order_status_shipping)
@@ -924,7 +998,6 @@ private fun EmptyPurchasesState(
 
 private enum class PurchaseOrderTab(val label: String) {
     ALL("All"),
-    WAITING_PAYMENT("Wait for Payment"),
     WAIT_FOR_CONFIRMATION("Wait for Confirmation"),
     WAIT_FOR_PICKUP("Wait for Pickup"),
     SHIPPING("Shipping"),
@@ -934,8 +1007,7 @@ private enum class PurchaseOrderTab(val label: String) {
     fun matches(status: OrderStatus): Boolean {
         return when (this) {
             ALL -> true
-            WAITING_PAYMENT -> status == OrderStatus.WAITING_PAYMENT
-            WAIT_FOR_CONFIRMATION -> status == OrderStatus.WAITING_CONFIRMATION
+            WAIT_FOR_CONFIRMATION -> status == OrderStatus.WAITING_CONFIRMATION || status == OrderStatus.WAITING_PAYMENT
             WAIT_FOR_PICKUP -> status == OrderStatus.WAITING_PICKUP
             SHIPPING -> status in setOf(
                 OrderStatus.SHIPPING,

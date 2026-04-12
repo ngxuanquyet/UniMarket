@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,6 +45,8 @@ import com.example.unimarket.presentation.util.formatVnd
 import com.example.unimarket.presentation.util.localizedCategoryLabel
 import com.example.unimarket.presentation.util.localizedConditionLabel
 import com.example.unimarket.presentation.util.localizedTitle
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,8 +59,21 @@ fun ExploreScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showFilterSheet by remember { mutableStateOf(false) }
+    val lifecycleOwner = LocalLifecycleOwner.current
     val hasActiveFilters = uiState.selectedPriceFilter != ExplorePriceFilter.ALL ||
         uiState.selectedPriceSort != ExplorePriceSort.RECOMMENDED
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) {
+                viewModel.resetExploreState()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     Scaffold(
         topBar = {

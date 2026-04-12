@@ -4,8 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.unimarket.domain.model.Order
 import com.example.unimarket.domain.model.OrderStatus
+import com.example.unimarket.domain.model.TopUpPaymentStatus
 import com.example.unimarket.domain.usecase.order.CheckTransferPaymentUseCase
 import com.example.unimarket.domain.usecase.order.GetBuyerOrdersUseCase
+import com.example.unimarket.domain.usecase.order.UpdateOrderStatusUseCase
+import com.example.unimarket.domain.usecase.wallet.CheckTopUpTransferPaymentUseCase
+import com.example.unimarket.presentation.util.localizedText
+import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,16 +28,25 @@ data class QrTransferUiState(
     val currentIndex: Int = 0,
     val isLoading: Boolean = false,
     val isCheckingPayment: Boolean = false,
+    val isCancellingPayment: Boolean = false,
+    val topUpAmount: Long = 0L,
+    val topUpTransferContent: String = "",
+    val isTopUpCompleted: Boolean = false,
     val errorMessage: String? = null
 ) {
     val currentOrder: Order?
         get() = orders.getOrNull(currentIndex)
+    val isTopUpMode: Boolean
+        get() = topUpAmount > 0L
 }
 
 @HiltViewModel
 class QrTransferViewModel @Inject constructor(
     private val getBuyerOrdersUseCase: GetBuyerOrdersUseCase,
-    private val checkTransferPaymentUseCase: CheckTransferPaymentUseCase
+    private val checkTransferPaymentUseCase: CheckTransferPaymentUseCase,
+    private val updateOrderStatusUseCase: UpdateOrderStatusUseCase,
+    private val checkTopUpTransferPaymentUseCase: CheckTopUpTransferPaymentUseCase,
+    private val auth: FirebaseAuth
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(QrTransferUiState(isLoading = true))
@@ -45,14 +59,20 @@ class QrTransferViewModel @Inject constructor(
         data class ShowSnackbar(val message: String) : UiEvent()
         data class PaymentConfirmed(val orderId: String) : UiEvent()
         data class AllTransfersCompleted(val order: Order) : UiEvent()
+        data object ExitAfterCancel : UiEvent()
+        data object TopUpCompleted : UiEvent()
     }
 
     fun loadOrders(orderIds: List<String>) {
+        if (_uiState.value.isTopUpMode) return
         if (orderIds.isEmpty()) {
             _uiState.value = QrTransferUiState(
                 requestedOrderIds = emptyList(),
                 isLoading = false,
-                errorMessage = "No transfer order found"
+                errorMessage = localizedText(
+                    english = "No transfer order found",
+                    vietnamese = "Không tìm thấy đơn chuyển khoản"
+                )
             )
             return
         }
@@ -70,6 +90,27 @@ class QrTransferViewModel @Inject constructor(
                 preserveSelection = false
             )
         }
+    }
+
+    fun startTopUpFlow(amount: Long) {
+        if (amount <= 0L) {
+            _uiState.value = QrTransferUiState(
+                isLoading = false,
+                errorMessage = localizedText(
+                    english = "Invalid top-up amount",
+                    vietnamese = "Số tiền nạp không hợp lệ"
+                )
+            )
+            return
+        }
+
+        val userSuffix = auth.currentUser?.uid?.takeLast(6)?.uppercase().orEmpty().ifBlank { "USER" }
+        val transferContent = "UMTOPUP${System.currentTimeMillis()}$userSuffix"
+        _uiState.value = QrTransferUiState(
+            isLoading = false,
+            topUpAmount = amount,
+            topUpTransferContent = transferContent
+        )
     }
 
     fun moveToNextOrder() {
@@ -128,12 +169,26 @@ class QrTransferViewModel @Inject constructor(
                 when (checkResult.status) {
                     OrderStatus.WAITING_PAYMENT -> {
                         if (showPendingMessage) {
-                            _uiEvent.emit(UiEvent.ShowSnackbar("Payment not found yet. Please try again in a moment."))
+                            _uiEvent.emit(
+                                UiEvent.ShowSnackbar(
+                                    localizedText(
+                                        english = "Payment not found yet. Please try again in a moment.",
+                                        vietnamese = "Chưa ghi nhận thanh toán. Vui lòng thử lại sau ít phút."
+                                    )
+                                )
+                            )
                         }
                     }
 
                     OrderStatus.CANCELLED -> {
-                        _uiEvent.emit(UiEvent.ShowSnackbar("This transfer request has expired."))
+                        _uiEvent.emit(
+                            UiEvent.ShowSnackbar(
+                                localizedText(
+                                    english = "This transfer request has expired.",
+                                    vietnamese = "Yêu cầu chuyển khoản này đã hết hạn."
+                                )
+                            )
+                        )
                     }
 
                     else -> {
@@ -144,15 +199,99 @@ class QrTransferViewModel @Inject constructor(
                 val error = result.exceptionOrNull()
                 _uiEvent.emit(
                     UiEvent.ShowSnackbar(
-                        error?.message ?: "Failed to verify transfer payment"
+                        error?.message ?: localizedText(
+                            english = "Failed to verify transfer payment",
+                            vietnamese = "Không thể xác minh thanh toán chuyển khoản"
+                        )
                     )
                 )
             }
 
-            refreshOrders(
-                orderIds = _uiState.value.requestedOrderIds,
-                preserveSelection = true
+        }
+    }
+
+    fun checkTopUpPayment(showPendingMessage: Boolean) {
+        val state = _uiState.value
+        if (!state.isTopUpMode || state.isTopUpCompleted) return
+        if (state.isCheckingPayment) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isCheckingPayment = true) }
+
+            val result = checkTopUpTransferPaymentUseCase(
+                amount = state.topUpAmount,
+                transferContent = state.topUpTransferContent
             )
+            _uiState.update { it.copy(isCheckingPayment = false) }
+
+            val checkResult = result.getOrNull()
+            if (checkResult != null) {
+                if (checkResult.status == TopUpPaymentStatus.CONFIRMED) {
+                    _uiState.update { it.copy(isTopUpCompleted = true) }
+                    _uiEvent.emit(UiEvent.TopUpCompleted)
+                } else if (showPendingMessage) {
+                    _uiEvent.emit(
+                        UiEvent.ShowSnackbar(
+                            localizedText(
+                                english = "Payment not found yet. Please try again in a moment.",
+                                vietnamese = "Chưa ghi nhận thanh toán. Vui lòng thử lại sau ít phút."
+                            )
+                        )
+                    )
+                }
+            } else {
+                _uiState.update { it.copy(isCheckingPayment = false) }
+                _uiEvent.emit(
+                    UiEvent.ShowSnackbar(
+                        result.exceptionOrNull()?.message ?: localizedText(
+                            english = "Failed to verify transfer payment",
+                            vietnamese = "Không thể xác minh thanh toán chuyển khoản"
+                        )
+                    )
+                )
+            }
+        }
+    }
+
+    fun cancelPaymentAndExit() {
+        val state = _uiState.value
+        if (state.isTopUpMode) {
+            viewModelScope.launch { _uiEvent.emit(UiEvent.ExitAfterCancel) }
+            return
+        }
+
+        val order = state.currentOrder ?: return
+        if (order.status != OrderStatus.WAITING_PAYMENT) {
+            viewModelScope.launch { _uiEvent.emit(UiEvent.ExitAfterCancel) }
+            return
+        }
+        if (state.isCancellingPayment) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isCancellingPayment = true) }
+            val cancelResult = updateOrderStatusUseCase(order, OrderStatus.CANCELLED)
+            _uiState.update { it.copy(isCancellingPayment = false) }
+
+            if (cancelResult.isSuccess) {
+                _uiEvent.emit(
+                    UiEvent.ShowSnackbar(
+                        localizedText(
+                            english = "Payment has been cancelled.",
+                            vietnamese = "Đã hủy thanh toán."
+                        )
+                    )
+                )
+                _uiEvent.emit(UiEvent.ExitAfterCancel)
+            } else {
+                _uiEvent.emit(
+                    UiEvent.ShowSnackbar(
+                        cancelResult.exceptionOrNull()?.message ?: localizedText(
+                            english = "Failed to cancel payment",
+                            vietnamese = "Không thể hủy thanh toán"
+                        )
+                    )
+                )
+            }
         }
     }
 
@@ -184,7 +323,10 @@ class QrTransferViewModel @Inject constructor(
                         currentIndex = newIndex.coerceIn(0, mappedOrders.lastIndex.coerceAtLeast(0)),
                         isLoading = false,
                         errorMessage = if (mappedOrders.isEmpty()) {
-                            "Transfer order was not found"
+                            localizedText(
+                                english = "Transfer order was not found",
+                                vietnamese = "Không tìm thấy đơn chuyển khoản"
+                            )
                         } else {
                             null
                         }
@@ -197,7 +339,10 @@ class QrTransferViewModel @Inject constructor(
                         orders = emptyList(),
                         currentIndex = 0,
                         isLoading = false,
-                        errorMessage = error.message ?: "Failed to load transfer details"
+                        errorMessage = error.message ?: localizedText(
+                            english = "Failed to load transfer details",
+                            vietnamese = "Không thể tải thông tin chuyển khoản"
+                        )
                     )
                 }
             }

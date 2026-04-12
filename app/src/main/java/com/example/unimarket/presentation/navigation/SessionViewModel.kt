@@ -7,6 +7,7 @@ import com.example.unimarket.BuildConfig
 import com.example.unimarket.data.notification.FcmTokenManager
 import com.example.unimarket.domain.usecase.auth.GetCachedUserUseCase
 import com.example.unimarket.domain.usecase.auth.GetCurrentUserUseCase
+import com.example.unimarket.domain.usecase.auth.LogoutUseCase
 import com.example.unimarket.domain.usecase.auth.ObserveCachedUserUseCase
 import com.example.unimarket.domain.usecase.auth.RefreshCurrentUserProfileUseCase
 import com.example.unimarket.domain.usecase.chat.ObserveConversationsUseCase
@@ -25,7 +26,8 @@ import javax.inject.Inject
 
 data class SessionUiState(
     val isAuthenticated: Boolean = false,
-    val unreadMessageCount: Int = 0
+    val unreadMessageCount: Int = 0,
+    val isAccountLocked: Boolean = false
 )
 
 @HiltViewModel
@@ -33,6 +35,7 @@ class SessionViewModel @Inject constructor(
     getCachedUserUseCase: GetCachedUserUseCase,
     private val getCurrentUserUseCase: GetCurrentUserUseCase,
     observeCachedUserUseCase: ObserveCachedUserUseCase,
+    private val logoutUseCase: LogoutUseCase,
     private val refreshCurrentUserProfileUseCase: RefreshCurrentUserProfileUseCase,
     private val observeConversationsUseCase: ObserveConversationsUseCase,
     private val fcmTokenManager: FcmTokenManager
@@ -40,7 +43,8 @@ class SessionViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(
         SessionUiState(
-            isAuthenticated = getCachedUserUseCase() != null || getCurrentUserUseCase().isVerifiedSessionUser()
+            isAuthenticated = (getCachedUserUseCase()?.isLock != true) &&
+                (getCachedUserUseCase() != null || getCurrentUserUseCase().isVerifiedSessionUser())
         )
     )
     val uiState: StateFlow<SessionUiState> = _uiState.asStateFlow()
@@ -56,12 +60,18 @@ class SessionViewModel @Inject constructor(
 
         viewModelScope.launch {
             observeCachedUserUseCase().collect { cachedUser ->
-                val isAuthenticated = cachedUser != null || getCurrentUserUseCase().isVerifiedSessionUser()
+                val isLocked = cachedUser?.isLock == true
+                val isAuthenticated =
+                    !isLocked && (cachedUser != null || getCurrentUserUseCase().isVerifiedSessionUser())
                 _uiState.update { currentState ->
                     currentState.copy(
                         isAuthenticated = isAuthenticated,
-                        unreadMessageCount = if (isAuthenticated) currentState.unreadMessageCount else 0
+                        unreadMessageCount = if (isAuthenticated) currentState.unreadMessageCount else 0,
+                        isAccountLocked = currentState.isAccountLocked || isLocked
                     )
+                }
+                if (isLocked) {
+                    forceLogoutForLockedAccount()
                 }
                 if (isAuthenticated) {
                     syncFcmTokenInBackground()
@@ -69,6 +79,17 @@ class SessionViewModel @Inject constructor(
                 }
                 observeUnreadMessages()
             }
+        }
+    }
+
+    fun consumeAccountLockedNotice() {
+        _uiState.update { it.copy(isAccountLocked = false) }
+    }
+
+    private fun forceLogoutForLockedAccount() {
+        viewModelScope.launch {
+            runCatching { logoutUseCase() }
+            _uiState.update { it.copy(isAuthenticated = false, unreadMessageCount = 0) }
         }
     }
 

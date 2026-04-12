@@ -25,6 +25,11 @@ android {
             "NOTIFICATION_SERVER_BASE_URL",
             "\"https://backend-notification-unimarket.onrender.com/\""
         )
+        buildConfigField(
+            "String",
+            "SEPAY_API_KEY",
+            "\"YCHE7BBL0ARFPL4U5AQZFR3UJJPLTZX7FDGHIMW6KZVJMX1XOYSJKBVVRDN31I6O\""
+        )
     }
 
     buildTypes {

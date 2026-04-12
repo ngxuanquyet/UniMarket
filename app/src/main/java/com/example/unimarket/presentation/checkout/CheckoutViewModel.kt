@@ -15,6 +15,7 @@ import com.example.unimarket.domain.usecase.cart.GetCartItemsUseCase
 import com.example.unimarket.domain.usecase.cart.RemoveFromCartUseCase
 import com.example.unimarket.domain.usecase.checkout.ConfirmBuyNowPurchaseUseCase
 import com.example.unimarket.domain.usecase.explore.GetAllProductsUseCase
+import com.example.unimarket.presentation.util.localizedText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,6 +30,8 @@ import javax.inject.Inject
 
 private const val PLATFORM_FEE = 1500.0
 private const val SHIPPING_FEE = 30000.0
+private const val TRANSFER_OPTION_ID = "transfer"
+private const val WALLET_OPTION_ID = "wallet"
 private const val CASH_ON_DELIVERY_OPTION_ID = "cash_on_delivery"
 
 data class CheckoutPaymentOption(
@@ -76,6 +79,7 @@ data class CheckoutUiState(
     val orders: List<CheckoutOrderUiState> = emptyList(),
     val buyerAddresses: List<UserAddress> = emptyList(),
     val selectedBuyerAddressId: String? = null,
+    val buyerWalletBalance: Double = 0.0,
     val isLoading: Boolean = false,
     val isSubmitting: Boolean = false,
     val errorMessage: String? = null
@@ -133,7 +137,10 @@ class CheckoutViewModel @Inject constructor(
                 if (product == null) {
                     _uiState.value = CheckoutUiState(
                         isLoading = false,
-                        errorMessage = "Product not found"
+                        errorMessage = localizedText(
+                            english = "Product not found",
+                            vietnamese = "Không tìm thấy sản phẩm"
+                        )
                     )
                     return@onSuccess
                 }
@@ -148,7 +155,10 @@ class CheckoutViewModel @Inject constructor(
             }.onFailure { error ->
                 _uiState.value = CheckoutUiState(
                     isLoading = false,
-                    errorMessage = error.message ?: "Failed to load product"
+                    errorMessage = error.message ?: localizedText(
+                        english = "Failed to load product",
+                        vietnamese = "Không thể tải sản phẩm"
+                    )
                 )
             }
         }
@@ -161,7 +171,10 @@ class CheckoutViewModel @Inject constructor(
             if (cartItemIds.isEmpty()) {
                 _uiState.value = CheckoutUiState(
                     isLoading = false,
-                    errorMessage = "No cart items selected"
+                    errorMessage = localizedText(
+                        english = "No cart items selected",
+                        vietnamese = "Chưa chọn sản phẩm nào trong giỏ"
+                    )
                 )
                 return@launch
             }
@@ -173,7 +186,10 @@ class CheckoutViewModel @Inject constructor(
                 if (selectedItems.isEmpty()) {
                     _uiState.value = CheckoutUiState(
                         isLoading = false,
-                        errorMessage = "Selected cart items were not found"
+                        errorMessage = localizedText(
+                            english = "Selected cart items were not found",
+                            vietnamese = "Không tìm thấy sản phẩm đã chọn trong giỏ"
+                        )
                     )
                     return@onSuccess
                 }
@@ -190,15 +206,20 @@ class CheckoutViewModel @Inject constructor(
             }.onFailure { error ->
                 _uiState.value = CheckoutUiState(
                     isLoading = false,
-                    errorMessage = error.message ?: "Failed to load cart items"
+                    errorMessage = error.message ?: localizedText(
+                        english = "Failed to load cart items",
+                        vietnamese = "Không thể tải giỏ hàng"
+                    )
                 )
             }
         }
     }
 
     private suspend fun loadCheckoutData(baseOrders: List<CheckoutOrderUiState>) {
+        val profileResult = refreshCurrentUserProfileUseCase()
         val buyerResult = getUserAddressesUseCase()
         val buyerAddresses = buyerResult.getOrDefault(emptyList())
+        val walletBalance = profileResult.getOrNull()?.walletBalance ?: 0.0
 
         val sellerAddressMap = mutableMapOf<String, List<UserAddress>>()
         val sellerPaymentMap = mutableMapOf<String, List<SellerPaymentMethod>>()
@@ -238,6 +259,7 @@ class CheckoutViewModel @Inject constructor(
             buyerAddresses = buyerAddresses,
             selectedBuyerAddressId = buyerAddresses.firstOrNull { it.isDefault }?.id
                 ?: buyerAddresses.firstOrNull()?.id,
+            buyerWalletBalance = walletBalance,
             isLoading = false,
             errorMessage = buyerResult.exceptionOrNull()?.message ?: sellerErrorMessages.firstOrNull()
         )
@@ -308,7 +330,12 @@ class CheckoutViewModel @Inject constructor(
         if (state.isSubmitting) return
 
         if (state.orders.isEmpty()) {
-            emitSnackbar("No order selected for checkout")
+            emitSnackbar(
+                localizedText(
+                    english = "No order selected for checkout",
+                    vietnamese = "Không có đơn hàng nào được chọn để thanh toán"
+                )
+            )
             return
         }
 
@@ -346,14 +373,21 @@ class CheckoutViewModel @Inject constructor(
                 val confirmation = result.getOrNull()
                 if (confirmation != null) {
                     createdOrderIds += confirmation.orderId
-                    if (selectedPaymentOption.type != SellerPaymentMethodType.CASH_ON_DELIVERY) {
+                    if (selectedPaymentOption.type == SellerPaymentMethodType.BANK_TRANSFER ||
+                        selectedPaymentOption.type == SellerPaymentMethodType.MOMO
+                    ) {
                         transferOrderIds += confirmation.orderId
                     }
                     order.cartItemId?.let { cartItemId ->
                         removeFromCartUseCase(cartItemId)
                     }
                 } else {
-                    failedMessages += "${order.product.name}: ${result.exceptionOrNull()?.message ?: "Failed to confirm purchase"}"
+                    failedMessages += "${order.product.name}: ${
+                        result.exceptionOrNull()?.message ?: localizedText(
+                            english = "Failed to confirm purchase",
+                            vietnamese = "Không thể xác nhận mua hàng"
+                        )
+                    }"
                 }
             }
 
@@ -374,7 +408,10 @@ class CheckoutViewModel @Inject constructor(
             } else {
                 _uiEvent.emit(
                     UiEvent.ShowSnackbar(
-                        failedMessages.firstOrNull() ?: "Failed to confirm purchase"
+                        failedMessages.firstOrNull() ?: localizedText(
+                            english = "Failed to confirm purchase",
+                            vietnamese = "Không thể xác nhận mua hàng"
+                        )
                     )
                 )
             }
@@ -385,42 +422,92 @@ class CheckoutViewModel @Inject constructor(
         state: CheckoutUiState,
         order: CheckoutOrderUiState
     ): String? {
-        if (order.quantity <= 0) return "Invalid quantity selected for ${order.product.name}"
-        if (order.product.userId.isBlank()) return "Seller information is missing for ${order.product.name}"
-        if (order.product.quantityAvailable <= 0) return "${order.product.name} is out of stock"
+        if (order.quantity <= 0) {
+            return localizedText(
+                english = "Invalid quantity selected for ${order.product.name}",
+                vietnamese = "Số lượng đã chọn không hợp lệ cho ${order.product.name}"
+            )
+        }
+        if (order.product.userId.isBlank()) {
+            return localizedText(
+                english = "Seller information is missing for ${order.product.name}",
+                vietnamese = "Thiếu thông tin người bán cho ${order.product.name}"
+            )
+        }
+        if (order.product.quantityAvailable <= 0) {
+            return localizedText(
+                english = "${order.product.name} is out of stock",
+                vietnamese = "${order.product.name} đã hết hàng"
+            )
+        }
         if (order.quantity > order.product.quantityAvailable) {
-            return "Only ${order.product.quantityAvailable} item(s) left for ${order.product.name}"
+            return localizedText(
+                english = "Only ${order.product.quantityAvailable} item(s) left for ${order.product.name}",
+                vietnamese = "Chỉ còn ${order.product.quantityAvailable} sản phẩm cho ${order.product.name}"
+            )
         }
         if (order.availableDeliveryMethods.isEmpty()) {
-            return "${order.product.name} has no delivery method configured"
+            return localizedText(
+                english = "${order.product.name} has no delivery method configured",
+                vietnamese = "${order.product.name} chưa có phương thức giao hàng"
+            )
         }
         val selectedPaymentOption = order.selectedPaymentOption
-            ?: return "Please select a payment method for ${order.product.name}"
+            ?: return localizedText(
+                english = "Please select a payment method for ${order.product.name}",
+                vietnamese = "Vui lòng chọn phương thức thanh toán cho ${order.product.name}"
+            )
         when (selectedPaymentOption.type) {
             SellerPaymentMethodType.BANK_TRANSFER -> {
                 val sellerMethod = selectedPaymentOption.sellerMethod
-                    ?: return "Seller bank transfer information is unavailable"
+                    ?: return localizedText(
+                        english = "Seller bank transfer information is unavailable",
+                        vietnamese = "Thông tin chuyển khoản ngân hàng của người bán không khả dụng"
+                    )
                 if (sellerMethod.accountName.isBlank() || sellerMethod.accountNumber.isBlank()) {
-                    return "Seller bank transfer information is incomplete"
+                    return localizedText(
+                        english = "Seller bank transfer information is incomplete",
+                        vietnamese = "Thông tin chuyển khoản ngân hàng của người bán chưa đầy đủ"
+                    )
                 }
             }
 
             SellerPaymentMethodType.MOMO -> {
                 val sellerMethod = selectedPaymentOption.sellerMethod
-                    ?: return "Seller MoMo information is unavailable"
+                    ?: return localizedText(
+                        english = "Seller MoMo information is unavailable",
+                        vietnamese = "Thông tin MoMo của người bán không khả dụng"
+                    )
                 if (sellerMethod.phoneNumber.isBlank()) {
-                    return "Seller MoMo phone number is missing"
+                    return localizedText(
+                        english = "Seller MoMo phone number is missing",
+                        vietnamese = "Thiếu số điện thoại MoMo của người bán"
+                    )
                 }
             }
 
             SellerPaymentMethodType.CASH_ON_DELIVERY -> Unit
+            SellerPaymentMethodType.WALLET -> {
+                if (state.buyerWalletBalance < order.total) {
+                    return localizedText(
+                        english = "Insufficient wallet balance for ${order.product.name}",
+                        vietnamese = "Số dư ví không đủ để thanh toán ${order.product.name}"
+                    )
+                }
+            }
         }
 
         return when (order.selectedDeliveryMethod) {
-            null -> "Please select a delivery method for ${order.product.name}"
+            null -> localizedText(
+                english = "Please select a delivery method for ${order.product.name}",
+                vietnamese = "Vui lòng chọn phương thức giao hàng cho ${order.product.name}"
+            )
             DeliveryMethod.DIRECT_MEET -> {
                 if (order.meetingPoint.isBlank()) {
-                    "Please enter a meeting point for ${order.product.name}"
+                    localizedText(
+                        english = "Please enter a meeting point for ${order.product.name}",
+                        vietnamese = "Vui lòng nhập điểm hẹn cho ${order.product.name}"
+                    )
                 } else {
                     null
                 }
@@ -428,7 +515,10 @@ class CheckoutViewModel @Inject constructor(
 
             DeliveryMethod.BUYER_TO_SELLER -> {
                 if (order.selectedSellerAddress == null) {
-                    "Please choose a seller pickup address for ${order.product.name}"
+                    localizedText(
+                        english = "Please choose a seller pickup address for ${order.product.name}",
+                        vietnamese = "Vui lòng chọn địa chỉ lấy hàng của người bán cho ${order.product.name}"
+                    )
                 } else {
                     null
                 }
@@ -437,7 +527,10 @@ class CheckoutViewModel @Inject constructor(
             DeliveryMethod.SELLER_TO_BUYER,
             DeliveryMethod.SHIPPING -> {
                 if (state.selectedBuyerAddress == null) {
-                    "Please choose your delivery address"
+                    localizedText(
+                        english = "Please choose your delivery address",
+                        vietnamese = "Vui lòng chọn địa chỉ nhận hàng"
+                    )
                 } else {
                     null
                 }
@@ -473,29 +566,31 @@ class CheckoutViewModel @Inject constructor(
 }
 
 private fun buildPaymentOptions(methods: List<SellerPaymentMethod>): List<CheckoutPaymentOption> {
-    val sellerOptions = methods.map { method ->
-        CheckoutPaymentOption(
-            id = method.id.ifBlank { "${method.type.storageValue}_${method.accountNumber}_${method.phoneNumber}" },
-            type = method.type,
-            sellerMethod = method
-        )
+    val transferMethods = methods.filter { method ->
+        method.type == SellerPaymentMethodType.BANK_TRANSFER ||
+            method.type == SellerPaymentMethodType.MOMO
     }
+    val preferredTransferMethod = transferMethods.firstOrNull { it.isDefault }
+        ?: transferMethods.firstOrNull()
+    val transferType = preferredTransferMethod?.type ?: SellerPaymentMethodType.BANK_TRANSFER
 
-    val defaultSellerOptionId = methods.firstOrNull { it.isDefault }?.id
-    val orderedSellerOptions = if (defaultSellerOptionId.isNullOrBlank()) {
-        sellerOptions
-    } else {
-        sellerOptions.sortedByDescending { it.id == defaultSellerOptionId }
-    }
-
-    return orderedSellerOptions + defaultCheckoutPaymentOptions()
-}
-
-private fun defaultCheckoutPaymentOptions(): List<CheckoutPaymentOption> {
     return listOf(
+        CheckoutPaymentOption(
+            id = TRANSFER_OPTION_ID,
+            type = transferType,
+            sellerMethod = preferredTransferMethod
+        ),
+        CheckoutPaymentOption(
+            id = WALLET_OPTION_ID,
+            type = SellerPaymentMethodType.WALLET
+        ),
         CheckoutPaymentOption(
             id = CASH_ON_DELIVERY_OPTION_ID,
             type = SellerPaymentMethodType.CASH_ON_DELIVERY
         )
     )
+}
+
+private fun defaultCheckoutPaymentOptions(): List<CheckoutPaymentOption> {
+    return buildPaymentOptions(emptyList())
 }

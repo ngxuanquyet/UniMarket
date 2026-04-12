@@ -1,6 +1,7 @@
 package com.example.unimarket.presentation.checkout
 
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -28,7 +29,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
@@ -60,7 +60,6 @@ import coil.compose.rememberAsyncImagePainter
 import com.example.unimarket.R
 import com.example.unimarket.domain.model.Order
 import com.example.unimarket.domain.model.OrderStatus
-import com.example.unimarket.domain.model.SellerPaymentMethodType
 import com.example.unimarket.presentation.theme.ProfileAvatarBorder
 import com.example.unimarket.presentation.theme.SecondaryBlue
 import com.example.unimarket.presentation.util.formatVnd
@@ -73,8 +72,10 @@ import kotlin.math.roundToInt
 @Composable
 fun QrTransferScreen(
     orderIds: List<String>,
+    topUpAmount: Long = 0L,
     onBackClick: () -> Unit,
     onTransferCompleted: (Order) -> Unit,
+    onTopUpCompleted: () -> Unit = {},
     viewModel: QrTransferViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -82,9 +83,15 @@ fun QrTransferScreen(
     val coroutineScope = rememberCoroutineScope()
     val saveQrComingSoonMessage = stringResource(R.string.checkout_qr_save_coming_soon)
     val qrUnavailableMessage = stringResource(R.string.checkout_qr_save_unavailable)
+    var showCancelDialog by remember { mutableStateOf(false) }
+    var showExpiredDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(orderIds) {
-        viewModel.loadOrders(orderIds)
+    LaunchedEffect(orderIds, topUpAmount) {
+        if (topUpAmount > 0L && orderIds.isEmpty()) {
+            viewModel.startTopUpFlow(topUpAmount)
+        } else {
+            viewModel.loadOrders(orderIds)
+        }
     }
 
     LaunchedEffect(viewModel.uiEvent) {
@@ -101,27 +108,23 @@ fun QrTransferScreen(
                 is QrTransferViewModel.UiEvent.AllTransfersCompleted -> {
                     onTransferCompleted(event.order)
                 }
+
+                QrTransferViewModel.UiEvent.ExitAfterCancel -> {
+                    onBackClick()
+                }
+
+                QrTransferViewModel.UiEvent.TopUpCompleted -> {
+                    onTopUpCompleted()
+                }
             }
         }
     }
 
     val currentOrder = uiState.currentOrder
-
-    LaunchedEffect(currentOrder?.id, currentOrder?.status) {
-        val order = currentOrder ?: return@LaunchedEffect
-        if (order.status != OrderStatus.WAITING_PAYMENT) return@LaunchedEffect
-        val orderId = order.id
-
-        while (true) {
-            delay(5_000)
-            val latestOrder = viewModel.uiState.value.currentOrder
-            if (latestOrder?.id != orderId || latestOrder.status != OrderStatus.WAITING_PAYMENT) {
-                break
-            }
-            viewModel.checkCurrentOrderPayment(showPendingMessage = false)
-        }
-    }
-
+    val isTopUpMode = uiState.isTopUpMode
+    val resolvedAmount = if (isTopUpMode) uiState.topUpAmount.toDouble() else (currentOrder?.totalAmount ?: 0.0)
+    val resolvedTransferContent = if (isTopUpMode) uiState.topUpTransferContent else currentOrder?.transferContent.orEmpty()
+    val isPendingPayment = if (isTopUpMode) !uiState.isTopUpCompleted else currentOrder?.status == OrderStatus.WAITING_PAYMENT
 
     if (uiState.isLoading) {
         Scaffold(
@@ -152,7 +155,7 @@ fun QrTransferScreen(
         return
     }
 
-    if (currentOrder == null) {
+    if (!isTopUpMode && currentOrder == null) {
         Scaffold(
             snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
@@ -184,12 +187,36 @@ fun QrTransferScreen(
         return
     }
 
-    val paymentMethod = currentOrder.paymentMethodDetails
-    val qrUrl = remember(currentOrder.id, currentOrder.transferContent, currentOrder.totalAmount) {
-        currentOrder.qrImageUrl()
+    val qrUrl = remember(currentOrder?.id, resolvedTransferContent, resolvedAmount) {
+        qrImageUrl(
+            amount = resolvedAmount,
+            transferContent = resolvedTransferContent,
+            fallbackOrderId = currentOrder?.id.orEmpty()
+        )
     }
-    val remainingSeconds by rememberRemainingSeconds(currentOrder.paymentExpiresAt)
-    val isPendingPayment = currentOrder.status == OrderStatus.WAITING_PAYMENT
+    val remainingSeconds by rememberRemainingSeconds(currentOrder?.paymentExpiresAt ?: 0L)
+    val shouldConfirmCancel = isPendingPayment
+
+    LaunchedEffect(currentOrder?.id) {
+        showExpiredDialog = false
+    }
+
+    LaunchedEffect(isTopUpMode, isPendingPayment, remainingSeconds, currentOrder?.id) {
+        if (!isTopUpMode && isPendingPayment && remainingSeconds <= 0) {
+            showCancelDialog = false
+            showExpiredDialog = true
+        }
+    }
+
+    BackHandler(enabled = showExpiredDialog) {}
+
+    BackHandler(enabled = true) {
+        if (shouldConfirmCancel) {
+            showCancelDialog = true
+        } else {
+            onBackClick()
+        }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -202,7 +229,16 @@ fun QrTransferScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBackClick) {
+                    IconButton(
+                        onClick = {
+                            if (shouldConfirmCancel) {
+                                if (showExpiredDialog) return@IconButton
+                                showCancelDialog = true
+                            } else {
+                                onBackClick()
+                            }
+                        }
+                    ) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.common_back)
@@ -234,13 +270,7 @@ fun QrTransferScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = if (paymentMethod?.type == SellerPaymentMethodType.BANK_TRANSFER) {
-                            "NGUYEN XUAN QUYET"
-                        } else {
-                            paymentMethod?.accountName.orEmpty().ifBlank {
-                                stringResource(R.string.profile_default_user)
-                            }
-                        },
+                        text = APP_TRANSFER_ACCOUNT_NAME,
                         fontWeight = FontWeight.Bold,
                         fontSize = 24.sp,
                         color = Color(0xFF1C1F39)
@@ -261,7 +291,11 @@ fun QrTransferScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "#${currentOrder.id.takeLast(8).uppercase()}",
+                        text = if (isTopUpMode) {
+                            "#${uiState.topUpTransferContent.takeLast(8).uppercase()}"
+                        } else {
+                            "#${currentOrder?.id?.takeLast(8)?.uppercase().orEmpty()}"
+                        },
                         fontWeight = FontWeight.Bold,
                         color = SecondaryBlue
                     )
@@ -288,7 +322,7 @@ fun QrTransferScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = formatVnd(currentOrder.totalAmount),
+                        text = formatVnd(resolvedAmount),
                         color = SecondaryBlue,
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 34.sp
@@ -396,16 +430,7 @@ fun QrTransferScreen(
 
             InstructionStep(
                 number = 1,
-                text = when (paymentMethod?.type ?: SellerPaymentMethodType.fromRaw(currentOrder.paymentMethod)) {
-                    SellerPaymentMethodType.BANK_TRANSFER ->
-                        stringResource(R.string.checkout_qr_step_scan)
-
-                    SellerPaymentMethodType.MOMO ->
-                        stringResource(R.string.checkout_qr_step_momo)
-
-                    SellerPaymentMethodType.CASH_ON_DELIVERY ->
-                        stringResource(R.string.checkout_qr_step_cash)
-                }
+                text = stringResource(R.string.checkout_qr_step_scan)
             )
             InstructionStep(
                 number = 2,
@@ -428,44 +453,78 @@ fun QrTransferScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     TransferInfoRow(
                         label = stringResource(R.string.checkout_payment_method),
-                        value = localizedPaymentMethodLabel(currentOrder.paymentMethod)
+                        value = if (isTopUpMode) {
+                            localizedPaymentMethodLabel("BANK_TRANSFER")
+                        } else {
+                            localizedPaymentMethodLabel(currentOrder?.paymentMethod.orEmpty())
+                        }
                     )
                     TransferInfoRow(
                         label = stringResource(R.string.payment_methods_account_name),
-                        value = paymentMethod?.accountName.orEmpty()
+                        value = APP_TRANSFER_ACCOUNT_NAME
                     )
-                    if (paymentMethod?.type == SellerPaymentMethodType.BANK_TRANSFER) {
-                        TransferInfoRow(
-                            label = stringResource(R.string.payment_methods_bank_name),
-                            value = "MBBank (MB)"
-                        )
-                        TransferInfoRow(
-                            label = stringResource(R.string.payment_methods_account_number),
-                            value = "0356433860"
-                        )
-                    } else if (paymentMethod?.type == SellerPaymentMethodType.MOMO) {
-                        TransferInfoRow(
-                            label = stringResource(R.string.payment_methods_phone_number),
-                            value = paymentMethod.phoneNumber
-                        )
-                    }
+                    TransferInfoRow(
+                        label = stringResource(R.string.payment_methods_bank_name),
+                        value = APP_TRANSFER_BANK_NAME
+                    )
+                    TransferInfoRow(
+                        label = stringResource(R.string.payment_methods_account_number),
+                        value = APP_TRANSFER_ACCOUNT_NUMBER
+                    )
                     TransferInfoRow(
                         label = stringResource(R.string.checkout_transfer_content),
-                        value = currentOrder.transferContent.ifBlank { "UM${currentOrder.id}" }
+                        value = resolvedTransferContent.ifBlank {
+                            if (isTopUpMode) {
+                                uiState.topUpTransferContent
+                            } else {
+                                "UM${currentOrder?.id.orEmpty()}"
+                            }
+                        }
                     )
-                    if (!paymentMethod?.note.isNullOrBlank()) {
-                        HorizontalDivider(color = ProfileAvatarBorder)
-                        Text(
-                            text = paymentMethod?.note.orEmpty(),
-                            color = Color.Gray
-                        )
-                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            if (!isPendingPayment) {
+            if (isPendingPayment) {
+                Button(
+                    onClick = {
+                        if (isTopUpMode) {
+                            viewModel.checkTopUpPayment(showPendingMessage = true)
+                        } else {
+                            viewModel.checkCurrentOrderPayment(showPendingMessage = true)
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(54.dp),
+                    shape = RoundedCornerShape(27.dp),
+                    enabled = !uiState.isCheckingPayment,
+                    colors = ButtonDefaults.buttonColors(containerColor = SecondaryBlue)
+                ) {
+                    if (uiState.isCheckingPayment) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.checkout_payment_checking),
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                    } else {
+                        Text(
+                            text = stringResource(R.string.checkout_qr_button_done),
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+            } else {
                 Button(
                     onClick = { viewModel.moveToNextOrder() },
                     modifier = Modifier
@@ -514,6 +573,70 @@ fun QrTransferScreen(
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
         }
+    }
+
+    if (showCancelDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                if (!uiState.isCancellingPayment) {
+                    showCancelDialog = false
+                }
+            },
+            title = { Text(stringResource(R.string.mypurchases_cancel_payment_title)) },
+            text = { Text(stringResource(R.string.mypurchases_cancel_payment_message)) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showCancelDialog = false
+                        viewModel.cancelPaymentAndExit()
+                    },
+                    enabled = !uiState.isCancellingPayment
+                ) {
+                    if (uiState.isCancellingPayment) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = Color.White
+                        )
+                    } else {
+                        Text(stringResource(R.string.mypurchases_cancel_payment_confirm))
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showCancelDialog = false },
+                    enabled = !uiState.isCancellingPayment
+                ) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            }
+        )
+    }
+
+    if (showExpiredDialog) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text(stringResource(R.string.checkout_qr_expired_title)) },
+            text = { Text(stringResource(R.string.checkout_qr_expired_message)) },
+            confirmButton = {
+                Button(
+                    onClick = { viewModel.cancelPaymentAndExit() },
+                    enabled = !uiState.isCancellingPayment
+                ) {
+                    if (uiState.isCancellingPayment) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = Color.White
+                        )
+                    } else {
+                        Text(stringResource(R.string.checkout_qr_expired_confirm))
+                    }
+                }
+            },
+            dismissButton = {}
+        )
     }
 }
 
@@ -579,22 +702,15 @@ private fun rememberRemainingSeconds(paymentExpiresAt: Long): androidx.compose.r
     return remainingState
 }
 
-private fun Order.qrImageUrl(): String? {
-    val method = paymentMethodDetails ?: return null
-    val amount = totalAmount.roundToInt().coerceAtLeast(0)
-    val addInfo = Uri.encode(transferContent.ifBlank { "UM$id" })
-    
-    if (method.type == SellerPaymentMethodType.BANK_TRANSFER) {
-        val accountName = Uri.encode("NGUYEN XUAN QUYET")
-        return "https://img.vietqr.io/image/MB-0356433860-compact2.png?amount=$amount&addInfo=$addInfo&accountName=$accountName"
-    }
-    
-    if (!method.supportsQr()) {
-        return null
-    }
-    
-    val accountName = Uri.encode(method.accountName)
-    return "https://img.vietqr.io/image/${method.bankCode}-${method.accountNumber}-compact2.png?amount=$amount&addInfo=$addInfo&accountName=$accountName"
+private fun qrImageUrl(
+    amount: Double,
+    transferContent: String,
+    fallbackOrderId: String
+): String? {
+    val resolvedAmount = amount.roundToInt().coerceAtLeast(0)
+    val addInfo = Uri.encode(transferContent.ifBlank { "UM$fallbackOrderId" })
+    val accountName = Uri.encode(APP_TRANSFER_ACCOUNT_NAME)
+    return "https://img.vietqr.io/image/$APP_TRANSFER_BANK_CODE-$APP_TRANSFER_ACCOUNT_NUMBER-compact2.png?amount=$resolvedAmount&addInfo=$addInfo&accountName=$accountName"
 }
 
 private fun Long.remainingSeconds(): Int {
@@ -608,3 +724,8 @@ private fun Int.asClockText(): String {
     val seconds = safe % 60
     return "%02d:%02d".format(minutes, seconds)
 }
+
+private const val APP_TRANSFER_BANK_CODE = "MB"
+private const val APP_TRANSFER_BANK_NAME = "MBBank"
+private const val APP_TRANSFER_ACCOUNT_NUMBER = "0356433860"
+private const val APP_TRANSFER_ACCOUNT_NAME = "NGUYEN XUAN QUYET"

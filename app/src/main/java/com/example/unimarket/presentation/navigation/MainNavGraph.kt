@@ -24,6 +24,8 @@ import com.example.unimarket.presentation.sell.SellScreen
 import com.example.unimarket.presentation.statistics.StatisticsScreen
 import com.example.unimarket.presentation.sellerorders.SellerOrdersScreen
 import com.example.unimarket.presentation.sellerprofile.SellerProfileScreen
+import com.example.unimarket.presentation.wallet.WalletScreen
+import com.example.unimarket.presentation.wallet.WalletTopUpScreen
 
 @Composable
 fun MainNavGraph(navController: NavHostController, rootNavController: NavHostController) {
@@ -79,6 +81,9 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
                 onMyPurchasesClick = {
                     navController.navigate(Screen.MyPurchases.route)
                 },
+                onWalletClick = {
+                    navController.navigate(Screen.Wallet.route)
+                },
                 onPaymentMethodsClick = {
                     navController.navigate(Screen.PaymentMethods.route)
                 },
@@ -100,12 +105,54 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
                 onBackClick = { navController.popBackStack() }
             )
         }
+        composable(
+            route = Screen.Wallet.route + "?topUpAmount={topUpAmount}&topUpAt={topUpAt}",
+            arguments = listOf(
+                androidx.navigation.navArgument("topUpAmount") {
+                    type = androidx.navigation.NavType.LongType
+                    defaultValue = 0L
+                },
+                androidx.navigation.navArgument("topUpAt") {
+                    type = androidx.navigation.NavType.LongType
+                    defaultValue = 0L
+                }
+            )
+        ) { backStackEntry ->
+            val topUpAmount = backStackEntry.arguments?.getLong("topUpAmount") ?: 0L
+            val topUpAt = backStackEntry.arguments?.getLong("topUpAt") ?: 0L
+            WalletScreen(
+                onBackClick = { navController.popBackStack() },
+                topUpAmount = topUpAmount,
+                topUpAt = topUpAt,
+                onTopUpClick = { balance ->
+                    navController.navigate(Screen.WalletTopUp.route + "?balance=$balance")
+                }
+            )
+        }
+        composable(
+            route = Screen.WalletTopUp.route + "?balance={balance}",
+            arguments = listOf(androidx.navigation.navArgument("balance") {
+                type = androidx.navigation.NavType.FloatType
+                defaultValue = 0f
+            })
+        ) { backStackEntry ->
+            val balance = backStackEntry.arguments?.getFloat("balance")?.toDouble() ?: 0.0
+            WalletTopUpScreen(
+                currentBalance = balance,
+                onBackClick = { navController.popBackStack() },
+                onTopUpClick = { topUpAmount ->
+                    navController.navigate(
+                        Screen.QrTransfer.route + "?topUpAmount=$topUpAmount"
+                    )
+                }
+            )
+        }
         composable(Screen.MyPurchases.route) {
             MyPurchasesScreen(
                 onBackClick = { navController.popBackStack() },
                 onPendingPaymentClick = { orderId ->
                     navController.navigate(
-                        Screen.QrTransfer.route + "?orderIds=" + Uri.encode(orderId)
+                        Screen.QrTransfer.route + "?orderIds=" + Uri.encode(orderId) + "&topUpAmount=0"
                     )
                 },
                 onTrackOrderClick = { orderId ->
@@ -123,7 +170,10 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
             })
         ) {
             OrderTrackingScreen(
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                onConversationOpen = { conversationId ->
+                    navController.navigate(Screen.ChatDetail.route + "/$conversationId")
+                }
             )
         }
         composable(Screen.SellerOrders.route) {
@@ -213,11 +263,17 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
             )
         }
         composable(
-            route = Screen.QrTransfer.route + "?orderIds={orderIds}",
-            arguments = listOf(androidx.navigation.navArgument("orderIds") {
-                type = androidx.navigation.NavType.StringType
-                defaultValue = ""
-            })
+            route = Screen.QrTransfer.route + "?orderIds={orderIds}&topUpAmount={topUpAmount}",
+            arguments = listOf(
+                androidx.navigation.navArgument("orderIds") {
+                    type = androidx.navigation.NavType.StringType
+                    defaultValue = ""
+                },
+                androidx.navigation.navArgument("topUpAmount") {
+                    type = androidx.navigation.NavType.LongType
+                    defaultValue = 0L
+                }
+            )
         ) { backStackEntry ->
             val orderIds = backStackEntry.arguments
                 ?.getString("orderIds")
@@ -225,8 +281,10 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
                 .split(",")
                 .map { it.trim() }
                 .filter { it.isNotBlank() }
+            val topUpAmount = backStackEntry.arguments?.getLong("topUpAmount") ?: 0L
             QrTransferScreen(
                 orderIds = orderIds,
+                topUpAmount = topUpAmount,
                 onBackClick = { navController.popBackStack() },
                 onTransferCompleted = { order ->
                     navController.navigate(
@@ -236,7 +294,17 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
                                 "&quantity=${order.quantity}" +
                                 "&totalAmount=${order.totalAmount}"
                     ) {
-                        popUpTo(Screen.QrTransfer.route + "?orderIds={orderIds}") { inclusive = true }
+                        popUpTo(Screen.QrTransfer.route + "?orderIds={orderIds}&topUpAmount={topUpAmount}") { inclusive = true }
+                    }
+                },
+                onTopUpCompleted = {
+                    navController.navigate(
+                        Screen.Wallet.route +
+                            "?topUpAmount=$topUpAmount" +
+                            "&topUpAt=${System.currentTimeMillis()}"
+                    ) {
+                        popUpTo(Screen.Wallet.route + "?topUpAmount={topUpAmount}&topUpAt={topUpAt}") { inclusive = false }
+                        launchSingleTop = true
                     }
                 }
             )
@@ -289,7 +357,7 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
                 onBackClick = { navController.popBackStack() },
                 onTransferOrdersReady = { orderIds ->
                     navController.navigate(
-                        Screen.QrTransfer.route + "?orderIds=" + Uri.encode(orderIds.joinToString(","))
+                        Screen.QrTransfer.route + "?orderIds=" + Uri.encode(orderIds.joinToString(",")) + "&topUpAmount=0"
                     )
                 },
                 onPurchaseCompleted = {
@@ -319,7 +387,7 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
                 onBackClick = { navController.popBackStack() },
                 onTransferOrdersReady = { orderIds ->
                     navController.navigate(
-                        Screen.QrTransfer.route + "?orderIds=" + Uri.encode(orderIds.joinToString(","))
+                        Screen.QrTransfer.route + "?orderIds=" + Uri.encode(orderIds.joinToString(",")) + "&topUpAmount=0"
                     )
                 },
                 onPurchaseCompleted = {

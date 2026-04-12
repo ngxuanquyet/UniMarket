@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.Report
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Button
@@ -34,6 +35,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -44,7 +46,9 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,6 +65,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.rememberAsyncImagePainter
 import com.example.unimarket.R
 import com.example.unimarket.domain.model.Product
+import com.example.unimarket.presentation.components.ReportIssueDialog
 import com.example.unimarket.presentation.theme.AppBlue
 import com.example.unimarket.presentation.theme.BackgroundLight
 import com.example.unimarket.presentation.theme.MessageBg
@@ -78,6 +83,7 @@ fun SellerProfileScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    var showReportDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
@@ -98,8 +104,8 @@ fun SellerProfileScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { }) {
-                        Icon(Icons.Default.MoreHoriz, contentDescription = stringResource(R.string.seller_profile_more))
+                    IconButton(onClick = { showReportDialog = true }) {
+                        Icon(Icons.Default.Report, contentDescription = stringResource(R.string.seller_profile_more))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
@@ -145,7 +151,7 @@ fun SellerProfileScreen(
                     item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
                         SellerHeroSection(
                             uiState = uiState,
-                            onMessageSeller = viewModel::startConversation
+                            onMessageSeller = viewModel::startConversation,
                         )
                     }
 
@@ -181,6 +187,20 @@ fun SellerProfileScreen(
                 }
             }
         }
+    }
+
+    if (showReportDialog) {
+        ReportIssueDialog(
+            onDismiss = { showReportDialog = false },
+            onSubmit = { reasonCode, reasonLabel, details ->
+                showReportDialog = false
+                viewModel.submitSellerReport(
+                    reasonCode = reasonCode,
+                    reasonLabel = reasonLabel,
+                    details = details
+                )
+            }
+        )
     }
 }
 

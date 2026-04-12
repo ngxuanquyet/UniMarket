@@ -50,6 +50,25 @@ class FirebaseProductRepositoryImpl @Inject constructor(
         emit(snapshot.documents.mapNotNull(::mapProduct))
     }
 
+    override suspend fun getProductById(productId: String): Result<Product> {
+        return try {
+            val snapshot = firestore.collection("products").document(productId).get(Source.SERVER).await()
+            val product = mapProduct(snapshot) ?: return Result.failure(Exception("Product not found"))
+            Result.success(product)
+        } catch (error: FirebaseFirestoreException) {
+            Log.w("FirebaseProductRepo", "Server getProductById failed, fallback cache", error)
+            try {
+                val cached = firestore.collection("products").document(productId).get(Source.CACHE).await()
+                val product = mapProduct(cached) ?: return Result.failure(Exception("Product not found"))
+                Result.success(product)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     override suspend fun addProduct(product: Product): Result<Unit> {
         return try {
             val productMap = mapOf(

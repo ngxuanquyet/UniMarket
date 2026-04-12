@@ -5,7 +5,8 @@ import java.io.Serializable
 enum class SellerPaymentMethodType(val storageValue: String) {
     CASH_ON_DELIVERY("CASH_ON_DELIVERY"),
     BANK_TRANSFER("BANK_TRANSFER"),
-    MOMO("MOMO");
+    MOMO("MOMO"),
+    WALLET("WALLET");
 
     companion object {
         fun fromRaw(raw: String?): SellerPaymentMethodType {
@@ -18,6 +19,8 @@ enum class SellerPaymentMethodType(val storageValue: String) {
                 "BANK TRANSFER" -> BANK_TRANSFER
 
                 "MOMO" -> MOMO
+                "WALLET",
+                "WALLET_PAYMENT" -> WALLET
 
                 else -> CASH_ON_DELIVERY
             }
@@ -43,6 +46,7 @@ data class SellerPaymentMethod(
                 SellerPaymentMethodType.BANK_TRANSFER -> bankName.ifBlank { "Bank transfer" }
                 SellerPaymentMethodType.MOMO -> "MoMo"
                 SellerPaymentMethodType.CASH_ON_DELIVERY -> "Cash on delivery"
+                SellerPaymentMethodType.WALLET -> "Wallet"
             }
         }
 
@@ -54,6 +58,7 @@ data class SellerPaymentMethod(
 
             SellerPaymentMethodType.MOMO -> phoneNumber.maskedSuffix()
             SellerPaymentMethodType.CASH_ON_DELIVERY -> ""
+            SellerPaymentMethodType.WALLET -> ""
         }
 
     fun supportsQr(): Boolean {

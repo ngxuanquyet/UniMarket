@@ -5,6 +5,7 @@ import com.example.unimarket.domain.model.Order
 data class OrderTrackingUiState(
     val isLoading: Boolean = true,
     val order: Order? = null,
-    val errorMessage: String? = null
+    val isCancellingOrder: Boolean = false,
+    val errorMessage: String? = null,
+    val successMessage: String? = null
 )
-

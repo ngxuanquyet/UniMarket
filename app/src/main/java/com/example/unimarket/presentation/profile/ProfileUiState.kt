@@ -10,6 +10,7 @@ data class ProfileUiState(
     val soldCount: Int = 0,
     val averageRating: Double = 0.0,
     val ratingCount: Int = 0,
+    val walletBalance: Double = 0.0,
     val addresses: List<UserAddress> = emptyList(),
     val isUploading: Boolean = false,
     val isRefreshingProfile: Boolean = false,

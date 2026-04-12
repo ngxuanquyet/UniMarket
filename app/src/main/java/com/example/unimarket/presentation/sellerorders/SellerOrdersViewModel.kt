@@ -1,5 +1,6 @@
 package com.example.unimarket.presentation.sellerorders
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.unimarket.domain.model.Order
@@ -57,6 +58,10 @@ class SellerOrdersViewModel @Inject constructor(
 
             updateOrderStatusUseCase(order, status)
                 .onSuccess {
+                    Log.d(
+                        "SellerOrdersViewModel",
+                        "Order status updated: orderId=${order.id}, from=${order.status}, to=$status"
+                    )
                     _uiState.update { current ->
                         current.copy(
                             updatingOrderId = null,
@@ -76,6 +81,11 @@ class SellerOrdersViewModel @Inject constructor(
                     }
                 }
                 .onFailure { error ->
+                    Log.e(
+                        "SellerOrdersViewModel",
+                        "Failed to update order status: orderId=${order.id}, from=${order.status}, to=$status",
+                        error
+                    )
                     _uiState.update {
                         it.copy(
                             updatingOrderId = null,
@@ -94,7 +104,9 @@ class SellerOrdersViewModel @Inject constructor(
                 .onSuccess { orders ->
                     _uiState.update {
                         it.copy(
-                            orders = orders,
+                            orders = orders.filterNot { order ->
+                                order.status == OrderStatus.WAITING_PAYMENT
+                            },
                             isLoading = false
                         )
                     }
