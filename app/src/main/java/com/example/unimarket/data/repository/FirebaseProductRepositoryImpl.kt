@@ -84,12 +84,15 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                 "timeAgo" to product.timeAgo,
                 "postedAt" to product.postedAt,
                 "isFavorite" to product.isFavorite,
-                "isNegotiable" to product.isNegotiable,
                 "quantityAvailable" to product.quantityAvailable,
                 "userId" to product.userId,
                 "specifications" to product.specifications,
                 "deliveryMethodsAvailable" to product.deliveryMethodsAvailable.map { it.toStorageValue() },
-                "sellerPickupAddress" to product.sellerPickupAddress?.toMap()
+                "sellerPickupAddress" to product.sellerPickupAddress?.toMap(),
+                "moderationStatus" to "PENDING",
+                "status" to "PENDING",
+                "isVisible" to false,
+                "updatedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
             )
             firestore.collection("products").add(productMap).await()
             Result.success(Unit)
@@ -127,7 +130,11 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                 "userId" to product.userId,
                 "specifications" to product.specifications,
                 "deliveryMethodsAvailable" to product.deliveryMethodsAvailable.map { it.toStorageValue() },
-                "sellerPickupAddress" to product.sellerPickupAddress?.toMap()
+                "sellerPickupAddress" to product.sellerPickupAddress?.toMap(),
+                "moderationStatus" to "PENDING",
+                "status" to "PENDING",
+                "isVisible" to false,
+                "updatedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
             )
             // Using set() to overwrite or create if not exists
             firestore.collection("products").document(product.id).set(productMap).await()
@@ -157,6 +164,11 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                 isNegotiable = doc.getBoolean("isNegotiable") ?: false,
                 quantityAvailable = doc.getLong("quantityAvailable")?.toInt()?.coerceAtLeast(0) ?: 0,
                 userId = doc.getString("userId") ?: "",
+                moderationStatus = (
+                    doc.getString("moderationStatus")
+                        ?: doc.getString("status")
+                        ?: "APPROVED"
+                    ).uppercase(),
                 specifications = (doc.get("specifications") as? Map<String, String>) ?: emptyMap(),
                 deliveryMethodsAvailable = deliveryMethodsFromStorage(
                     (doc.get("deliveryMethodsAvailable") as? List<String>) ?: emptyList()

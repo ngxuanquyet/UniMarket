@@ -249,6 +249,8 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun logout() {
-        logoutUseCase()
+        viewModelScope.launch {
+            logoutUseCase()
+        }
     }
 }

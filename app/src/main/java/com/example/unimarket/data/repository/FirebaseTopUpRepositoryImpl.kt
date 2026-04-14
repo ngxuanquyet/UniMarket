@@ -78,12 +78,35 @@ class FirebaseTopUpRepositoryImpl @Inject constructor(
             }
 
             val userRef = firestore.collection(USERS_COLLECTION).document(currentUser.uid)
+            val topUpTransactionId = "topup_${transferContent.toWalletTransactionKey()}"
+            val walletTransactionRef = userRef
+                .collection(WALLET_TRANSACTIONS_COLLECTION)
+                .document(topUpTransactionId)
+
             firestore.runTransaction { transaction ->
                 val snapshot = transaction.get(userRef)
-                if (snapshot.exists()) {
-                    transaction.update(userRef, "walletBalance", FieldValue.increment(amount.toDouble()))
-                } else {
-                    transaction.set(userRef, mapOf("walletBalance" to amount.toDouble()))
+                val existingWalletTransaction = transaction.get(walletTransactionRef)
+
+                if (!existingWalletTransaction.exists()) {
+                    if (snapshot.exists()) {
+                        transaction.update(userRef, "walletBalance", FieldValue.increment(amount.toDouble()))
+                    } else {
+                        transaction.set(userRef, mapOf("walletBalance" to amount.toDouble()))
+                    }
+                    transaction.set(
+                        walletTransactionRef,
+                        mapOf(
+                            "type" to "TOP_UP",
+                            "status" to "COMPLETED",
+                            "amount" to amount.toDouble(),
+                            "currency" to "VND",
+                            "title" to "Wallet top-up",
+                            "transferContent" to transferContent,
+                            "createdAt" to FieldValue.serverTimestamp(),
+                            "updatedAt" to FieldValue.serverTimestamp(),
+                            "source" to "ANDROID_APP"
+                        )
+                    )
                 }
             }.await()
 
@@ -165,6 +188,12 @@ class FirebaseTopUpRepositoryImpl @Inject constructor(
         const val TAG = "TopUpSePayCheck"
         const val APP_TRANSFER_ACCOUNT_NUMBER = "0356433860"
         const val USERS_COLLECTION = "users"
+        const val WALLET_TRANSACTIONS_COLLECTION = "walletTransactions"
         const val MIN_REFERENCE_MATCH_LENGTH = 12
     }
+}
+
+private fun String.toWalletTransactionKey(): String {
+    val normalized = lowercase().filter { it.isLetterOrDigit() }
+    return normalized.takeLast(48).ifBlank { System.currentTimeMillis().toString() }
 }

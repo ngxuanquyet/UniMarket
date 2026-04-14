@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Report
@@ -79,6 +80,7 @@ fun SellerProfileScreen(
     onBackClick: () -> Unit,
     onConversationOpen: (String) -> Unit,
     onProductClick: (String) -> Unit,
+    onViewReviewsClick: (String) -> Unit,
     viewModel: SellerProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -152,6 +154,7 @@ fun SellerProfileScreen(
                         SellerHeroSection(
                             uiState = uiState,
                             onMessageSeller = viewModel::startConversation,
+                            onViewReviewsClick = onViewReviewsClick
                         )
                     }
 
@@ -207,7 +210,8 @@ fun SellerProfileScreen(
 @Composable
 private fun SellerHeroSection(
     uiState: SellerProfileUiState,
-    onMessageSeller: () -> Unit
+    onMessageSeller: () -> Unit,
+    onViewReviewsClick: (String) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -255,7 +259,12 @@ private fun SellerHeroSection(
 
         Spacer(modifier = Modifier.height(6.dp))
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.clickable(enabled = uiState.sellerId.isNotBlank()) {
+                onViewReviewsClick(uiState.sellerId)
+            }
+        ) {
             Icon(
                 Icons.Default.Star,
                 contentDescription = null,
@@ -276,6 +285,12 @@ private fun SellerHeroSection(
                 },
                 color = Color.Gray,
                 fontSize = 13.sp
+            )
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = stringResource(R.string.seller_reviews_title),
+                tint = Color.Gray,
+                modifier = Modifier.size(16.dp)
             )
         }
 

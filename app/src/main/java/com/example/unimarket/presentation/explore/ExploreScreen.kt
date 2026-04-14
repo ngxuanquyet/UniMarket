@@ -55,6 +55,7 @@ fun ExploreScreen(
     onProductClick: (String) -> Unit = {},
     onSellerClick: (String) -> Unit = {},
     onCartClick: () -> Unit = {},
+    onNotificationsClick: () -> Unit = {},
     viewModel: ExploreViewModel = androidx.hilt.navigation.compose.hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -97,7 +98,7 @@ fun ExploreScreen(
                         )
                     }
                     IconButton(
-                        onClick = { },
+                        onClick = onNotificationsClick,
                         modifier = Modifier
                             .padding(end = 8.dp)
                             .clip(CircleShape)

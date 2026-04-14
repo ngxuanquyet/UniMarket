@@ -14,7 +14,7 @@ interface AuthRepository {
         password: String
     ): Result<Unit>
 
-    fun logout()
+    suspend fun logout()
     fun getCurrentUser(): Any? // Can be mapped to a domain User model later if needed
     fun getCachedUser(): UserProfile?
     fun observeCachedUser(): Flow<UserProfile?>

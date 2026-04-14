@@ -34,6 +34,13 @@ class MyListingsViewModel @Inject constructor(
     private val deleteDraftUseCase: DeleteDraftUseCase,
     private val getSellerOrdersUseCase: GetSellerOrdersUseCase
 ) : ViewModel() {
+    companion object {
+        private const val TAB_ACTIVE = 0
+        private const val TAB_SOLD = 1
+        private const val TAB_PENDING = 2
+        private const val TAB_VIOLATION = 3
+        private const val TAB_DRAFT = 4
+    }
 
     private val _uiState = MutableStateFlow(MyListingsUiState(isLoading = true))
     val uiState: StateFlow<MyListingsUiState> = _uiState.asStateFlow()
@@ -65,7 +72,15 @@ class MyListingsViewModel @Inject constructor(
                 val products = getAllProductsUseCase().first()
                 val drafts = getDraftsUseCase(currentUid ?: "").first()
                 val myProducts = products.filter { it.userId == currentUid }
-                val activeProducts = myProducts.filter { it.quantityAvailable > 0 }
+                val pendingProducts = myProducts.filter {
+                    it.moderationStatus.equals("PENDING", ignoreCase = true)
+                }
+                val violationProducts = myProducts.filter {
+                    it.moderationStatus.equals("DISABLED", ignoreCase = true)
+                }
+                val activeProducts = myProducts.filter {
+                    it.quantityAvailable > 0 && it.moderationStatus.equals("APPROVED", ignoreCase = true)
+                }
                 val deliveredOrders = getSellerOrdersUseCase()
                     .getOrDefault(emptyList())
                     .filter { it.status == OrderStatus.DELIVERED }
@@ -89,6 +104,7 @@ class MyListingsViewModel @Inject constructor(
                         isNegotiable = draftItem.isNegotiable,
                         quantityAvailable = draftItem.quantityAvailable ?: 1,
                         userId = draftItem.userId,
+                        moderationStatus = "DRAFT",
                         specifications = draftItem.specifications,
                         deliveryMethodsAvailable = draftItem.deliveryMethodsAvailable
                     )
@@ -97,6 +113,8 @@ class MyListingsViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(
                     activeListings = activeProducts,
                     soldListings = soldProducts,
+                    pendingListings = pendingProducts,
+                    violationListings = violationProducts,
                     draftListings = mappedDrafts,
                     isLoading = false,
                 )
@@ -120,8 +138,10 @@ class MyListingsViewModel @Inject constructor(
         // Cancel any pending delete job just in case
         deleteJob?.cancel()
 
-        val isDraft = _uiState.value.currentTab == 2
-        val isSold = _uiState.value.currentTab == 1
+        val isDraft = _uiState.value.currentTab == TAB_DRAFT
+        val isSold = _uiState.value.currentTab == TAB_SOLD
+        val isPending = _uiState.value.currentTab == TAB_PENDING
+        val isViolation = _uiState.value.currentTab == TAB_VIOLATION
 
         // 1. Optimistic UI update: Remove from list temporarily
         pendingDeleteProduct = product
@@ -131,6 +151,12 @@ class MyListingsViewModel @Inject constructor(
         } else if (isSold) {
             val updatedListings = _uiState.value.soldListings.filter { it.id != product.id }
             _uiState.value = _uiState.value.copy(soldListings = updatedListings)
+        } else if (isPending) {
+            val updatedListings = _uiState.value.pendingListings.filter { it.id != product.id }
+            _uiState.value = _uiState.value.copy(pendingListings = updatedListings)
+        } else if (isViolation) {
+            val updatedListings = _uiState.value.violationListings.filter { it.id != product.id }
+            _uiState.value = _uiState.value.copy(violationListings = updatedListings)
         } else {
             val updatedListings = _uiState.value.activeListings.filter { it.id != product.id }
             _uiState.value = _uiState.value.copy(activeListings = updatedListings)
@@ -174,8 +200,10 @@ class MyListingsViewModel @Inject constructor(
         deleteJob?.cancel()
         pendingDeleteProduct?.let { product ->
             // Add it back to the list
-            val isDraft = _uiState.value.currentTab == 2
-            val isSold = _uiState.value.currentTab == 1
+            val isDraft = _uiState.value.currentTab == TAB_DRAFT
+            val isSold = _uiState.value.currentTab == TAB_SOLD
+            val isPending = _uiState.value.currentTab == TAB_PENDING
+            val isViolation = _uiState.value.currentTab == TAB_VIOLATION
             if (isDraft) {
                 val updatedListings = _uiState.value.draftListings.toMutableList()
                 updatedListings.add(product)
@@ -184,6 +212,14 @@ class MyListingsViewModel @Inject constructor(
                 val updatedListings = _uiState.value.soldListings.toMutableList()
                 updatedListings.add(product)
                 _uiState.value = _uiState.value.copy(soldListings = updatedListings)
+            } else if (isPending) {
+                val updatedListings = _uiState.value.pendingListings.toMutableList()
+                updatedListings.add(product)
+                _uiState.value = _uiState.value.copy(pendingListings = updatedListings)
+            } else if (isViolation) {
+                val updatedListings = _uiState.value.violationListings.toMutableList()
+                updatedListings.add(product)
+                _uiState.value = _uiState.value.copy(violationListings = updatedListings)
             } else {
                 val updatedListings = _uiState.value.activeListings.toMutableList()
                 updatedListings.add(product)

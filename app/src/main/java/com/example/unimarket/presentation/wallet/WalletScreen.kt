@@ -66,7 +66,10 @@ fun WalletScreen(
     onBackClick: () -> Unit,
     topUpAmount: Long = 0L,
     topUpAt: Long = 0L,
+    withdrawAmount: Long = 0L,
+    withdrawAt: Long = 0L,
     onTopUpClick: (Double) -> Unit = {},
+    onWithdrawClick: (Double) -> Unit = {},
     viewModel: WalletViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -81,6 +84,11 @@ fun WalletScreen(
     LaunchedEffect(topUpAmount, topUpAt) {
         if (topUpAmount > 0L && topUpAt > 0L) {
             viewModel.onTopUpCompleted(amount = topUpAmount, timestamp = topUpAt)
+        }
+    }
+    LaunchedEffect(withdrawAmount, withdrawAt) {
+        if (withdrawAmount > 0L && withdrawAt > 0L) {
+            viewModel.onWithdrawalRequested(amount = withdrawAmount, timestamp = withdrawAt)
         }
     }
 
@@ -133,7 +141,8 @@ fun WalletScreen(
                         item {
                             WalletBalanceCard(
                                 balance = uiState.walletBalance,
-                                onTopUpClick = onTopUpClick
+                                onTopUpClick = onTopUpClick,
+                                onWithdrawClick = onWithdrawClick
                             )
                         }
                         item {
@@ -192,7 +201,8 @@ fun WalletScreen(
 @Composable
 private fun WalletBalanceCard(
     balance: Double,
-    onTopUpClick: (Double) -> Unit
+    onTopUpClick: (Double) -> Unit,
+    onWithdrawClick: (Double) -> Unit
 ) {
     Card(
         shape = RoundedCornerShape(24.dp),
@@ -230,7 +240,7 @@ private fun WalletBalanceCard(
                     Text(text = stringResource(R.string.wallet_add_money))
                 }
                 Button(
-                    onClick = {},
+                    onClick = { onWithdrawClick(balance) },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.White.copy(alpha = 0.15f),
                         contentColor = Color.White
@@ -297,13 +307,11 @@ private fun WalletInsightsCard(earned: Double, spent: Double) {
 
 @Composable
 private fun WalletTransactionItem(transaction: WalletTransaction) {
-    val isTopUpTransaction = transaction.id.startsWith("topup_")
-    val title = if (isTopUpTransaction) {
-        transaction.title
-    } else if (transaction.isIncoming) {
-        stringResource(R.string.wallet_sold_prefix, transaction.title)
-    } else {
-        stringResource(R.string.wallet_bought_prefix, transaction.title)
+    val title = when (transaction.kind) {
+        WalletTransactionKind.TOP_UP,
+        WalletTransactionKind.WITHDRAW -> transaction.title
+        WalletTransactionKind.ORDER_SALE -> stringResource(R.string.wallet_sold_prefix, transaction.title)
+        WalletTransactionKind.ORDER_PURCHASE -> stringResource(R.string.wallet_bought_prefix, transaction.title)
     }
 
     Card(
@@ -352,10 +360,12 @@ private fun WalletTransactionItem(transaction: WalletTransaction) {
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = if (transaction.isSuccessful) {
-                            stringResource(R.string.wallet_status_success)
-                        } else {
-                            stringResource(R.string.wallet_status_pending)
+                        text = transaction.statusLabel.ifBlank {
+                            if (transaction.isSuccessful) {
+                                stringResource(R.string.wallet_status_success)
+                            } else {
+                                stringResource(R.string.wallet_status_pending)
+                            }
                         },
                         color = SecondaryBlue,
                         style = MaterialTheme.typography.labelSmall

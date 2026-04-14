@@ -57,8 +57,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -128,11 +126,6 @@ fun SellScreen(
     var description by remember(initialProduct) { mutableStateOf(initialProduct?.description ?: "") }
     var quantity by remember(initialProduct) {
         mutableStateOf(initialProduct?.quantityAvailable?.toString() ?: "")
-    }
-    var isNegotiable by remember(initialProduct) {
-        mutableStateOf(
-            initialProduct?.isNegotiable ?: false
-        )
     }
 
     var specCounter by remember { mutableIntStateOf(0) }
@@ -213,7 +206,6 @@ fun SellScreen(
                 quantity = ""
                 category = "Select a category"
                 condition = "New"
-                isNegotiable = false
                 specCounter = 0
                 specifications.clear()
                 selectedDeliveryMethods.clear()
@@ -332,7 +324,6 @@ fun SellScreen(
         quantity != initialProduct.quantityAvailable.toString() ||
         category != (initialProduct.categoryId.takeIf { it.isNotBlank() } ?: "Select a category") ||
         condition != initialProduct.condition ||
-        isNegotiable != initialProduct.isNegotiable ||
         selectedDeliveryMethods.toList() != initialProduct.deliveryMethodsAvailable ||
         resolvedSellerPickupAddress != initialProduct.sellerPickupAddress ||
         currentUris != initialUris ||
@@ -358,7 +349,7 @@ fun SellScreen(
             category,
             condition,
             quantity,
-            isNegotiable,
+            false,
             specifications.filter { it.key.isNotBlank() }.associate { it.key to it.value },
             selectedDeliveryMethods.toList(),
             resolvedSellerPickupAddress
@@ -399,7 +390,7 @@ fun SellScreen(
                         categoryId = category,
                         condition = condition,
                         quantityStr = quantity,
-                        isNegotiable = isNegotiable,
+                        isNegotiable = false,
                         specifications = specifications.filter { it.key.isNotBlank() }.associate { it.key to it.value },
                         deliveryMethodsAvailable = selectedDeliveryMethods.toList(),
                         sellerPickupAddress = resolvedSellerPickupAddress,
@@ -820,7 +811,7 @@ fun SellScreen(
                     .padding(14.dp)
             ) {
                 Column {
-                    // Price & Negotiable Row
+                    // Price
                     Text(
                         stringResource(R.string.sell_price),
                         fontWeight = FontWeight.Bold,
@@ -835,27 +826,6 @@ fun SellScreen(
                             placeholder = stringResource(R.string.sell_price_placeholder),
                             modifier = Modifier.weight(1f),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                        )
-
-                        Spacer(modifier = Modifier.width(16.dp))
-
-                        Switch(
-                            checked = isNegotiable,
-                            onCheckedChange = { isNegotiable = it },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = AppBlue,
-                                uncheckedThumbColor = Color.White,
-                                uncheckedTrackColor = Color.LightGray,
-                                uncheckedBorderColor = Color.Transparent
-                            )
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            stringResource(R.string.sell_negotiable),
-                            color = TextGray,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium
                         )
                     }
 
@@ -1096,7 +1066,7 @@ fun SellScreen(
                                 condition = condition,
                                 priceStr = price,
                                 quantityStr = quantity,
-                                isNegotiable = isNegotiable,
+                                isNegotiable = false,
                                 specifications = specifications
                                     .filter { it.key.isNotBlank() && it.value.isNotBlank() }
                                     .associate { it.key to it.value },

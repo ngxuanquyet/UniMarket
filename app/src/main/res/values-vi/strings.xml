@@ -21,6 +21,9 @@
     <string name="common_undo">Hoàn tác</string>
     <string name="common_delete">Xóa</string>
     <string name="common_edit">Sửa</string>
+    <string name="common_processing">Đang xử lý...</string>
+    <string name="common_retry">Thử lại</string>
+    <string name="common_unknown_product">Sản phẩm không xác định</string>
     <string name="common_qty">SL: %1$d</string>
 
     <string name="bottom_nav_explore">Khám phá</string>
@@ -112,6 +115,11 @@
     <string name="wallet_top_up_add_method">Thêm phương thức mới</string>
     <string name="wallet_top_up_security_note">Mã hóa 256-bit chuẩn ngân hàng</string>
     <string name="wallet_top_up_now">Nạp tiền ngay</string>
+    <string name="wallet_withdraw_title">Rút tiền từ ví</string>
+    <string name="wallet_withdraw_amount">Số tiền rút</string>
+    <string name="wallet_withdraw_now">Rút tiền ngay</string>
+    <string name="wallet_withdraw_insufficient_balance">Số dư không đủ để rút số tiền này.</string>
+    <string name="wallet_withdraw_request_sent">Đã gửi yêu cầu rút tiền để admin phê duyệt.</string>
     <string name="payment_methods_add">Thêm phương thức</string>
     <string name="payment_methods_add_title">Thêm phương thức thanh toán</string>
     <string name="payment_methods_edit_title">Sửa phương thức thanh toán</string>
@@ -180,6 +188,8 @@
     <string name="explore_title">Khám phá</string>
     <string name="explore_cart">Giỏ hàng</string>
     <string name="explore_notifications">Thông báo</string>
+    <string name="notifications_title">Thông báo</string>
+    <string name="notifications_empty">Chưa có thông báo</string>
     <string name="explore_search_placeholder">Tìm đồ cũ sinh viên</string>
     <string name="explore_filter_products">Lọc sản phẩm</string>
     <string name="explore_seller_matches">Người bán phù hợp</string>
@@ -280,18 +290,24 @@
     <string name="my_listings_post_new_item">Đăng tin mới</string>
     <string name="my_listings_tab_active">Đang bán</string>
     <string name="my_listings_tab_sold">Đã bán</string>
+    <string name="my_listings_tab_pending">Chờ duyệt</string>
+    <string name="my_listings_tab_violation">Vi phạm</string>
     <string name="my_listings_tab_drafts">Bản nháp</string>
     <string name="my_listings_live_items">Tin đang hoạt động</string>
     <string name="my_listings_sold_items">Tin đã bán</string>
+    <string name="my_listings_pending_items">Tin chờ duyệt</string>
+    <string name="my_listings_violation_items">Tin vi phạm</string>
     <string name="my_listings_draft_items">Tin bản nháp</string>
     <string name="my_listings_items_count">%1$d tin</string>
     <string name="my_listings_est_value">Giá trị ước tính</string>
     <string name="my_listings_status_draft">BẢN NHÁP</string>
     <string name="my_listings_status_sold">ĐÃ BÁN</string>
     <string name="my_listings_status_under_review">ĐANG DUYỆT</string>
+    <string name="my_listings_status_violation">VI PHẠM</string>
     <string name="my_listings_status_active">ĐANG BÁN</string>
     <string name="my_listings_views_time">%1$s • %2$d lượt xem</string>
     <string name="my_listings_pending_approval">Đang chờ duyệt</string>
+    <string name="my_listings_violation_notice">Bị vô hiệu hóa do vi phạm chính sách</string>
     <string name="my_listings_edit_draft">Sửa nháp</string>
     <string name="my_listings_delete_draft">Xóa nháp</string>
     <string name="my_listings_edit_listing">Sửa tin đăng</string>
@@ -419,6 +435,11 @@
     <string name="seller_profile_stat_sold">Đã bán</string>
     <string name="seller_profile_stat_member">Tham gia từ</string>
     <string name="seller_profile_campus_listing">Tin đăng trong trường</string>
+    <string name="seller_reviews_title">Đánh giá người bán</string>
+    <string name="seller_reviews_load_error">Không thể tải đánh giá của người bán</string>
+    <string name="seller_reviews_empty_title">Chưa có đánh giá</string>
+    <string name="seller_reviews_empty_message">Người bán này chưa nhận đánh giá nào.</string>
+    <string name="seller_reviews_buyer_id">Người mua: %1$s</string>
 
     <string name="seller_orders_title">Đơn bán</string>
     <string name="seller_orders_search_orders">Tìm đơn hàng</string>

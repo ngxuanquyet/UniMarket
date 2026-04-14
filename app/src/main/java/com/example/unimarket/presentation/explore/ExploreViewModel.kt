@@ -143,6 +143,8 @@ class ExploreViewModel @Inject constructor(
         val filteredProducts = products.filter { product ->
             val inStock = product.quantityAvailable > 0
             val isOwnProduct = currentUserId.isNotBlank() && product.userId == currentUserId
+            val isApproved =
+                product.moderationStatus.equals("APPROVED", ignoreCase = true)
             val matchesQuery = normalizedQuery.isBlank() ||
                 product.name.contains(normalizedQuery, ignoreCase = true) ||
                 product.description.contains(normalizedQuery, ignoreCase = true) ||
@@ -154,7 +156,7 @@ class ExploreViewModel @Inject constructor(
                         product.categoryId.equals(category.name, ignoreCase = true)
                 } == true
             val matchesPrice = priceFilter.matches(product.price)
-            inStock && !isOwnProduct && matchesQuery && matchesCategory && matchesPrice
+            inStock && isApproved && !isOwnProduct && matchesQuery && matchesCategory && matchesPrice
         }
 
         return when (priceSort) {

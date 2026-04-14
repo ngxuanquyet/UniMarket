@@ -27,11 +27,19 @@ class FcmTokenManager @Inject constructor(
         saveToken(userId = currentUser.uid, token = token)
     }
 
+    suspend fun clearCurrentUserToken() {
+        val currentUser = auth.currentUser ?: return
+        val token = FirebaseMessaging.getInstance().token.await()
+        if (token.isBlank()) return
+        removeTokenFromUser(userId = currentUser.uid, token = token, removePrimaryIfMatches = true)
+    }
+
     private suspend fun saveToken(
         userId: String,
         token: String
     ) {
         if (token.isBlank()) return
+        detachTokenFromOtherUsers(currentUserId = userId, token = token)
         firestore.collection(USERS_COLLECTION)
             .document(userId)
             .set(
@@ -43,6 +51,61 @@ class FcmTokenManager @Inject constructor(
             )
             .await()
         Log.d(TAG, "Saved FCM token for userId=$userId tokenPrefix=${token.take(12)}")
+    }
+
+    private suspend fun detachTokenFromOtherUsers(
+        currentUserId: String,
+        token: String
+    ) {
+        val usersRef = firestore.collection(USERS_COLLECTION)
+        val matchedUsers = linkedMapOf<String, com.google.firebase.firestore.DocumentSnapshot>()
+
+        usersRef.whereArrayContains(FCM_TOKENS_FIELD, token).get().await().documents.forEach { document ->
+            if (document.id != currentUserId) {
+                matchedUsers[document.id] = document
+            }
+        }
+
+        usersRef.whereEqualTo(FCM_TOKEN_FIELD, token).get().await().documents.forEach { document ->
+            if (document.id != currentUserId) {
+                matchedUsers[document.id] = document
+            }
+        }
+
+        if (matchedUsers.isEmpty()) return
+
+        val batch = firestore.batch()
+        matchedUsers.values.forEach { document ->
+            val updates = mutableMapOf<String, Any>(
+                FCM_TOKENS_FIELD to FieldValue.arrayRemove(token)
+            )
+            if (document.getString(FCM_TOKEN_FIELD) == token) {
+                updates[FCM_TOKEN_FIELD] = FieldValue.delete()
+            }
+            batch.set(document.reference, updates, SetOptions.merge())
+        }
+        batch.commit().await()
+        Log.d(
+            TAG,
+            "Detached token from other users count=${matchedUsers.size} tokenPrefix=${token.take(12)}"
+        )
+    }
+
+    private suspend fun removeTokenFromUser(
+        userId: String,
+        token: String,
+        removePrimaryIfMatches: Boolean
+    ) {
+        val documentRef = firestore.collection(USERS_COLLECTION).document(userId)
+        val snapshot = documentRef.get().await()
+        val updates = mutableMapOf<String, Any>(
+            FCM_TOKENS_FIELD to FieldValue.arrayRemove(token)
+        )
+        if (removePrimaryIfMatches && snapshot.getString(FCM_TOKEN_FIELD) == token) {
+            updates[FCM_TOKEN_FIELD] = FieldValue.delete()
+        }
+        documentRef.set(updates, SetOptions.merge()).await()
+        Log.d(TAG, "Removed FCM token for userId=$userId tokenPrefix=${token.take(12)}")
     }
 
     private companion object {

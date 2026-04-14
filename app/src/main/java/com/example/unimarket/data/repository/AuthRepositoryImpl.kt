@@ -3,6 +3,7 @@ package com.example.unimarket.data.repository
 import android.util.Log
 import android.net.Uri
 import androidx.core.net.toUri
+import com.example.unimarket.data.notification.FcmTokenManager
 import com.example.unimarket.domain.model.SellerPaymentMethod
 import com.example.unimarket.domain.model.SellerPaymentMethodType
 import com.example.unimarket.data.local.UserSessionLocalDataSource
@@ -28,7 +29,8 @@ import javax.inject.Inject
 class AuthRepositoryImpl @Inject constructor(
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
-    private val userSessionLocalDataSource: UserSessionLocalDataSource
+    private val userSessionLocalDataSource: UserSessionLocalDataSource,
+    private val fcmTokenManager: FcmTokenManager
 ) : AuthRepository {
 
     override suspend fun login(email: String, password: String): Result<Unit> {
@@ -99,7 +101,9 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun logout() {
+    override suspend fun logout() {
+        runCatching { fcmTokenManager.clearCurrentUserToken() }
+            .onFailure { Log.w("AuthRepositoryImpl", "Failed to clear FCM token before logout", it) }
         auth.signOut()
         userSessionLocalDataSource.clear()
     }

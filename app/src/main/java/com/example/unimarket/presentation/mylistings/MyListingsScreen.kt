@@ -157,6 +157,8 @@ fun MyListingsScreen(
             val tabs = listOf(
                 stringResource(R.string.my_listings_tab_active),
                 stringResource(R.string.my_listings_tab_sold),
+                stringResource(R.string.my_listings_tab_pending),
+                stringResource(R.string.my_listings_tab_violation),
                 stringResource(R.string.my_listings_tab_drafts)
             )
             TabRow(
@@ -209,10 +211,14 @@ fun MyListingsScreen(
                         ) {
                             // Stat Card
                             item {
-                                val isDraftTab = uiState.currentTab == 2
+                                val isDraftTab = uiState.currentTab == 4
+                                val isPendingTab = uiState.currentTab == 2
+                                val isViolationTab = uiState.currentTab == 3
                                 val statTitle = when (uiState.currentTab) {
                                     1 -> stringResource(R.string.my_listings_sold_items)
-                                    2 -> stringResource(R.string.my_listings_draft_items)
+                                    2 -> stringResource(R.string.my_listings_pending_items)
+                                    3 -> stringResource(R.string.my_listings_violation_items)
+                                    4 -> stringResource(R.string.my_listings_draft_items)
                                     else -> stringResource(R.string.my_listings_live_items)
                                 }
 
@@ -231,7 +237,7 @@ fun MyListingsScreen(
                                             Spacer(modifier = Modifier.height(4.dp))
                                             Text(stringResource(R.string.my_listings_items_count, uiState.statItemsCount), color = TextDarkBlack, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
                                         }
-                                        if (!isDraftTab) {
+                                        if (!isDraftTab && !isPendingTab && !isViolationTab) {
                                             Column(horizontalAlignment = Alignment.End) {
                                                 Text(stringResource(R.string.my_listings_est_value).uppercase(), color = TextGray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                                 Spacer(modifier = Modifier.height(4.dp))
@@ -298,25 +304,29 @@ fun ListingCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val isUnderReview = product.name.contains("Watch", ignoreCase = true)
-                    val isDraft = product.sellerName == "Draft" || currentTab == 2
+                    val isUnderReview = product.moderationStatus.equals("PENDING", ignoreCase = true) || currentTab == 2
+                    val isViolation = product.moderationStatus.equals("DISABLED", ignoreCase = true) || currentTab == 3
+                    val isDraft = product.sellerName == "Draft" || currentTab == 4
                     val isSold = currentTab == 1
 
                     val badgeText = when {
                         isDraft -> stringResource(R.string.my_listings_status_draft)
                         isSold -> stringResource(R.string.my_listings_status_sold)
+                        isViolation -> stringResource(R.string.my_listings_status_violation)
                         isUnderReview -> stringResource(R.string.my_listings_status_under_review)
                         else -> stringResource(R.string.my_listings_status_active)
                     }
                     val badgeColor = when {
                         isDraft -> TextGray
                         isSold -> AppBlue
+                        isViolation -> RedDanger
                         isUnderReview -> OrangeBadge
                         else -> GreenBadge
                     }
                     val badgeBg = when {
                         isDraft -> BorderLightGray
                         isSold -> LightBlueSelection
+                        isViolation -> RedDangerBg
                         isUnderReview -> OrangeBadgeBg
                         else -> GreenBadgeBg
                     }
@@ -351,17 +361,25 @@ fun ListingCard(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                val views = (10..100).random() // Dummy views count
                 Text(
-                    stringResource(R.string.my_listings_views_time, product.timeAgo, views),
+                    product.timeAgo,
                     color = TextGray,
                     fontSize = 12.sp
                 )
 
-                val isUnderReviewTextFlag = product.name.contains("Watch", ignoreCase = true)
+                val isUnderReviewTextFlag =
+                    product.moderationStatus.equals("PENDING", ignoreCase = true) || currentTab == 2
+                val isViolationTextFlag =
+                    product.moderationStatus.equals("DISABLED", ignoreCase = true) || currentTab == 3
                 if (isUnderReviewTextFlag) {
                      Text(
                         stringResource(R.string.my_listings_pending_approval),
+                        color = TextGray,
+                        fontSize = 12.sp
+                    )
+                } else if (isViolationTextFlag) {
+                    Text(
+                        stringResource(R.string.my_listings_violation_notice),
                         color = TextGray,
                         fontSize = 12.sp
                     )
@@ -370,8 +388,9 @@ fun ListingCard(
             }
 
             // Action Buttons
-            val isUnderReview = product.name.contains("Watch", ignoreCase = true)
-            val isDraft = product.sellerName == "Draft" || currentTab == 2
+            val isUnderReview = product.moderationStatus.equals("PENDING", ignoreCase = true) || currentTab == 2
+            val isViolation = product.moderationStatus.equals("DISABLED", ignoreCase = true) || currentTab == 3
+            val isDraft = product.sellerName == "Draft" || currentTab == 4
             val isSold = currentTab == 1
 
             if (!isSold) {
@@ -386,6 +405,9 @@ fun ListingCard(
                     if (isDraft) {
                         ActionChip(stringResource(R.string.my_listings_edit_draft), Icons.Default.Edit, TextDarkBlack, ActionChipBg, Modifier.weight(1f)) { onEditClick(product.id) }
                         ActionChip(stringResource(R.string.my_listings_delete_draft), Icons.Default.DeleteOutline, RedDanger, RedDangerBg, Modifier.weight(1f)) { onDeleteClick() }
+                    } else if (isViolation) {
+                        ActionChip(stringResource(R.string.my_listings_edit_listing), Icons.Default.Edit, TextDarkBlack, ActionChipBg, Modifier.weight(1f)) { onEditClick(product.id) }
+                        ActionChip(stringResource(R.string.common_delete), Icons.Default.DeleteOutline, RedDanger, RedDangerBg, Modifier.weight(1f)) { onDeleteClick() }
                     } else if (isUnderReview) {
                         ActionChip(stringResource(R.string.my_listings_edit_listing), Icons.Default.Edit, TextDarkBlack, ActionChipBg, Modifier.weight(1f)) { onEditClick(product.id) }
                         ActionChip(stringResource(R.string.common_cancel), Icons.Outlined.Cancel, RedDanger, RedDangerBg, Modifier.weight(1f)) { onDeleteClick() }

@@ -17,6 +17,7 @@ data class Product(
     val isNegotiable: Boolean = false,
     val quantityAvailable: Int = 1,
     val userId: String,
+    val moderationStatus: String = "APPROVED",
     val specifications: Map<String, String> = emptyMap(),
     val deliveryMethodsAvailable: List<DeliveryMethod> = emptyList(),
     val sellerPickupAddress: UserAddress? = null

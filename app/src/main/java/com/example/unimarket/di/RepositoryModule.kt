@@ -5,8 +5,11 @@ import com.example.unimarket.data.repository.InMemoryCartRepositoryImpl
 import com.example.unimarket.data.repository.FirebaseCheckoutRepositoryImpl
 import com.example.unimarket.data.repository.FirebaseChatRepositoryImpl
 import com.example.unimarket.data.repository.FirebaseOrderRepositoryImpl
+import com.example.unimarket.data.repository.FirebasePayoutRepositoryImpl
+import com.example.unimarket.data.repository.FirebaseNotificationRepositoryImpl
 import com.example.unimarket.data.repository.FirebaseReviewRepositoryImpl
 import com.example.unimarket.data.repository.FirebaseTopUpRepositoryImpl
+import com.example.unimarket.data.repository.FirebaseWalletLedgerRepositoryImpl
 import com.example.unimarket.domain.repository.AiRepository
 import com.example.unimarket.domain.repository.AuthRepository
 import com.example.unimarket.domain.repository.CartRepository
@@ -14,9 +17,12 @@ import com.example.unimarket.domain.repository.ChatRepository
 import com.example.unimarket.domain.repository.CheckoutRepository
 import com.example.unimarket.domain.repository.ImageRepository
 import com.example.unimarket.domain.repository.OrderRepository
+import com.example.unimarket.domain.repository.PayoutRepository
+import com.example.unimarket.domain.repository.NotificationRepository
 import com.example.unimarket.domain.repository.ProductRepository
 import com.example.unimarket.domain.repository.ReviewRepository
 import com.example.unimarket.domain.repository.TopUpRepository
+import com.example.unimarket.domain.repository.WalletLedgerRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -67,9 +73,27 @@ abstract class RepositoryModule {
 
     @Binds
     @Singleton
+    abstract fun bindNotificationRepository(
+        firebaseNotificationRepositoryImpl: FirebaseNotificationRepositoryImpl
+    ): NotificationRepository
+
+    @Binds
+    @Singleton
     abstract fun bindTopUpRepository(
         firebaseTopUpRepositoryImpl: FirebaseTopUpRepositoryImpl
     ): TopUpRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPayoutRepository(
+        firebasePayoutRepositoryImpl: FirebasePayoutRepositoryImpl
+    ): PayoutRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindWalletLedgerRepository(
+        firebaseWalletLedgerRepositoryImpl: FirebaseWalletLedgerRepositoryImpl
+    ): WalletLedgerRepository
 
     @Binds
     @Singleton

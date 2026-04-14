@@ -21,20 +21,25 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -47,7 +52,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.unimarket.R
+import com.example.unimarket.domain.model.SellerPaymentMethodType
 import com.example.unimarket.presentation.theme.SecondaryBlue
 import com.example.unimarket.presentation.theme.SurfaceWhite
 import com.example.unimarket.presentation.theme.TextDarkBlack
@@ -59,13 +67,16 @@ import com.example.unimarket.presentation.util.localizedText
 @Composable
 fun WalletTopUpScreen(
     currentBalance: Double = 0.0,
+    mode: WalletTransactionMode = WalletTransactionMode.TOP_UP,
     onBackClick: () -> Unit,
-    onTopUpClick: (Long) -> Unit = {}
+    onTopUpClick: (Long) -> Unit = {},
+    onWithdrawSubmitted: (Long) -> Unit = {},
+    onOpenPaymentMethods: () -> Unit = {},
+    withdrawViewModel: WalletWithdrawViewModel = hiltViewModel()
 ) {
     val presetAmounts = remember { listOf(10_000L, 20_000L, 50_000L, 100_000L, 200_000L, 500_000L) }
     var selectedPresetIndex by rememberSaveable { mutableStateOf<Int?>(null) }
     var customAmountInput by rememberSaveable { mutableStateOf("") }
-    var selectedSourceIndex by rememberSaveable { mutableIntStateOf(0) }
     val customAmountValue = customAmountInput.toLongOrNull()
     val hasCustomAmount = customAmountInput.isNotBlank()
     val effectiveAmount = if (hasCustomAmount) {
@@ -73,15 +84,48 @@ fun WalletTopUpScreen(
     } else {
         selectedPresetIndex?.let { presetAmounts.getOrNull(it) }
     }
-    val isAmountValid = effectiveAmount != null && effectiveAmount in MIN_TOP_UP_AMOUNT..MAX_TOP_UP_AMOUNT
+    val withdrawUiState by withdrawViewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val isAmountValid = effectiveAmount != null && effectiveAmount in MIN_TRANSACTION_AMOUNT..MAX_TRANSACTION_AMOUNT
+    val hasEnoughBalance = mode != WalletTransactionMode.WITHDRAW || (effectiveAmount ?: 0L) <= currentBalance.toLong()
+    val hasSelectedReceiverMethod =
+        mode != WalletTransactionMode.WITHDRAW || !withdrawUiState.selectedMethodId.isNullOrBlank()
     val showInvalidCustomAmount = hasCustomAmount && !isAmountValid
+    val showInsufficientBalance = mode == WalletTransactionMode.WITHDRAW && effectiveAmount != null && !hasEnoughBalance
+    val titleText = if (mode == WalletTransactionMode.WITHDRAW) {
+        stringResource(R.string.wallet_withdraw_title)
+    } else {
+        stringResource(R.string.wallet_top_up_title)
+    }
+    val amountLabelText = if (mode == WalletTransactionMode.WITHDRAW) {
+        stringResource(R.string.wallet_withdraw_amount)
+    } else {
+        stringResource(R.string.wallet_top_up_amount)
+    }
+    val actionButtonText = if (mode == WalletTransactionMode.WITHDRAW) {
+        stringResource(R.string.wallet_withdraw_now)
+    } else {
+        stringResource(R.string.wallet_top_up_now)
+    }
+    val submittingText = stringResource(R.string.common_processing)
+    val withdrawRequestSentText = stringResource(R.string.wallet_withdraw_request_sent)
+    var showWithdrawSuccessDialog by rememberSaveable { mutableStateOf(false) }
+    var latestSuccessAmount by rememberSaveable { mutableStateOf(0L) }
+    LaunchedEffect(withdrawUiState.successRequestId, mode) {
+        if (mode == WalletTransactionMode.WITHDRAW && !withdrawUiState.successRequestId.isNullOrBlank()) {
+            latestSuccessAmount = withdrawUiState.successAmount ?: 0L
+            withdrawViewModel.consumeSuccess()
+            showWithdrawSuccessDialog = true
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text = stringResource(R.string.wallet_top_up_title),
+                        text = titleText,
                         color = TextDarkBlack,
                         fontWeight = FontWeight.Bold
                     )
@@ -135,7 +179,7 @@ fun WalletTopUpScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = stringResource(R.string.wallet_top_up_amount),
+                    text = amountLabelText,
                     color = TextDarkBlack,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -226,56 +270,87 @@ fun WalletTopUpScreen(
             if (showInvalidCustomAmount) {
                 Text(
                     text = localizedText(
-                        english = "Top-up amount must be between 5,000 and 100,000,000 VND.",
-                        vietnamese = "Số tiền nạp phải từ 5.000 đến 100.000.000 VNĐ."
+                        english = "Amount must be between 5,000 and 100,000,000 VND.",
+                        vietnamese = "Số tiền phải từ 5.000 đến 100.000.000 VNĐ."
                     ),
                     color = Color(0xFFD93025),
                     fontSize = 12.sp
                 )
             }
+            if (showInsufficientBalance) {
+                Text(
+                    text = stringResource(R.string.wallet_withdraw_insufficient_balance),
+                    color = Color(0xFFD93025),
+                    fontSize = 12.sp
+                )
+            }
 
-            Text(
-                text = stringResource(R.string.wallet_top_up_payment_source),
-                color = TextDarkBlack,
-                fontWeight = FontWeight.SemiBold
-            )
-
-            PaymentSourceCard(
-                title = "Chase Bank",
-                subtitle = "Checking •••• 8821",
-                icon = Icons.Default.AccountBalance,
-                selected = selectedSourceIndex == 0,
-                onClick = { selectedSourceIndex = 0 }
-            )
-
-            PaymentSourceCard(
-                title = "Mastercard Gold",
-                subtitle = "Credit •••• 4590",
-                icon = Icons.Default.CreditCard,
-                selected = selectedSourceIndex == 1,
-                onClick = { selectedSourceIndex = 1 }
-            )
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, Color(0xFFD7DBED), RoundedCornerShape(12.dp))
-                    .clickable { }
-                    .padding(vertical = 14.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = null,
-                        tint = SecondaryBlue
-                    )
-                    Spacer(modifier = Modifier.size(6.dp))
+            if (mode == WalletTransactionMode.WITHDRAW) {
+                Text(
+                    text = stringResource(R.string.wallet_top_up_payment_source),
+                    color = TextDarkBlack,
+                    fontWeight = FontWeight.SemiBold
+                )
+                if (withdrawUiState.isLoadingMethods) {
                     Text(
-                        text = stringResource(R.string.wallet_top_up_add_method),
-                        color = SecondaryBlue,
-                        fontWeight = FontWeight.SemiBold
+                        text = localizedText(
+                            english = "Loading payment methods...",
+                            vietnamese = "Đang tải tài khoản nhận tiền..."
+                        ),
+                        color = TextGray,
+                        fontSize = 12.sp
                     )
+                } else {
+                    val withdrawMethods = withdrawUiState.methods.filter {
+                        it.type == SellerPaymentMethodType.BANK_TRANSFER || it.type == SellerPaymentMethodType.MOMO
+                    }
+                    if (withdrawMethods.isEmpty()) {
+                        Text(
+                            text = localizedText(
+                                english = "No receiving account found. Please add one.",
+                                vietnamese = "Chưa có tài khoản nhận tiền. Vui lòng thêm phương thức thanh toán."
+                            ),
+                            color = Color(0xFFD93025),
+                            fontSize = 12.sp
+                        )
+                    } else {
+                        withdrawMethods.forEach { method ->
+                            PaymentSourceCard(
+                                title = method.displayTitle,
+                                subtitle = method.shortSubtitle,
+                                icon = when (method.type) {
+                                    SellerPaymentMethodType.BANK_TRANSFER -> Icons.Default.AccountBalance
+                                    SellerPaymentMethodType.MOMO -> Icons.Default.PhoneAndroid
+                                    SellerPaymentMethodType.CASH_ON_DELIVERY -> Icons.Default.CreditCard
+                                    SellerPaymentMethodType.WALLET -> Icons.Default.AccountBalance
+                                },
+                                selected = withdrawUiState.selectedMethodId == method.id,
+                                onClick = { withdrawViewModel.selectMethod(method.id) }
+                            )
+                        }
+                    }
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, Color(0xFFD7DBED), RoundedCornerShape(12.dp))
+                        .clickable { onOpenPaymentMethods() }
+                        .padding(vertical = 14.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = null,
+                            tint = SecondaryBlue
+                        )
+                        Spacer(modifier = Modifier.size(6.dp))
+                        Text(
+                            text = stringResource(R.string.wallet_top_up_add_method),
+                            color = SecondaryBlue,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
             }
 
@@ -290,9 +365,15 @@ fun WalletTopUpScreen(
 
             Button(
                 onClick = {
-                    effectiveAmount?.let(onTopUpClick)
+                    effectiveAmount?.let { amount ->
+                        if (mode == WalletTransactionMode.WITHDRAW) {
+                            withdrawViewModel.submitWithdrawal(amount)
+                        } else {
+                            onTopUpClick(amount)
+                        }
+                    }
                 },
-                enabled = isAmountValid,
+                enabled = isAmountValid && hasEnoughBalance && hasSelectedReceiverMethod && !withdrawUiState.isSubmitting,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp),
@@ -303,7 +384,11 @@ fun WalletTopUpScreen(
                 )
             ) {
                 Text(
-                    text = stringResource(R.string.wallet_top_up_now),
+                    text = if (mode == WalletTransactionMode.WITHDRAW && withdrawUiState.isSubmitting) {
+                        submittingText
+                    } else {
+                        actionButtonText
+                    },
                     color = Color.White,
                     fontWeight = FontWeight.Bold
                 )
@@ -314,12 +399,57 @@ fun WalletTopUpScreen(
                     tint = Color.White
                 )
             }
+            if (mode == WalletTransactionMode.WITHDRAW && !withdrawUiState.errorMessage.isNullOrBlank()) {
+                Text(
+                    text = withdrawUiState.errorMessage.orEmpty(),
+                    color = Color(0xFFD93025),
+                    fontSize = 12.sp
+                )
+            }
+        }
+    }
+
+    if (showWithdrawSuccessDialog) {
+        AlertDialog(
+            onDismissRequest = { },
+            title = {
+                Text(
+                    text = localizedText(
+                        english = "Request submitted",
+                        vietnamese = "Gửi yêu cầu thành công"
+                    )
+                )
+            },
+            text = {
+                Text(withdrawRequestSentText)
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showWithdrawSuccessDialog = false
+                        onWithdrawSubmitted(latestSuccessAmount)
+                    }
+                ) {
+                    Text(text = stringResource(R.string.auth_continue))
+                }
+            }
+        )
+    }
+}
+
+enum class WalletTransactionMode(val routeValue: String) {
+    TOP_UP("top_up"),
+    WITHDRAW("withdraw");
+
+    companion object {
+        fun fromRoute(raw: String?): WalletTransactionMode {
+            return entries.firstOrNull { it.routeValue.equals(raw, ignoreCase = true) } ?: TOP_UP
         }
     }
 }
 
-private const val MIN_TOP_UP_AMOUNT = 5_000L
-private const val MAX_TOP_UP_AMOUNT = 100_000_000L
+private const val MIN_TRANSACTION_AMOUNT = 5_000L
+private const val MAX_TRANSACTION_AMOUNT = 100_000_000L
 
 @Composable
 private fun PaymentSourceCard(

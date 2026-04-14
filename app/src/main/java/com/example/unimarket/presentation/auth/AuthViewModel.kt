@@ -109,8 +109,10 @@ class AuthViewModel @Inject constructor(
     }
 
     fun logout() {
-        logoutUseCase()
-        _authState.value = AuthState.Idle
+        viewModelScope.launch {
+            logoutUseCase()
+            _authState.value = AuthState.Idle
+        }
     }
 }
 

@@ -88,7 +88,10 @@ class SessionViewModel @Inject constructor(
 
     private fun forceLogoutForLockedAccount() {
         viewModelScope.launch {
-            runCatching { logoutUseCase() }
+            try {
+                logoutUseCase()
+            } catch (_: Exception) {
+            }
             _uiState.update { it.copy(isAuthenticated = false, unreadMessageCount = 0) }
         }
     }

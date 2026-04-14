@@ -43,6 +43,35 @@ class FirebaseReviewRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun getSellerReviews(sellerId: String): Result<List<Review>> {
+        if (sellerId.isBlank()) return Result.success(emptyList())
+
+        return try {
+            val snapshot = firestore.collection(REVIEWS_COLLECTION)
+                .whereEqualTo("sellerId", sellerId)
+                .get()
+                .await()
+
+            val reviews = snapshot.documents.mapNotNull { document ->
+                val rating = document.getLong("rating")?.toInt() ?: return@mapNotNull null
+                Review(
+                    orderId = document.id,
+                    buyerId = document.getString("buyerId").orEmpty(),
+                    sellerId = document.getString("sellerId").orEmpty(),
+                    productId = document.getString("productId").orEmpty(),
+                    productName = document.getString("productName").orEmpty(),
+                    rating = rating,
+                    comment = document.getString("comment").orEmpty(),
+                    createdAt = document.getLong("createdAt") ?: 0L
+                )
+            }.sortedByDescending { it.createdAt }
+
+            Result.success(reviews)
+        } catch (e: Exception) {
+            Result.failure(e.toReviewError())
+        }
+    }
+
     override suspend fun submitReview(order: Order, rating: Int, comment: String): Result<Review> {
         val currentUser = auth.currentUser ?: return Result.failure(Exception("No user logged in"))
         if (currentUser.uid != order.buyerId) {
@@ -121,7 +150,7 @@ class FirebaseReviewRepositoryImpl @Inject constructor(
                 "Rating is blocked by Firestore permissions. Add rules for reviews and seller rating updates in Firebase Console."
             )
         }
-        return if (this is Exception) this else Exception(message)
+        return this
     }
 
     private companion object {

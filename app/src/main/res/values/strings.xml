@@ -21,6 +21,9 @@
     <string name="common_undo">Undo</string>
     <string name="common_delete">Delete</string>
     <string name="common_edit">Edit</string>
+    <string name="common_processing">Processing...</string>
+    <string name="common_retry">Retry</string>
+    <string name="common_unknown_product">Unknown product</string>
     <string name="common_qty">Qty: %1$d</string>
 
     <string name="bottom_nav_explore">Explore</string>
@@ -112,6 +115,11 @@
     <string name="wallet_top_up_add_method">Add New Method</string>
     <string name="wallet_top_up_security_note">Bank-grade 256-bit encryption</string>
     <string name="wallet_top_up_now">Top Up Now</string>
+    <string name="wallet_withdraw_title">Withdraw from Wallet</string>
+    <string name="wallet_withdraw_amount">Withdraw Amount</string>
+    <string name="wallet_withdraw_now">Withdraw Now</string>
+    <string name="wallet_withdraw_insufficient_balance">Insufficient balance for this withdrawal amount.</string>
+    <string name="wallet_withdraw_request_sent">Withdrawal request sent for admin approval.</string>
     <string name="payment_methods_add">Add method</string>
     <string name="payment_methods_add_title">Add payment method</string>
     <string name="payment_methods_edit_title">Edit payment method</string>
@@ -180,6 +188,8 @@
     <string name="explore_title">Explore</string>
     <string name="explore_cart">Cart</string>
     <string name="explore_notifications">Notifications</string>
+    <string name="notifications_title">Notifications</string>
+    <string name="notifications_empty">No notifications yet</string>
     <string name="explore_search_placeholder">Find second-hand items</string>
     <string name="explore_filter_products">Filter products</string>
     <string name="explore_seller_matches">Seller matches</string>
@@ -280,18 +290,24 @@
     <string name="my_listings_post_new_item">Post new item</string>
     <string name="my_listings_tab_active">Active</string>
     <string name="my_listings_tab_sold">Sold</string>
+    <string name="my_listings_tab_pending">Pending</string>
+    <string name="my_listings_tab_violation">Violation</string>
     <string name="my_listings_tab_drafts">Drafts</string>
     <string name="my_listings_live_items">Live items</string>
     <string name="my_listings_sold_items">Sold items</string>
+    <string name="my_listings_pending_items">Pending review items</string>
+    <string name="my_listings_violation_items">Violation items</string>
     <string name="my_listings_draft_items">Draft items</string>
     <string name="my_listings_items_count">%1$d items</string>
     <string name="my_listings_est_value">Est. value</string>
     <string name="my_listings_status_draft">DRAFT</string>
     <string name="my_listings_status_sold">SOLD</string>
     <string name="my_listings_status_under_review">UNDER REVIEW</string>
+    <string name="my_listings_status_violation">VIOLATION</string>
     <string name="my_listings_status_active">ACTIVE</string>
     <string name="my_listings_views_time">%1$s • %2$d views</string>
     <string name="my_listings_pending_approval">Pending approval</string>
+    <string name="my_listings_violation_notice">Disabled due to policy violation</string>
     <string name="my_listings_edit_draft">Edit draft</string>
     <string name="my_listings_delete_draft">Delete draft</string>
     <string name="my_listings_edit_listing">Edit listing</string>
@@ -419,6 +435,11 @@
     <string name="seller_profile_stat_sold">Sold</string>
     <string name="seller_profile_stat_member">Member since</string>
     <string name="seller_profile_campus_listing">Campus listing</string>
+    <string name="seller_reviews_title">Seller reviews</string>
+    <string name="seller_reviews_load_error">Unable to load seller reviews</string>
+    <string name="seller_reviews_empty_title">No reviews yet</string>
+    <string name="seller_reviews_empty_message">This seller has not received reviews yet.</string>
+    <string name="seller_reviews_buyer_id">Buyer: %1$s</string>
 
     <string name="seller_orders_title">Seller orders</string>
     <string name="seller_orders_search_orders">Search orders</string>

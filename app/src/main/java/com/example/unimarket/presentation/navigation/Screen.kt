@@ -7,6 +7,7 @@ sealed class Screen(val route: String) {
     object Messages : Screen("messages")
     object ChatDetail : Screen("chat")
     object SellerProfile : Screen("seller_profile")
+    object SellerReviews : Screen("seller_reviews")
     object Profile : Screen("profile")
     object PaymentMethods : Screen("payment_methods")
     object Wallet : Screen("wallet")
@@ -26,6 +27,7 @@ sealed class Screen(val route: String) {
     object QrTransfer : Screen("qr_transfer")
     object CartCheckout : Screen("cart_checkout")
     object PaymentSuccess : Screen("payment_success")
+    object Notifications : Screen("notifications")
     
     // Nested Graph Routes
     object AuthGraph : Screen("auth_graph")

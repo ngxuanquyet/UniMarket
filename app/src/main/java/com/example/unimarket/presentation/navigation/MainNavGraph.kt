@@ -17,6 +17,7 @@ import com.example.unimarket.presentation.messages.ChatDetailScreen
 import com.example.unimarket.presentation.messages.MessagesScreen
 import com.example.unimarket.presentation.mypurchases.MyPurchasesScreen
 import com.example.unimarket.presentation.ordertracking.OrderTrackingScreen
+import com.example.unimarket.presentation.notifications.NotificationsScreen
 import com.example.unimarket.presentation.profile.MyAddressesScreen
 import com.example.unimarket.presentation.profile.PaymentMethodsScreen
 import com.example.unimarket.presentation.profile.ProfileScreen
@@ -24,7 +25,9 @@ import com.example.unimarket.presentation.sell.SellScreen
 import com.example.unimarket.presentation.statistics.StatisticsScreen
 import com.example.unimarket.presentation.sellerorders.SellerOrdersScreen
 import com.example.unimarket.presentation.sellerprofile.SellerProfileScreen
+import com.example.unimarket.presentation.sellerreviews.SellerReviewsScreen
 import com.example.unimarket.presentation.wallet.WalletScreen
+import com.example.unimarket.presentation.wallet.WalletTransactionMode
 import com.example.unimarket.presentation.wallet.WalletTopUpScreen
 
 @Composable
@@ -44,8 +47,16 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
                 },
                 onCartClick = { 
                     navController.navigate(Screen.Cart.route)
+                },
+                onNotificationsClick = {
+                    navController.navigate(Screen.Notifications.route)
                 }
             ) 
+        }
+        composable(Screen.Notifications.route) {
+            NotificationsScreen(
+                onBackClick = { navController.popBackStack() }
+            )
         }
         composable(
             route = Screen.Sell.route + "?productId={productId}",
@@ -106,7 +117,7 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
             )
         }
         composable(
-            route = Screen.Wallet.route + "?topUpAmount={topUpAmount}&topUpAt={topUpAt}",
+            route = Screen.Wallet.route + "?topUpAmount={topUpAmount}&topUpAt={topUpAt}&withdrawAmount={withdrawAmount}&withdrawAt={withdrawAt}",
             arguments = listOf(
                 androidx.navigation.navArgument("topUpAmount") {
                     type = androidx.navigation.NavType.LongType
@@ -115,35 +126,76 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
                 androidx.navigation.navArgument("topUpAt") {
                     type = androidx.navigation.NavType.LongType
                     defaultValue = 0L
+                },
+                androidx.navigation.navArgument("withdrawAmount") {
+                    type = androidx.navigation.NavType.LongType
+                    defaultValue = 0L
+                },
+                androidx.navigation.navArgument("withdrawAt") {
+                    type = androidx.navigation.NavType.LongType
+                    defaultValue = 0L
                 }
             )
         ) { backStackEntry ->
             val topUpAmount = backStackEntry.arguments?.getLong("topUpAmount") ?: 0L
             val topUpAt = backStackEntry.arguments?.getLong("topUpAt") ?: 0L
+            val withdrawAmount = backStackEntry.arguments?.getLong("withdrawAmount") ?: 0L
+            val withdrawAt = backStackEntry.arguments?.getLong("withdrawAt") ?: 0L
             WalletScreen(
                 onBackClick = { navController.popBackStack() },
                 topUpAmount = topUpAmount,
                 topUpAt = topUpAt,
+                withdrawAmount = withdrawAmount,
+                withdrawAt = withdrawAt,
                 onTopUpClick = { balance ->
-                    navController.navigate(Screen.WalletTopUp.route + "?balance=$balance")
+                    navController.navigate(
+                        Screen.WalletTopUp.route + "?balance=$balance&mode=${WalletTransactionMode.TOP_UP.routeValue}"
+                    )
+                },
+                onWithdrawClick = { balance ->
+                    navController.navigate(
+                        Screen.WalletTopUp.route + "?balance=$balance&mode=${WalletTransactionMode.WITHDRAW.routeValue}"
+                    )
                 }
             )
         }
         composable(
-            route = Screen.WalletTopUp.route + "?balance={balance}",
-            arguments = listOf(androidx.navigation.navArgument("balance") {
-                type = androidx.navigation.NavType.FloatType
-                defaultValue = 0f
-            })
+            route = Screen.WalletTopUp.route + "?balance={balance}&mode={mode}",
+            arguments = listOf(
+                androidx.navigation.navArgument("balance") {
+                    type = androidx.navigation.NavType.FloatType
+                    defaultValue = 0f
+                },
+                androidx.navigation.navArgument("mode") {
+                    type = androidx.navigation.NavType.StringType
+                    defaultValue = WalletTransactionMode.TOP_UP.routeValue
+                }
+            )
         ) { backStackEntry ->
             val balance = backStackEntry.arguments?.getFloat("balance")?.toDouble() ?: 0.0
+            val mode = WalletTransactionMode.fromRoute(backStackEntry.arguments?.getString("mode"))
             WalletTopUpScreen(
                 currentBalance = balance,
+                mode = mode,
                 onBackClick = { navController.popBackStack() },
                 onTopUpClick = { topUpAmount ->
                     navController.navigate(
                         Screen.QrTransfer.route + "?topUpAmount=$topUpAmount"
                     )
+                },
+                onWithdrawSubmitted = { amount ->
+                    navController.navigate(
+                        Screen.Wallet.route +
+                            "?topUpAmount=0&topUpAt=0&withdrawAmount=$amount&withdrawAt=${System.currentTimeMillis()}"
+                    ) {
+                        popUpTo(Screen.WalletTopUp.route + "?balance={balance}&mode={mode}") {
+                            inclusive = true
+                        }
+                        launchSingleTop = true
+                    }
+                },
+                onOpenPaymentMethods = {
+                    navController.navigate(Screen.PaymentMethods.route)
                 }
             )
         }
@@ -249,7 +301,22 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
                 },
                 onProductClick = { selectedProductId ->
                     navController.navigate(Screen.ProductDetail.route + "/$selectedProductId")
+                },
+                onViewReviewsClick = { sellerId ->
+                    navController.navigate(Screen.SellerReviews.route + "/$sellerId")
                 }
+            )
+        }
+        composable(
+            route = Screen.SellerReviews.route + "/{sellerId}",
+            arguments = listOf(
+                androidx.navigation.navArgument("sellerId") {
+                    type = androidx.navigation.NavType.StringType
+                }
+            )
+        ) {
+            SellerReviewsScreen(
+                onBackClick = { navController.popBackStack() }
             )
         }
         composable(
