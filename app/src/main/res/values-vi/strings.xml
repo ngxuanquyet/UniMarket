@@ -569,4 +569,9 @@
     <string name="order_status_delivered">Đã giao</string>
     <string name="order_status_cancelled">Đã hủy</string>
     <string name="order_status_unknown">Không xác định</string>
+    <string name="exit_dialog_title">Thoát UniMarket?</string>
+    <string name="exit_dialog_message">Bạn có chắc muốn thoát không? Bạn có thể bỏ lỡ các tin đăng mới trong khu vực trường của mình.</string>
+    <string name="exit_dialog_stay">Ở lại</string>
+    <string name="exit_dialog_exit">Thoát</string>
+    <string name="exit_dialog_footer">ĐĂNG XUẤT AN TOÀN</string>
 </resources>

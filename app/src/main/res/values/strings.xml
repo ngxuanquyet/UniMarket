@@ -569,4 +569,9 @@
     <string name="order_status_delivered">Delivered</string>
     <string name="order_status_cancelled">Cancelled</string>
     <string name="order_status_unknown">Unknown</string>
+    <string name="exit_dialog_title">Exit UniMarket?</string>
+    <string name="exit_dialog_message">Are you sure you want to exit? You might miss out on new listings in your campus area.</string>
+    <string name="exit_dialog_stay">Stay</string>
+    <string name="exit_dialog_exit">Exit</string>
+    <string name="exit_dialog_footer">SECURE LOGOUT</string>
 </resources>
