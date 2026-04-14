@@ -11,6 +11,7 @@ import com.example.unimarket.domain.usecase.order.UpdateOrderStatusUseCase
 import com.example.unimarket.domain.usecase.wallet.CheckTopUpTransferPaymentUseCase
 import com.example.unimarket.presentation.util.localizedText
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,6 +20,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -32,6 +34,10 @@ data class QrTransferUiState(
     val topUpAmount: Long = 0L,
     val topUpTransferContent: String = "",
     val isTopUpCompleted: Boolean = false,
+    val appTransferBankCode: String = DEFAULT_APP_TRANSFER_BANK_CODE,
+    val appTransferBankName: String = DEFAULT_APP_TRANSFER_BANK_NAME,
+    val appTransferAccountName: String = DEFAULT_APP_TRANSFER_ACCOUNT_NAME,
+    val appTransferAccountNumber: String = DEFAULT_APP_TRANSFER_ACCOUNT_NUMBER,
     val errorMessage: String? = null
 ) {
     val currentOrder: Order?
@@ -46,7 +52,8 @@ class QrTransferViewModel @Inject constructor(
     private val checkTransferPaymentUseCase: CheckTransferPaymentUseCase,
     private val updateOrderStatusUseCase: UpdateOrderStatusUseCase,
     private val checkTopUpTransferPaymentUseCase: CheckTopUpTransferPaymentUseCase,
-    private val auth: FirebaseAuth
+    private val auth: FirebaseAuth,
+    private val remoteConfig: FirebaseRemoteConfig
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(QrTransferUiState(isLoading = true))
@@ -54,6 +61,10 @@ class QrTransferViewModel @Inject constructor(
 
     private val _uiEvent = MutableSharedFlow<UiEvent>()
     val uiEvent: SharedFlow<UiEvent> = _uiEvent.asSharedFlow()
+
+    init {
+        loadAppTransferConfig()
+    }
 
     sealed class UiEvent {
         data class ShowSnackbar(val message: String) : UiEvent()
@@ -353,4 +364,36 @@ class QrTransferViewModel @Inject constructor(
             _uiEvent.emit(UiEvent.AllTransfersCompleted(order))
         }
     }
+
+    private fun loadAppTransferConfig() {
+        viewModelScope.launch {
+            runCatching { remoteConfig.fetchAndActivate().await() }
+
+            val remoteAccountName = remoteConfig.getString(KEY_BANK_ACCOUNT_NAME).trim()
+            val remoteAccountNumber = remoteConfig.getString(KEY_BANK_ACCOUNT_NUMBER).trim()
+            val remoteBankCode = remoteConfig.getString(KEY_BANK_CODE).trim()
+            val remoteBankName = remoteConfig.getString(KEY_BANK_NAME).trim()
+
+            _uiState.update {
+                it.copy(
+                    appTransferBankCode = remoteBankCode.ifBlank { DEFAULT_APP_TRANSFER_BANK_CODE },
+                    appTransferBankName = remoteBankName.ifBlank { DEFAULT_APP_TRANSFER_BANK_NAME },
+                    appTransferAccountName = remoteAccountName.ifBlank { DEFAULT_APP_TRANSFER_ACCOUNT_NAME },
+                    appTransferAccountNumber = remoteAccountNumber.ifBlank { DEFAULT_APP_TRANSFER_ACCOUNT_NUMBER }
+                )
+            }
+        }
+    }
+
+    private companion object {
+        const val KEY_BANK_ACCOUNT_NAME = "BANK_ACCOUNT_NAME"
+        const val KEY_BANK_ACCOUNT_NUMBER = "BANK_ACCOUNT_NUMBER"
+        const val KEY_BANK_CODE = "BANK_CODE"
+        const val KEY_BANK_NAME = "BANK_NAME"
+    }
 }
+
+private const val DEFAULT_APP_TRANSFER_BANK_CODE = "MB"
+private const val DEFAULT_APP_TRANSFER_BANK_NAME = "MBBank"
+private const val DEFAULT_APP_TRANSFER_ACCOUNT_NUMBER = "0356433860"
+private const val DEFAULT_APP_TRANSFER_ACCOUNT_NAME = "NGUYEN XUAN QUYET"

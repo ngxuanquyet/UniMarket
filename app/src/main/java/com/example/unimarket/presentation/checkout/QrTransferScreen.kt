@@ -85,6 +85,7 @@ fun QrTransferScreen(
     val qrUnavailableMessage = stringResource(R.string.checkout_qr_save_unavailable)
     var showCancelDialog by remember { mutableStateOf(false) }
     var showExpiredDialog by remember { mutableStateOf(false) }
+    var showTopUpSuccessDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(orderIds, topUpAmount) {
         if (topUpAmount > 0L && orderIds.isEmpty()) {
@@ -114,13 +115,17 @@ fun QrTransferScreen(
                 }
 
                 QrTransferViewModel.UiEvent.TopUpCompleted -> {
-                    onTopUpCompleted()
+                    showTopUpSuccessDialog = true
                 }
             }
         }
     }
 
     val currentOrder = uiState.currentOrder
+    val appTransferBankCode = uiState.appTransferBankCode
+    val appTransferBankName = uiState.appTransferBankName
+    val appTransferAccountName = uiState.appTransferAccountName
+    val appTransferAccountNumber = uiState.appTransferAccountNumber
     val isTopUpMode = uiState.isTopUpMode
     val resolvedAmount = if (isTopUpMode) uiState.topUpAmount.toDouble() else (currentOrder?.totalAmount ?: 0.0)
     val resolvedTransferContent = if (isTopUpMode) uiState.topUpTransferContent else currentOrder?.transferContent.orEmpty()
@@ -187,11 +192,21 @@ fun QrTransferScreen(
         return
     }
 
-    val qrUrl = remember(currentOrder?.id, resolvedTransferContent, resolvedAmount) {
+    val qrUrl = remember(
+        currentOrder?.id,
+        resolvedTransferContent,
+        resolvedAmount,
+        appTransferBankCode,
+        appTransferAccountName,
+        appTransferAccountNumber
+    ) {
         qrImageUrl(
             amount = resolvedAmount,
             transferContent = resolvedTransferContent,
-            fallbackOrderId = currentOrder?.id.orEmpty()
+            fallbackOrderId = currentOrder?.id.orEmpty(),
+            appTransferBankCode = appTransferBankCode,
+            appTransferAccountName = appTransferAccountName,
+            appTransferAccountNumber = appTransferAccountNumber
         )
     }
     val remainingSeconds by rememberRemainingSeconds(currentOrder?.paymentExpiresAt ?: 0L)
@@ -211,6 +226,7 @@ fun QrTransferScreen(
     BackHandler(enabled = showExpiredDialog) {}
 
     BackHandler(enabled = true) {
+        if (showTopUpSuccessDialog) return@BackHandler
         if (shouldConfirmCancel) {
             showCancelDialog = true
         } else {
@@ -270,7 +286,7 @@ fun QrTransferScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = APP_TRANSFER_ACCOUNT_NAME,
+                        text = appTransferAccountName,
                         fontWeight = FontWeight.Bold,
                         fontSize = 24.sp,
                         color = Color(0xFF1C1F39)
@@ -461,15 +477,15 @@ fun QrTransferScreen(
                     )
                     TransferInfoRow(
                         label = stringResource(R.string.payment_methods_account_name),
-                        value = APP_TRANSFER_ACCOUNT_NAME
+                        value = appTransferAccountName
                     )
                     TransferInfoRow(
                         label = stringResource(R.string.payment_methods_bank_name),
-                        value = APP_TRANSFER_BANK_NAME
+                        value = appTransferBankName
                     )
                     TransferInfoRow(
                         label = stringResource(R.string.payment_methods_account_number),
-                        value = APP_TRANSFER_ACCOUNT_NUMBER
+                        value = appTransferAccountNumber
                     )
                     TransferInfoRow(
                         label = stringResource(R.string.checkout_transfer_content),
@@ -638,6 +654,25 @@ fun QrTransferScreen(
             dismissButton = {}
         )
     }
+
+    if (showTopUpSuccessDialog) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text(stringResource(R.string.wallet_top_up_success_title)) },
+            text = { Text(stringResource(R.string.wallet_top_up_success_message)) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showTopUpSuccessDialog = false
+                        onTopUpCompleted()
+                    }
+                ) {
+                    Text(stringResource(R.string.common_done))
+                }
+            },
+            dismissButton = {}
+        )
+    }
 }
 
 @Composable
@@ -705,12 +740,16 @@ private fun rememberRemainingSeconds(paymentExpiresAt: Long): androidx.compose.r
 private fun qrImageUrl(
     amount: Double,
     transferContent: String,
-    fallbackOrderId: String
+    fallbackOrderId: String,
+    appTransferBankCode: String,
+    appTransferAccountName: String,
+    appTransferAccountNumber: String
 ): String? {
+    if (appTransferBankCode.isBlank() || appTransferAccountName.isBlank() || appTransferAccountNumber.isBlank()) return null
     val resolvedAmount = amount.roundToInt().coerceAtLeast(0)
     val addInfo = Uri.encode(transferContent.ifBlank { "UM$fallbackOrderId" })
-    val accountName = Uri.encode(APP_TRANSFER_ACCOUNT_NAME)
-    return "https://img.vietqr.io/image/$APP_TRANSFER_BANK_CODE-$APP_TRANSFER_ACCOUNT_NUMBER-compact2.png?amount=$resolvedAmount&addInfo=$addInfo&accountName=$accountName"
+    val accountName = Uri.encode(appTransferAccountName)
+    return "https://img.vietqr.io/image/$appTransferBankCode-$appTransferAccountNumber-compact2.png?amount=$resolvedAmount&addInfo=$addInfo&accountName=$accountName"
 }
 
 private fun Long.remainingSeconds(): Int {
@@ -724,8 +763,3 @@ private fun Int.asClockText(): String {
     val seconds = safe % 60
     return "%02d:%02d".format(minutes, seconds)
 }
-
-private const val APP_TRANSFER_BANK_CODE = "MB"
-private const val APP_TRANSFER_BANK_NAME = "MBBank"
-private const val APP_TRANSFER_ACCOUNT_NUMBER = "0356433860"
-private const val APP_TRANSFER_ACCOUNT_NAME = "NGUYEN XUAN QUYET"

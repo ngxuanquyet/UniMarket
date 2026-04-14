@@ -10,6 +10,7 @@ import com.example.unimarket.domain.repository.TopUpRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import kotlinx.coroutines.tasks.await
 import kotlin.math.roundToLong
 import javax.inject.Inject
@@ -17,7 +18,8 @@ import javax.inject.Inject
 class FirebaseTopUpRepositoryImpl @Inject constructor(
     private val sepayApiService: SepayApiService,
     private val auth: FirebaseAuth,
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val remoteConfig: FirebaseRemoteConfig
 ) : TopUpRepository {
 
     override suspend fun checkTransferAndCreditTopUp(
@@ -27,14 +29,21 @@ class FirebaseTopUpRepositoryImpl @Inject constructor(
         val currentUser = auth.currentUser ?: return Result.failure(Exception("No user logged in"))
         if (amount <= 0L) return Result.failure(Exception("Invalid top-up amount"))
         if (transferContent.isBlank()) return Result.failure(Exception("Missing transfer content"))
-        if (BuildConfig.SEPAY_API_KEY.isBlank()) {
+
+        runCatching { remoteConfig.fetchAndActivate().await() }
+
+        val sepayApiKey = remoteConfig.getString(KEY_SEPAY_API_KEY).trim().ifBlank { BuildConfig.SEPAY_API_KEY }
+        val accountNumber = remoteConfig.getString(KEY_BANK_ACCOUNT_NUMBER).trim()
+            .ifBlank { DEFAULT_APP_TRANSFER_ACCOUNT_NUMBER }
+
+        if (sepayApiKey.isBlank()) {
             return Result.failure(Exception("Sepay API key is not configured"))
         }
 
         return runCatching {
             val response = sepayApiService.getTransactions(
-                authorization = "Bearer ${BuildConfig.SEPAY_API_KEY}",
-                accountNumber = APP_TRANSFER_ACCOUNT_NUMBER,
+                authorization = "Bearer $sepayApiKey",
+                accountNumber = accountNumber,
                 limit = 20
             )
             if (!response.isSuccessful) {
@@ -186,7 +195,9 @@ class FirebaseTopUpRepositoryImpl @Inject constructor(
 
     private companion object {
         const val TAG = "TopUpSePayCheck"
-        const val APP_TRANSFER_ACCOUNT_NUMBER = "0356433860"
+        const val KEY_SEPAY_API_KEY = "SEPAY_API_KEY"
+        const val KEY_BANK_ACCOUNT_NUMBER = "BANK_ACCOUNT_NUMBER"
+        const val DEFAULT_APP_TRANSFER_ACCOUNT_NUMBER = "0356433860"
         const val USERS_COLLECTION = "users"
         const val WALLET_TRANSACTIONS_COLLECTION = "walletTransactions"
         const val MIN_REFERENCE_MATCH_LENGTH = 12

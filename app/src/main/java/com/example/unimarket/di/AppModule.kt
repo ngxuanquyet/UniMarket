@@ -32,7 +32,12 @@ object AppModule {
         remoteConfig.setDefaultsAsync(
             mapOf(
                 "KEY_UPLOAD_IMAGE" to "",
-                "API_KEY" to ""
+                "API_KEY" to "",
+                "BANK_CODE" to "MB",
+                "BANK_NAME" to "MBBank",
+                "BANK_ACCOUNT_NAME" to "NGUYEN XUAN QUYET",
+                "BANK_ACCOUNT_NUMBER" to "0356433860",
+                "SEPAY_API_KEY" to ""
             )
         )
         return remoteConfig

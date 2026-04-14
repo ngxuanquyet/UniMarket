@@ -112,6 +112,8 @@
     <string name="wallet_top_up_custom_amount">Số tiền tùy chỉnh</string>
     <string name="wallet_top_up_enter_amount">5.000 đ - 100.000.000đ</string>
     <string name="wallet_top_up_payment_source">Nguồn thanh toán</string>
+    <string name="wallet_top_up_success_title">Nạp tiền thành công</string>
+    <string name="wallet_top_up_success_message">Ví của bạn đã được cộng tiền thành công.</string>
     <string name="wallet_top_up_add_method">Thêm phương thức mới</string>
     <string name="wallet_top_up_security_note">Mã hóa 256-bit chuẩn ngân hàng</string>
     <string name="wallet_top_up_now">Nạp tiền ngay</string>
