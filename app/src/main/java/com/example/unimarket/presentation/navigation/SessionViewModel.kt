@@ -10,6 +10,7 @@ import com.example.unimarket.domain.usecase.auth.GetCurrentUserUseCase
 import com.example.unimarket.domain.usecase.auth.LogoutUseCase
 import com.example.unimarket.domain.usecase.auth.ObserveCachedUserUseCase
 import com.example.unimarket.domain.usecase.auth.RefreshCurrentUserProfileUseCase
+import com.example.unimarket.domain.usecase.auth.UpdateUniversityUseCase
 import com.example.unimarket.domain.usecase.chat.ObserveConversationsUseCase
 import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseUser
@@ -27,7 +28,9 @@ import javax.inject.Inject
 data class SessionUiState(
     val isAuthenticated: Boolean = false,
     val unreadMessageCount: Int = 0,
-    val isAccountLocked: Boolean = false
+    val isAccountLocked: Boolean = false,
+    val isUniversityRequired: Boolean = false,
+    val isUpdatingUniversity: Boolean = false
 )
 
 @HiltViewModel
@@ -37,6 +40,7 @@ class SessionViewModel @Inject constructor(
     observeCachedUserUseCase: ObserveCachedUserUseCase,
     private val logoutUseCase: LogoutUseCase,
     private val refreshCurrentUserProfileUseCase: RefreshCurrentUserProfileUseCase,
+    private val updateUniversityUseCase: UpdateUniversityUseCase,
     private val observeConversationsUseCase: ObserveConversationsUseCase,
     private val fcmTokenManager: FcmTokenManager
 ) : ViewModel() {
@@ -67,7 +71,8 @@ class SessionViewModel @Inject constructor(
                     currentState.copy(
                         isAuthenticated = isAuthenticated,
                         unreadMessageCount = if (isAuthenticated) currentState.unreadMessageCount else 0,
-                        isAccountLocked = currentState.isAccountLocked || isLocked
+                        isAccountLocked = currentState.isAccountLocked || isLocked,
+                        isUniversityRequired = isAuthenticated && cachedUser != null && cachedUser.university.isBlank()
                     )
                 }
                 if (isLocked) {
@@ -84,6 +89,20 @@ class SessionViewModel @Inject constructor(
 
     fun consumeAccountLockedNotice() {
         _uiState.update { it.copy(isAccountLocked = false) }
+    }
+
+    fun updateUniversity(university: String) {
+        val trimmedUniversity = university.trim()
+        if (trimmedUniversity.isBlank()) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isUpdatingUniversity = true) }
+            updateUniversityUseCase(trimmedUniversity)
+                .onSuccess {
+                    refreshCurrentUserProfileUseCase()
+                }
+            _uiState.update { it.copy(isUpdatingUniversity = false) }
+        }
     }
 
     private fun forceLogoutForLockedAccount() {

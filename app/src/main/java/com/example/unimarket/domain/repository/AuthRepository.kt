@@ -10,7 +10,7 @@ interface AuthRepository {
     suspend fun signUp(
         name: String,
         email: String,
-        studentId: String,
+        university: String,
         password: String
     ): Result<Unit>
 
@@ -21,9 +21,11 @@ interface AuthRepository {
     suspend fun refreshCurrentUserProfile(): Result<UserProfile>
 
     suspend fun updateProfile(name: String?, avatarUrl: String?): Result<Unit>
+    suspend fun updateUniversity(university: String): Result<Unit>
     suspend fun getUserAddresses(): Result<List<UserAddress>>
     suspend fun getUserPaymentMethods(): Result<List<SellerPaymentMethod>>
     suspend fun getUserAvatarUrl(id: String): Result<String>
+    suspend fun getUserUniversityById(userId: String): Result<String>
     suspend fun getAddressesByUserId(userId: String): Result<List<UserAddress>>
     suspend fun getPaymentMethodsByUserId(userId: String): Result<List<SellerPaymentMethod>>
     suspend fun addUserAddress(address: UserAddress): Result<Unit>

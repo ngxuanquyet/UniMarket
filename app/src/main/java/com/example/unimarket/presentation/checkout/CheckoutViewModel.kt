@@ -458,19 +458,7 @@ class CheckoutViewModel @Inject constructor(
                 vietnamese = "Vui lòng chọn phương thức thanh toán cho ${order.product.name}"
             )
         when (selectedPaymentOption.type) {
-            SellerPaymentMethodType.BANK_TRANSFER -> {
-                val sellerMethod = selectedPaymentOption.sellerMethod
-                    ?: return localizedText(
-                        english = "Seller bank transfer information is unavailable",
-                        vietnamese = "Thông tin chuyển khoản ngân hàng của người bán không khả dụng"
-                    )
-                if (sellerMethod.accountName.isBlank() || sellerMethod.accountNumber.isBlank()) {
-                    return localizedText(
-                        english = "Seller bank transfer information is incomplete",
-                        vietnamese = "Thông tin chuyển khoản ngân hàng của người bán chưa đầy đủ"
-                    )
-                }
-            }
+            SellerPaymentMethodType.BANK_TRANSFER -> Unit
 
             SellerPaymentMethodType.MOMO -> {
                 val sellerMethod = selectedPaymentOption.sellerMethod

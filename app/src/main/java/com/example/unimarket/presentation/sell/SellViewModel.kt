@@ -287,6 +287,7 @@ class SellViewModel @Inject constructor(
         title: String,
         priceStr: String,
         description: String,
+        location: String,
         category: String,
         condition: String,
         quantityStr: String,
@@ -306,7 +307,7 @@ class SellViewModel @Inject constructor(
             return
         }
 
-        if (title.isBlank() || priceStr.isBlank() || description.isBlank() || category == "Select a category" || condition == "" || quantityStr.isBlank()) {
+        if (title.isBlank() || priceStr.isBlank() || description.isBlank() || location.isBlank() || category == "Select a category" || condition == "" || quantityStr.isBlank()) {
             _uiState.value = _uiState.value.copy(
                 errorMessage = localizedText(
                     english = "Please fill in all required fields",
@@ -414,7 +415,7 @@ class SellViewModel @Inject constructor(
                 condition = condition,
                 sellerName = sellerName,
                 rating = initialProduct?.rating ?: 0.0,
-                location = initialProduct?.location ?: "Unknown",
+                location = location.trim(),
                 timeAgo = timeAgo,
                 postedAt = postedAt,
                 isFavorite = initialProduct?.isFavorite ?: false,

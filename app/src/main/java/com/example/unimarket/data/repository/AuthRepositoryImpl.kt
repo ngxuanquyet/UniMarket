@@ -53,7 +53,7 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun signUp(
         name: String,
         email: String,
-        studentId: String,
+        university: String,
         password: String
     ): Result<Unit> {
         return try {
@@ -79,7 +79,8 @@ class AuthRepositoryImpl @Inject constructor(
                         displayName = name,
                         email = email,
                         avatarUrl = profileUpdates.photoUri?.toString().orEmpty(),
-                        studentId = studentId,
+                        university = university.trim(),
+                        studentId = "",
                         boughtCount = 0,
                         soldCount = 0,
                         averageRating = 0.0,
@@ -196,6 +197,33 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun getUserUniversityById(userId: String): Result<String> {
+        if (userId.isBlank()) return Result.success("")
+        return try {
+            val user = firestore.collection(USERS_COLLECTION)
+                .document(userId)
+                .get(Source.SERVER)
+                .await()
+
+            val snapshot = if (!user.exists()) {
+                firestore.collection(USERS_COLLECTION)
+                    .document(userId)
+                    .get(Source.CACHE)
+                    .await()
+            } else {
+                user
+            }
+
+            if (snapshot.exists()) {
+                Result.success(snapshot.getString("university").orEmpty().trim())
+            } else {
+                Result.failure(Exception("User not found"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     override suspend fun updateProfile(name: String?, avatarUrl: String?): Result<Unit> {
         return try {
             val user = auth.currentUser
@@ -217,6 +245,19 @@ class AuthRepositoryImpl @Inject constructor(
             } else {
                 Result.failure(Exception("No user logged in"))
             }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun updateUniversity(university: String): Result<Unit> {
+        return try {
+            val user = auth.currentUser ?: return Result.failure(Exception("No user logged in"))
+            firestore.collection(USERS_COLLECTION)
+                .document(user.uid)
+                .set(mapOf("university" to university.trim()), SetOptions.merge())
+                .await()
+            refreshCurrentUserProfile().map { Unit }
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -389,6 +430,7 @@ class AuthRepositoryImpl @Inject constructor(
             "displayName" to profile.displayName,
             "name" to profile.displayName,
             "avatarUrl" to profile.avatarUrl,
+            "university" to profile.university.trim(),
             "isLock" to profile.isLock,
             "photoUrl" to FieldValue.delete()
         )
@@ -440,6 +482,7 @@ class AuthRepositoryImpl @Inject constructor(
             displayName = displayName,
             email = getString("email").orEmpty().ifBlank { user.email.orEmpty() },
             avatarUrl = avatarUrl,
+            university = getString("university").orEmpty(),
             isLock = getBoolean("isLock") ?: false,
             studentId = getString("studentId").orEmpty(),
             boughtCount = getLong("boughtCount")?.toInt() ?: 0,

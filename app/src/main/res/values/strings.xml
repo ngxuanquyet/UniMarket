@@ -161,6 +161,8 @@
     <string name="sell_category">Category</string>
     <string name="sell_select_category">Select a category</string>
     <string name="sell_open_category_dropdown">Open category list</string>
+    <string name="sell_location">Location</string>
+    <string name="sell_location_placeholder">e.g. Thu Duc, HCMC</string>
     <string name="sell_price">Price</string>
     <string name="sell_price_placeholder">0 VND</string>
     <string name="sell_negotiable">Negotiable</string>
@@ -208,6 +210,12 @@
     <string name="explore_sort_recommended">Recommended</string>
     <string name="explore_sort_low_to_high">Price: Low to High</string>
     <string name="explore_sort_high_to_low">Price: High to Low</string>
+    <string name="explore_filter_by_address">Address</string>
+    <string name="explore_filter_address_placeholder">Enter area, district, or city</string>
+    <string name="explore_filter_by_university">University</string>
+    <string name="explore_filter_university_placeholder">Enter university name</string>
+    <string name="explore_filter_apply">Apply</string>
+    <string name="explore_filter_clear">Clear filters</string>
     <string name="explore_favorite">Favorite</string>
 
     <string name="cart_title">My Cart</string>
@@ -277,6 +285,11 @@
     <string name="auth_error_enter_password">Please enter your password</string>
     <string name="auth_error_confirm_password">Please confirm your password</string>
     <string name="auth_error_passwords_mismatch">Passwords do not match</string>
+    <string name="auth_error_enter_university">Please enter your university</string>
+    <string name="auth_error_select_university_from_list">Please select a university from the list</string>
+    <string name="auth_university_dialog_title">Your university</string>
+    <string name="auth_university_label">University</string>
+    <string name="auth_university_placeholder">Enter your current university</string>
     <string name="auth_toggle_password_visibility">Toggle password visibility</string>
 
     <string name="home_recommended_for_you">Recommended for you</string>

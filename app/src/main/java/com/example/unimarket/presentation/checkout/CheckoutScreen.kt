@@ -791,7 +791,7 @@ private fun CheckoutPaymentOption.localizedTitle(): String {
 private fun CheckoutPaymentOption.localizedSubtitle(): String? {
     return when (type) {
         SellerPaymentMethodType.CASH_ON_DELIVERY -> null
-        SellerPaymentMethodType.BANK_TRANSFER -> sellerMethod?.shortSubtitle
+        SellerPaymentMethodType.BANK_TRANSFER -> null
         SellerPaymentMethodType.MOMO -> sellerMethod?.shortSubtitle
         SellerPaymentMethodType.WALLET -> null
     }

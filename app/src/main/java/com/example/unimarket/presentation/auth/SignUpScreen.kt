@@ -10,6 +10,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -29,7 +32,8 @@ import com.example.unimarket.R
 
 @Composable
 fun SignUpScreen(
-    onSignUpClick: (String, String, String) -> Unit,
+    onSignUpClick: (String, String, String, String) -> Unit,
+    universityOptions: List<UniversityOption>,
     onNavigateBack: () -> Unit,
     onNavigateToLogin: () -> Unit,
     isLoading: Boolean = false,
@@ -40,6 +44,8 @@ fun SignUpScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+    var university by remember { mutableStateOf("") }
+    var showUniversityDialog by remember { mutableStateOf(false) }
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
     val fullNameFocusRequester = remember { FocusRequester() }
@@ -209,7 +215,7 @@ fun SignUpScreen(
                         }
                     }
 
-                    onSignUpClick(trimmedFullName, trimmedEmail, password)
+                    showUniversityDialog = true
                 }
             )
 
@@ -221,5 +227,45 @@ fun SignUpScreen(
                 onClick = onNavigateToLogin
             )
         }
+    }
+
+    if (showUniversityDialog) {
+        val selectedUniversity = resolveUniversitySelection(universityOptions, university)
+        AlertDialog(
+            onDismissRequest = { showUniversityDialog = false },
+            title = { Text(text = stringResource(R.string.auth_university_dialog_title)) },
+            text = {
+                UniversitySuggestionField(
+                    value = university,
+                    onValueChange = { university = it },
+                    options = universityOptions
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (selectedUniversity == null) {
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.auth_error_select_university_from_list),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            return@TextButton
+                        }
+                        showUniversityDialog = false
+                        university = selectedUniversity.name
+                        onSignUpClick(fullName.trim(), email.trim(), selectedUniversity.name, password)
+                    },
+                    enabled = selectedUniversity != null
+                ) {
+                    Text(text = stringResource(R.string.common_save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showUniversityDialog = false }) {
+                    Text(text = stringResource(R.string.common_cancel))
+                }
+            }
+        )
     }
 }

@@ -37,7 +37,8 @@ object AppModule {
                 "BANK_NAME" to "MBBank",
                 "BANK_ACCOUNT_NAME" to "NGUYEN XUAN QUYET",
                 "BANK_ACCOUNT_NUMBER" to "0356433860",
-                "SEPAY_API_KEY" to ""
+                "SEPAY_API_KEY" to "",
+                "university_list" to "{\"universities\":[]}"
             )
         )
         return remoteConfig

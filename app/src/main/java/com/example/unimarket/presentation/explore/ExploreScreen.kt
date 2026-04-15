@@ -15,8 +15,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
@@ -36,9 +34,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import com.example.unimarket.R
+import com.example.unimarket.presentation.auth.UniversityOption
+import com.example.unimarket.presentation.auth.UniversitySuggestionField
 import com.example.unimarket.domain.model.DeliveryMethod
-    import coil.compose.rememberAsyncImagePainter
+import coil.compose.rememberAsyncImagePainter
+import com.example.unimarket.presentation.navigation.UniversityListViewModel
 import com.example.unimarket.presentation.theme.PrimaryYellowDark
 import com.example.unimarket.presentation.theme.SecondaryBlue
 import com.example.unimarket.presentation.util.formatVnd
@@ -56,17 +59,21 @@ fun ExploreScreen(
     onSellerClick: (String) -> Unit = {},
     onCartClick: () -> Unit = {},
     onNotificationsClick: () -> Unit = {},
-    viewModel: ExploreViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+    viewModel: ExploreViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
+    universityListViewModel: UniversityListViewModel = androidx.hilt.navigation.compose.hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val universityListState by universityListViewModel.uiState.collectAsState()
     var showFilterSheet by remember { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
     val hasActiveFilters = uiState.selectedPriceFilter != ExplorePriceFilter.ALL ||
-        uiState.selectedPriceSort != ExplorePriceSort.RECOMMENDED
+        uiState.selectedPriceSort != ExplorePriceSort.RECOMMENDED ||
+        uiState.selectedLocationFilter.isNotBlank() ||
+        uiState.selectedUniversityFilter.isNotBlank()
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP) {
+            if (event == Lifecycle.Event.ON_DESTROY) {
                 viewModel.resetExploreState()
             }
         }
@@ -272,8 +279,12 @@ fun ExploreScreen(
         ) {
             ExploreFilterSheet(
                 uiState = uiState,
+                universityOptions = universityListState.options,
                 onPriceFilterSelected = viewModel::updateSelectedPriceFilter,
                 onPriceSortSelected = viewModel::updateSelectedPriceSort,
+                onLocationFilterChanged = viewModel::updateLocationFilter,
+                onUniversityFilterChanged = viewModel::updateUniversityFilter,
+                onClearFilters = viewModel::clearFilters,
                 onDismiss = { showFilterSheet = false }
             )
         }
@@ -371,22 +382,56 @@ private fun ExploreSellerCard(
 @Composable
 private fun ExploreFilterSheet(
     uiState: ExploreUiState,
+    universityOptions: List<UniversityOption>,
     onPriceFilterSelected: (ExplorePriceFilter) -> Unit,
     onPriceSortSelected: (ExplorePriceSort) -> Unit,
+    onLocationFilterChanged: (String) -> Unit,
+    onUniversityFilterChanged: (String) -> Unit,
+    onClearFilters: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val hasActiveFilters = uiState.selectedPriceFilter != ExplorePriceFilter.ALL ||
+        uiState.selectedPriceSort != ExplorePriceSort.RECOMMENDED ||
+        uiState.selectedLocationFilter.isNotBlank() ||
+        uiState.selectedUniversityFilter.isNotBlank()
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .imePadding()
             .padding(horizontal = 20.dp, vertical = 8.dp)
-            .navigationBarsPadding(),
+            .navigationBarsPadding()
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        Text(
-            text = stringResource(R.string.explore_filter_products),
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.explore_filter_products),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                TextButton(
+                    onClick = onClearFilters,
+                    enabled = hasActiveFilters
+                ) {
+                    Text(
+                        text = stringResource(R.string.explore_filter_clear),
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                TextButton(onClick = onDismiss) {
+                    Text(
+                        text = stringResource(R.string.explore_filter_apply),
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
 
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(
@@ -445,15 +490,47 @@ private fun ExploreFilterSheet(
             }
         }
 
-        Button(
-            onClick = onDismiss,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = SecondaryBlue),
-            shape = RoundedCornerShape(18.dp)
-        ) {
-            Text(stringResource(R.string.common_done), color = Color.White, fontWeight = FontWeight.SemiBold)
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(
+                text = stringResource(R.string.explore_filter_by_address),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            OutlinedTextField(
+                value = uiState.selectedLocationFilter,
+                onValueChange = onLocationFilterChanged,
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                placeholder = { Text(stringResource(R.string.explore_filter_address_placeholder)) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.LocationOn,
+                        contentDescription = null
+                    )
+                },
+                shape = RoundedCornerShape(16.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedContainerColor = MessageBg,
+                    focusedContainerColor = MessageBg,
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedBorderColor = SecondaryBlue.copy(alpha = 0.4f)
+                )
+            )
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(
+                text = stringResource(R.string.explore_filter_by_university),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            UniversitySuggestionField(
+                value = uiState.selectedUniversityFilter,
+                onValueChange = onUniversityFilterChanged,
+                options = universityOptions
+            )
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -465,98 +542,85 @@ fun ExploreProductCard(
     product: com.example.unimarket.domain.model.Product,
     onClick: () -> Unit = {}
 ) {
-    var isFavorite by remember { mutableStateOf(product.isFavorite) }
-
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Box(
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MessageBg)
+            .padding(10.dp)
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f)
                 .clip(RoundedCornerShape(16.dp))
                 .background(ProfileAvatarBorder)
                 .clickable { onClick() }
-        ) {
-            Image(
-                painter = rememberAsyncImagePainter(
-                    model = product.imageUrls.firstOrNull() ?: "https://via.placeholder.com/400"
-                ),
-                contentDescription = product.name,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
+            ) {
+                Image(
+                    painter = rememberAsyncImagePainter(
+                        model = product.imageUrls.firstOrNull() ?: "https://via.placeholder.com/400"
+                    ),
+                    contentDescription = product.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
 
-            // Tags (e.g., PRICE DROP, NEW) -> Simplified logic based on timeAgo or condition
-            val tag = if (product.condition == "New") stringResource(R.string.condition_new_badge) else null
-            if (tag != null) {
-                Box(
-                    modifier = Modifier
-                        .padding(12.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(SecondaryBlue)
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = tag,
-                        color = Color.White,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                // Tags (e.g., PRICE DROP, NEW) -> Simplified logic based on timeAgo or condition
+                val tag = if (product.condition == "New") stringResource(R.string.condition_new_badge) else null
+                if (tag != null) {
+                    Box(
+                        modifier = Modifier
+                            .padding(12.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(SecondaryBlue)
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = tag,
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
 
-            // Favorite Button
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(12.dp)
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.8f))
-                    .clickable { isFavorite = !isFavorite },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    contentDescription = stringResource(R.string.explore_favorite),
-                    tint = if (isFavorite) RedDanger else Color.DarkGray,
-                    modifier = Modifier.size(18.dp)
-                )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = formatVnd(product.price),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp
+            )
+            
+            Spacer(modifier = Modifier.height(4.dp))
+            
+            Text(
+                text = product.name,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.DarkGray,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            
+            Spacer(modifier = Modifier.height(2.dp))
+            
+            Text(
+                text = localizedConditionLabel(product.condition),
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.Gray,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            if (product.deliveryMethodsAvailable.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                DeliveryMethodSummaryChips(product.deliveryMethodsAvailable)
             }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Text(
-            text = formatVnd(product.price),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            fontSize = 18.sp
-        )
-        
-        Spacer(modifier = Modifier.height(4.dp))
-        
-        Text(
-            text = product.name,
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.DarkGray,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        
-        Spacer(modifier = Modifier.height(2.dp))
-        
-        Text(
-            text = localizedConditionLabel(product.condition),
-            style = MaterialTheme.typography.bodySmall,
-            color = Color.Gray,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-
-        if (product.deliveryMethodsAvailable.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            DeliveryMethodSummaryChips(product.deliveryMethodsAvailable)
         }
     }
 }

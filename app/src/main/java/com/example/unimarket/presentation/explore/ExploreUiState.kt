@@ -35,6 +35,8 @@ data class ExploreUiState(
     val selectedCategory: String = "All Items",
     val selectedPriceFilter: ExplorePriceFilter = ExplorePriceFilter.ALL,
     val selectedPriceSort: ExplorePriceSort = ExplorePriceSort.RECOMMENDED,
+    val selectedLocationFilter: String = "",
+    val selectedUniversityFilter: String = "",
     val matchedSellers: List<ExploreSellerPreview> = emptyList(),
     val filteredProducts: List<Product> = emptyList(),
     val errorMessage: String? = null

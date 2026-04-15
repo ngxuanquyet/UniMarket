@@ -124,6 +124,7 @@ fun SellScreen(
         )
     }
     var description by remember(initialProduct) { mutableStateOf(initialProduct?.description ?: "") }
+    var location by remember(initialProduct) { mutableStateOf(initialProduct?.location ?: "") }
     var quantity by remember(initialProduct) {
         mutableStateOf(initialProduct?.quantityAvailable?.toString() ?: "")
     }
@@ -203,6 +204,7 @@ fun SellScreen(
                 title = ""
                 price = ""
                 description = ""
+                location = ""
                 quantity = ""
                 category = "Select a category"
                 condition = "New"
@@ -321,6 +323,7 @@ fun SellScreen(
         title != initialProduct.name ||
         price != initialProduct.price.toString() ||
         description != initialProduct.description ||
+        location != initialProduct.location ||
         quantity != initialProduct.quantityAvailable.toString() ||
         category != (initialProduct.categoryId.takeIf { it.isNotBlank() } ?: "Select a category") ||
         condition != initialProduct.condition ||
@@ -329,7 +332,7 @@ fun SellScreen(
         currentUris != initialUris ||
         specifications.associate { it.key to it.value } != initialProduct.specifications
     } else if (initialProduct == null) {
-        title.isNotBlank() || price.isNotBlank() || description.isNotBlank() || quantity.isNotBlank() || uiState.selectedImageUris.isNotEmpty() || specifications.isNotEmpty() || selectedDeliveryMethods.isNotEmpty()
+        title.isNotBlank() || price.isNotBlank() || description.isNotBlank() || location.isNotBlank() || quantity.isNotBlank() || uiState.selectedImageUris.isNotEmpty() || specifications.isNotEmpty() || selectedDeliveryMethods.isNotEmpty()
     } else {
         false
     }
@@ -346,6 +349,7 @@ fun SellScreen(
             title,
             price,
             description,
+            location,
             category,
             condition,
             quantity,
@@ -797,6 +801,21 @@ fun SellScreen(
                             }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Text(
+                        stringResource(R.string.sell_location),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                        color = TextDarkBlack
+                    )
+                    CustomTextField(
+                        value = location,
+                        onValueChange = { location = it },
+                        placeholder = stringResource(R.string.sell_location_placeholder)
+                    )
                 }
             }
 

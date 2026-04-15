@@ -161,6 +161,8 @@
     <string name="sell_category">Danh mục</string>
     <string name="sell_select_category">Chọn danh mục</string>
     <string name="sell_open_category_dropdown">Mở danh sách danh mục</string>
+    <string name="sell_location">Địa điểm</string>
+    <string name="sell_location_placeholder">Ví dụ: Thủ Đức, TP.HCM</string>
     <string name="sell_price">Giá</string>
     <string name="sell_price_placeholder">0 VND</string>
     <string name="sell_negotiable">Có thể thương lượng</string>
@@ -208,6 +210,12 @@
     <string name="explore_sort_recommended">Đề xuất</string>
     <string name="explore_sort_low_to_high">Giá: thấp đến cao</string>
     <string name="explore_sort_high_to_low">Giá: cao đến thấp</string>
+    <string name="explore_filter_by_address">Địa chỉ</string>
+    <string name="explore_filter_address_placeholder">Nhập khu vực, quận/huyện hoặc tỉnh/thành</string>
+    <string name="explore_filter_by_university">Trường đại học</string>
+    <string name="explore_filter_university_placeholder">Nhập tên trường đại học</string>
+    <string name="explore_filter_apply">Áp dụng</string>
+    <string name="explore_filter_clear">Xóa bộ lọc</string>
     <string name="explore_favorite">Yêu thích</string>
 
     <string name="cart_title">Giỏ hàng của tôi</string>
@@ -277,6 +285,11 @@
     <string name="auth_error_enter_password">Vui lòng nhập mật khẩu</string>
     <string name="auth_error_confirm_password">Vui lòng xác nhận mật khẩu</string>
     <string name="auth_error_passwords_mismatch">Mật khẩu xác nhận không khớp</string>
+    <string name="auth_error_enter_university">Vui lòng nhập tên trường đại học</string>
+    <string name="auth_error_select_university_from_list">Vui lòng chọn trường đại học trong danh sách gợi ý</string>
+    <string name="auth_university_dialog_title">Trường đại học đang theo học</string>
+    <string name="auth_university_label">Tên trường đại học</string>
+    <string name="auth_university_placeholder">Nhập tên trường đại học của bạn</string>
     <string name="auth_toggle_password_visibility">Bật tắt hiển thị mật khẩu</string>
 
     <string name="home_recommended_for_you">Gợi ý cho bạn</string>

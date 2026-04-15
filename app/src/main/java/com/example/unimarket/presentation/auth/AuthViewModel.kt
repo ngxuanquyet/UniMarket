@@ -58,8 +58,8 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun signUp(name: String, email: String, password: String) {
-        if (name.isBlank() || email.isBlank() || password.isBlank()) {
+    fun signUp(name: String, email: String, university: String, password: String) {
+        if (name.isBlank() || email.isBlank() || university.isBlank() || password.isBlank()) {
             _authState.value = AuthState.Error("All fields must be filled")
             return
         }
@@ -76,7 +76,7 @@ class AuthViewModel @Inject constructor(
 
         _authState.value = AuthState.Loading
         viewModelScope.launch {
-            signUpUseCase(name, email, "", password)
+            signUpUseCase(name, email, university.trim(), password)
                 .onSuccess {
                     _authState.value = AuthState.Success("Verification link sent. Please check your email before logging in.")
                 }

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.unimarket.domain.model.Category
 import com.example.unimarket.domain.model.Product
 import com.example.unimarket.domain.usecase.auth.GetCurrentUserUseCase
+import com.example.unimarket.domain.usecase.auth.GetUserUniversityByIdUseCase
 import com.example.unimarket.domain.usecase.explore.GetAllProductsUseCase
 import com.example.unimarket.domain.usecase.image.GetUserAvatarUrl
 import com.example.unimarket.domain.usecase.product.GetCategoriesUseCase
@@ -24,6 +25,7 @@ import javax.inject.Inject
 class ExploreViewModel @Inject constructor(
     private val getAllProductsUseCase: GetAllProductsUseCase,
     getCurrentUserUseCase: GetCurrentUserUseCase,
+    private val getUserUniversityByIdUseCase: GetUserUniversityByIdUseCase,
     private val getCategoriesUseCase: GetCategoriesUseCase,
     private val getUserAvatarUrl: GetUserAvatarUrl
 ) : ViewModel() {
@@ -34,6 +36,8 @@ class ExploreViewModel @Inject constructor(
     private val currentUserId = (getCurrentUserUseCase() as? FirebaseUser)?.uid.orEmpty()
     private val sellerAvatarCache = mutableMapOf<String, String>()
     private val loadingSellerAvatarIds = mutableSetOf<String>()
+    private val sellerUniversityCache = mutableMapOf<String, String>()
+    private val loadingSellerUniversityIds = mutableSetOf<String>()
 
     init {
         loadData()
@@ -63,6 +67,7 @@ class ExploreViewModel @Inject constructor(
                         isLoading = false
                     )
                 )
+                preloadSellerUniversities(products)
             } catch (error: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -92,6 +97,32 @@ class ExploreViewModel @Inject constructor(
         _uiState.value = updateFilteredProducts(currentState.copy(selectedPriceSort = priceSort))
     }
 
+    fun updateLocationFilter(location: String) {
+        val currentState = _uiState.value
+        _uiState.value = updateFilteredProducts(
+            currentState.copy(selectedLocationFilter = location)
+        )
+    }
+
+    fun updateUniversityFilter(university: String) {
+        val currentState = _uiState.value
+        _uiState.value = updateFilteredProducts(
+            currentState.copy(selectedUniversityFilter = university)
+        )
+    }
+
+    fun clearFilters() {
+        val currentState = _uiState.value
+        _uiState.value = updateFilteredProducts(
+            currentState.copy(
+                selectedPriceFilter = ExplorePriceFilter.ALL,
+                selectedPriceSort = ExplorePriceSort.RECOMMENDED,
+                selectedLocationFilter = "",
+                selectedUniversityFilter = ""
+            )
+        )
+    }
+
     fun resetExploreState() {
         val currentState = _uiState.value
         _uiState.value = updateFilteredProducts(
@@ -99,7 +130,9 @@ class ExploreViewModel @Inject constructor(
                 searchQuery = "",
                 selectedCategory = "All Items",
                 selectedPriceFilter = ExplorePriceFilter.ALL,
-                selectedPriceSort = ExplorePriceSort.RECOMMENDED
+                selectedPriceSort = ExplorePriceSort.RECOMMENDED,
+                selectedLocationFilter = "",
+                selectedUniversityFilter = ""
             )
         )
     }
@@ -111,7 +144,9 @@ class ExploreViewModel @Inject constructor(
             categoryName = state.selectedCategory,
             categories = state.categories,
             priceFilter = state.selectedPriceFilter,
-            priceSort = state.selectedPriceSort
+            priceSort = state.selectedPriceSort,
+            locationFilter = state.selectedLocationFilter,
+            universityFilter = state.selectedUniversityFilter
         )
         val matchedSellers = buildSellerPreviews(
             filteredProducts = filteredProducts,
@@ -132,9 +167,13 @@ class ExploreViewModel @Inject constructor(
         categoryName: String,
         categories: List<Category>,
         priceFilter: ExplorePriceFilter,
-        priceSort: ExplorePriceSort
+        priceSort: ExplorePriceSort,
+        locationFilter: String,
+        universityFilter: String
     ): List<Product> {
         val normalizedQuery = query.trim()
+        val normalizedLocationFilter = locationFilter.trim()
+        val normalizedUniversityFilter = universityFilter.trim()
         val selectedCategory = categories.firstOrNull { category ->
             category.name.equals(categoryName, ignoreCase = true) ||
                 category.id.equals(categoryName, ignoreCase = true)
@@ -156,13 +195,70 @@ class ExploreViewModel @Inject constructor(
                         product.categoryId.equals(category.name, ignoreCase = true)
                 } == true
             val matchesPrice = priceFilter.matches(product.price)
-            inStock && isApproved && !isOwnProduct && matchesQuery && matchesCategory && matchesPrice
+            val matchesLocation = normalizedLocationFilter.isBlank() || matchesLocationFilter(
+                product = product,
+                filter = normalizedLocationFilter
+            )
+            val matchesUniversity = normalizedUniversityFilter.isBlank() || matchesUniversityFilter(
+                product = product,
+                filter = normalizedUniversityFilter
+            )
+
+            inStock &&
+                isApproved &&
+                !isOwnProduct &&
+                matchesQuery &&
+                matchesCategory &&
+                matchesPrice &&
+                matchesLocation &&
+                matchesUniversity
         }
 
         return when (priceSort) {
             ExplorePriceSort.RECOMMENDED -> filteredProducts
             ExplorePriceSort.PRICE_LOW_TO_HIGH -> filteredProducts.sortedBy { it.price }
             ExplorePriceSort.PRICE_HIGH_TO_LOW -> filteredProducts.sortedByDescending { it.price }
+        }
+    }
+
+    private fun matchesLocationFilter(product: Product, filter: String): Boolean {
+        return product.location.contains(filter, ignoreCase = true) ||
+            product.sellerPickupAddress?.addressLine.orEmpty().contains(filter, ignoreCase = true)
+    }
+
+    private fun matchesUniversityFilter(product: Product, filter: String): Boolean {
+        val sellerId = product.userId
+        if (sellerId.isBlank()) return false
+        val sellerUniversity = sellerUniversityCache[sellerId]
+        if (sellerUniversity == null) {
+            preloadSellerUniversity(sellerId)
+            return false
+        }
+        return sellerUniversity.contains(filter, ignoreCase = true)
+    }
+
+    private fun preloadSellerUniversities(products: List<Product>) {
+        products.asSequence()
+            .map { it.userId }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .forEach(::preloadSellerUniversity)
+    }
+
+    private fun preloadSellerUniversity(sellerId: String) {
+        if (sellerId.isBlank() || sellerId in loadingSellerUniversityIds || sellerUniversityCache.containsKey(sellerId)) {
+            return
+        }
+
+        loadingSellerUniversityIds += sellerId
+        viewModelScope.launch {
+            val university = getUserUniversityByIdUseCase(sellerId)
+                .getOrNull()
+                .orEmpty()
+                .trim()
+            sellerUniversityCache[sellerId] = university
+            loadingSellerUniversityIds -= sellerId
+            _uiState.value = updateFilteredProducts(_uiState.value)
         }
     }
 
