@@ -59,6 +59,7 @@
     <string name="profile_wallet">Ví của tôi</string>
     <string name="profile_saved_items">Đã lưu</string>
     <string name="profile_payment_methods">Phương thức thanh toán</string>
+    <string name="profile_change_university">Thay đổi trường đại học</string>
     <string name="profile_account_settings">Cài đặt tài khoản</string>
     <string name="profile_log_out">Đăng xuất</string>
 
@@ -268,6 +269,8 @@
     <string name="auth_confirm_password_placeholder">Nhập lại mật khẩu</string>
     <string name="auth_full_name">Họ và tên</string>
     <string name="auth_full_name_placeholder">Tên hiển thị của bạn</string>
+    <string name="auth_phone_number">Số điện thoại</string>
+    <string name="auth_phone_number_placeholder">+84901234567</string>
     <string name="auth_remember_me">Ghi nhớ tôi</string>
     <string name="auth_forgot_password">Quên mật khẩu?</string>
     <string name="auth_login">Đăng nhập</string>
@@ -285,12 +288,23 @@
     <string name="auth_error_enter_password">Vui lòng nhập mật khẩu</string>
     <string name="auth_error_confirm_password">Vui lòng xác nhận mật khẩu</string>
     <string name="auth_error_passwords_mismatch">Mật khẩu xác nhận không khớp</string>
+    <string name="auth_error_enter_phone_number">Vui lòng nhập số điện thoại</string>
     <string name="auth_error_enter_university">Vui lòng nhập tên trường đại học</string>
     <string name="auth_error_select_university_from_list">Vui lòng chọn trường đại học trong danh sách gợi ý</string>
     <string name="auth_university_dialog_title">Trường đại học đang theo học</string>
     <string name="auth_university_label">Tên trường đại học</string>
     <string name="auth_university_placeholder">Nhập tên trường đại học của bạn</string>
     <string name="auth_toggle_password_visibility">Bật tắt hiển thị mật khẩu</string>
+    <string name="auth_phone_setup_title">Số điện thoại của bạn là gì?</string>
+    <string name="auth_phone_setup_subtitle">Chúng tôi sẽ gửi mã xác thực để bảo vệ tài khoản của bạn.</string>
+    <string name="auth_send_verification_code">Gửi mã xác thực</string>
+    <string name="auth_verify_number_title">Xác thực số điện thoại</string>
+    <string name="auth_verify_number_subtitle">Chúng tôi đã gửi mã xác thực tới %1$s</string>
+    <string name="auth_verification_code">Mã xác thực</string>
+    <string name="auth_verification_code_placeholder">Nhập mã 6 số</string>
+    <string name="auth_did_not_receive_code">Không nhận được mã?</string>
+    <string name="auth_resend_code">Gửi lại</string>
+    <string name="auth_verify">Xác thực</string>
 
     <string name="home_recommended_for_you">Gợi ý cho bạn</string>
     <string name="home_search_placeholder">Tìm ưu đãi trong trường</string>

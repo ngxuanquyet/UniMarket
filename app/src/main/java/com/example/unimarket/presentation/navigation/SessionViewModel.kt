@@ -30,6 +30,7 @@ data class SessionUiState(
     val unreadMessageCount: Int = 0,
     val isAccountLocked: Boolean = false,
     val isUniversityRequired: Boolean = false,
+    val isPhoneRequired: Boolean = false,
     val isUpdatingUniversity: Boolean = false
 )
 
@@ -48,7 +49,11 @@ class SessionViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(
         SessionUiState(
             isAuthenticated = (getCachedUserUseCase()?.isLock != true) &&
-                (getCachedUserUseCase() != null || getCurrentUserUseCase().isVerifiedSessionUser())
+                (getCachedUserUseCase() != null || getCurrentUserUseCase().isVerifiedSessionUser()),
+            isPhoneRequired = isPhoneSetupRequired(
+                cachedUser = getCachedUserUseCase(),
+                currentUser = getCurrentUserUseCase() as? FirebaseUser
+            )
         )
     )
     val uiState: StateFlow<SessionUiState> = _uiState.asStateFlow()
@@ -67,12 +72,17 @@ class SessionViewModel @Inject constructor(
                 val isLocked = cachedUser?.isLock == true
                 val isAuthenticated =
                     !isLocked && (cachedUser != null || getCurrentUserUseCase().isVerifiedSessionUser())
+                val isPhoneRequired = isPhoneSetupRequired(
+                    cachedUser = cachedUser,
+                    currentUser = getCurrentUserUseCase() as? FirebaseUser
+                )
                 _uiState.update { currentState ->
                     currentState.copy(
                         isAuthenticated = isAuthenticated,
                         unreadMessageCount = if (isAuthenticated) currentState.unreadMessageCount else 0,
                         isAccountLocked = currentState.isAccountLocked || isLocked,
-                        isUniversityRequired = isAuthenticated && cachedUser != null && cachedUser.university.isBlank()
+                        isUniversityRequired = isAuthenticated && cachedUser != null && cachedUser.university.isBlank(),
+                        isPhoneRequired = isAuthenticated && isPhoneRequired
                     )
                 }
                 if (isLocked) {
@@ -170,6 +180,14 @@ class SessionViewModel @Inject constructor(
     private companion object {
         const val TAG = "SessionViewModel"
     }
+}
+
+private fun isPhoneSetupRequired(cachedUser: com.example.unimarket.domain.model.UserProfile?, currentUser: FirebaseUser?): Boolean {
+    if (currentUser == null || !currentUser.isVerifiedSessionUser()) return false
+    val isGoogleLogin = currentUser.providerData.any { provider -> provider.providerId == "google.com" }
+    if (!isGoogleLogin) return false
+    if (!currentUser.phoneNumber.isNullOrBlank()) return false
+    return cachedUser?.phoneNumber.isNullOrBlank()
 }
 
 private fun Any?.isVerifiedSessionUser(): Boolean {

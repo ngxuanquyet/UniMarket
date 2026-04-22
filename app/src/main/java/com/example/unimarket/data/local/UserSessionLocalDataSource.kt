@@ -28,6 +28,7 @@ class UserSessionLocalDataSource @Inject constructor(
             .putString(KEY_DISPLAY_NAME, userProfile.displayName)
             .putString(KEY_EMAIL, userProfile.email)
             .putString(KEY_AVATAR_URL, userProfile.avatarUrl)
+            .putString(KEY_PHONE_NUMBER, userProfile.phoneNumber)
             .putString(KEY_UNIVERSITY, userProfile.university)
             .putBoolean(KEY_IS_LOCK, userProfile.isLock)
             .putString(KEY_STUDENT_ID, userProfile.studentId)
@@ -56,6 +57,7 @@ class UserSessionLocalDataSource @Inject constructor(
             displayName = sharedPreferences.getString(KEY_DISPLAY_NAME, null).orEmpty(),
             email = sharedPreferences.getString(KEY_EMAIL, null).orEmpty(),
             avatarUrl = sharedPreferences.getString(KEY_AVATAR_URL, null).orEmpty(),
+            phoneNumber = sharedPreferences.getString(KEY_PHONE_NUMBER, null).orEmpty(),
             university = sharedPreferences.getString(KEY_UNIVERSITY, null).orEmpty(),
             isLock = sharedPreferences.getBoolean(KEY_IS_LOCK, false),
             studentId = sharedPreferences.getString(KEY_STUDENT_ID, null).orEmpty(),
@@ -121,6 +123,7 @@ class UserSessionLocalDataSource @Inject constructor(
         const val KEY_DISPLAY_NAME = "display_name"
         const val KEY_EMAIL = "email"
         const val KEY_AVATAR_URL = "avatar_url"
+        const val KEY_PHONE_NUMBER = "phone_number"
         const val KEY_UNIVERSITY = "university"
         const val KEY_IS_LOCK = "is_lock"
         const val KEY_STUDENT_ID = "student_id"

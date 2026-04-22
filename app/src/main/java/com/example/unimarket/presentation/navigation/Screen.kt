@@ -17,6 +17,12 @@ sealed class Screen(val route: String) {
     object Welcome : Screen("welcome")
     object Login : Screen("login")
     object SignUp : Screen("sign_up")
+    object PhoneSetup : Screen("phone_setup")
+    object PhoneVerification : Screen("phone_verification?phone={phone}&flow={flow}") {
+        fun route(phone: String, flow: String): String {
+            return "phone_verification?phone=$phone&flow=$flow"
+        }
+    }
     object MyListings : Screen("my_listings")
     object MyPurchases : Screen("my_purchases")
     object SellerOrders : Screen("seller_orders")

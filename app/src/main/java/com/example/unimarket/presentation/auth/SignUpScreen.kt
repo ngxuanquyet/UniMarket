@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material3.AlertDialog
@@ -32,7 +33,7 @@ import com.example.unimarket.R
 
 @Composable
 fun SignUpScreen(
-    onSignUpClick: (String, String, String, String) -> Unit,
+    onSignUpClick: (String, String, String, String, String) -> Unit,
     universityOptions: List<UniversityOption>,
     onNavigateBack: () -> Unit,
     onNavigateToLogin: () -> Unit,
@@ -42,6 +43,7 @@ fun SignUpScreen(
 ) {
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
+    var phoneNumber by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var university by remember { mutableStateOf("") }
@@ -52,6 +54,7 @@ fun SignUpScreen(
     val emailFocusRequester = remember { FocusRequester() }
     val passwordFocusRequester = remember { FocusRequester() }
     val confirmPasswordFocusRequester = remember { FocusRequester() }
+    val phoneFocusRequester = remember { FocusRequester() }
     val context = LocalContext.current
 
     LaunchedEffect(errorMessage) {
@@ -101,6 +104,20 @@ fun SignUpScreen(
                 textFieldModifier = Modifier.focusRequester(emailFocusRequester),
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                     keyboardType = KeyboardType.Email
+                )
+            )
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            AuthLineField(
+                label = stringResource(R.string.auth_phone_number),
+                value = phoneNumber,
+                onValueChange = { phoneNumber = it },
+                placeholder = stringResource(R.string.auth_phone_number_placeholder),
+                leadingIcon = Icons.Default.Phone,
+                textFieldModifier = Modifier.focusRequester(phoneFocusRequester),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                    keyboardType = KeyboardType.Phone
                 )
             )
 
@@ -184,6 +201,16 @@ fun SignUpScreen(
                             return@AuthPrimaryButton
                         }
 
+                        phoneNumber.trim().isEmpty() -> {
+                            phoneFocusRequester.requestFocus()
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.auth_error_enter_phone_number),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            return@AuthPrimaryButton
+                        }
+
                         password.isBlank() -> {
                             passwordFocusRequester.requestFocus()
                             Toast.makeText(
@@ -254,7 +281,13 @@ fun SignUpScreen(
                         }
                         showUniversityDialog = false
                         university = selectedUniversity.name
-                        onSignUpClick(fullName.trim(), email.trim(), selectedUniversity.name, password)
+                        onSignUpClick(
+                            fullName.trim(),
+                            email.trim(),
+                            selectedUniversity.name,
+                            password,
+                            phoneNumber.trim()
+                        )
                     },
                     enabled = selectedUniversity != null
                 ) {

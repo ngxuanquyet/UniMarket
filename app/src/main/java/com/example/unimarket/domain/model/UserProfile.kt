@@ -5,6 +5,7 @@ data class UserProfile(
     val displayName: String,
     val email: String,
     val avatarUrl: String,
+    val phoneNumber: String = "",
     val university: String = "",
     val isLock: Boolean = false,
     val studentId: String = "",

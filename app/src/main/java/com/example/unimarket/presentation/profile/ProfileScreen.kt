@@ -37,6 +37,9 @@ import coil.request.ImageRequest
 import com.example.unimarket.R
 import com.example.unimarket.localization.LanguageManager
 import com.example.unimarket.localization.LanguageOption
+import com.example.unimarket.presentation.auth.UniversitySuggestionField
+import com.example.unimarket.presentation.auth.resolveUniversitySelection
+import com.example.unimarket.presentation.navigation.UniversityListViewModel
 import com.example.unimarket.presentation.theme.PrimaryYellowDark
 import com.example.unimarket.presentation.theme.RatingStarYellow
 
@@ -55,11 +58,15 @@ fun ProfileScreen(
 ) {
     val scrollState = rememberScrollState()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val universityListViewModel: UniversityListViewModel = hiltViewModel()
+    val universityListState by universityListViewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     var showEditNameDialog by remember { mutableStateOf(false) }
+    var showEditUniversityDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
     var newNameInput by remember { mutableStateOf("") }
+    var universityInput by remember { mutableStateOf("") }
     var currentLanguage by remember { mutableStateOf(LanguageManager.getSelectedLanguage(context)) }
 
     val launcher = rememberLauncherForActivityResult(
@@ -129,6 +136,7 @@ fun ProfileScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
                 ProfileActionsList(
+                    currentUniversity = uiState.university,
                     currentLanguage = currentLanguage,
                     onMyAddressesClick = onMyAddressesClick,
                     onMyPurchasesClick = onMyPurchasesClick,
@@ -136,6 +144,10 @@ fun ProfileScreen(
                     onPaymentMethodsClick = onPaymentMethodsClick,
                     onSellerOrdersClick = onSellerOrdersClick,
                     onStatisticsClick = onStatisticsClick,
+                    onChangeUniversityClick = {
+                        universityInput = uiState.university
+                        showEditUniversityDialog = true
+                    },
                     onLanguageClick = { showLanguageDialog = true }
                 )
 
@@ -184,6 +196,46 @@ fun ProfileScreen(
                         currentLanguage = language
                         showLanguageDialog = false
                         LanguageManager.updateLanguage(context, language)
+                    }
+                )
+            }
+
+            if (showEditUniversityDialog) {
+                val selectedUniversity = resolveUniversitySelection(
+                    options = universityListState.options,
+                    input = universityInput
+                )
+                AlertDialog(
+                    onDismissRequest = { showEditUniversityDialog = false },
+                    title = { Text(stringResource(R.string.profile_change_university)) },
+                    text = {
+                        UniversitySuggestionField(
+                            value = universityInput,
+                            onValueChange = { universityInput = it },
+                            options = universityListState.options,
+                            enabled = !uiState.isUploading
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            if (selectedUniversity == null) {
+                                android.widget.Toast.makeText(
+                                    context,
+                                    context.getString(R.string.auth_error_select_university_from_list),
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                                return@TextButton
+                            }
+                            viewModel.updateUniversity(selectedUniversity.name)
+                            showEditUniversityDialog = false
+                        }) {
+                            Text(stringResource(R.string.common_save))
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showEditUniversityDialog = false }) {
+                            Text(stringResource(R.string.common_cancel))
+                        }
                     }
                 )
             }
@@ -392,6 +444,7 @@ fun StatCard(value: String, label: String, modifier: Modifier = Modifier, showSt
 
 @Composable
 fun ProfileActionsList(
+    currentUniversity: String,
     currentLanguage: LanguageOption,
     onMyAddressesClick: () -> Unit = {},
     onMyPurchasesClick: () -> Unit = {},
@@ -399,6 +452,7 @@ fun ProfileActionsList(
     onPaymentMethodsClick: () -> Unit = {},
     onSellerOrdersClick: () -> Unit = {},
     onStatisticsClick: () -> Unit = {},
+    onChangeUniversityClick: () -> Unit = {},
     onLanguageClick: () -> Unit = {}
 ) {
     Column(modifier = Modifier.padding(horizontal = 24.dp)) {
@@ -443,6 +497,14 @@ fun ProfileActionsList(
             iconBgColor = LightBlueReviewBg,
             iconColor = BlueReview,
             onClick = onMyAddressesClick
+        )
+        ActionRowItem(
+            title = stringResource(R.string.profile_change_university),
+            subtitle = currentUniversity.ifBlank { stringResource(R.string.auth_university_placeholder) },
+            icon = Icons.Default.School,
+            iconBgColor = LightBlueReviewBg,
+            iconColor = BlueReview,
+            onClick = onChangeUniversityClick
         )
         ActionRowItem(
             title = stringResource(R.string.language_label),

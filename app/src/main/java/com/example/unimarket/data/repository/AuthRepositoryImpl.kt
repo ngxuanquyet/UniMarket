@@ -1,8 +1,11 @@
 package com.example.unimarket.data.repository
 
 import android.util.Log
-import android.net.Uri
 import androidx.core.net.toUri
+import com.example.unimarket.data.api.OtpDevApiService
+import com.example.unimarket.data.api.model.OtpDevErrorResponseDto
+import com.example.unimarket.data.api.model.OtpDevSendVerificationRequestDto
+import com.example.unimarket.data.api.model.OtpDevVerificationDataDto
 import com.example.unimarket.data.notification.FcmTokenManager
 import com.example.unimarket.domain.model.SellerPaymentMethod
 import com.example.unimarket.domain.model.SellerPaymentMethodType
@@ -21,17 +24,35 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.QuerySnapshot
 import com.google.firebase.firestore.Source
 import com.google.firebase.firestore.SetOptions
+import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.tasks.await
+import retrofit2.Response
+import com.google.gson.Gson
 import javax.inject.Inject
 
 class AuthRepositoryImpl @Inject constructor(
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
+    private val otpDevApiService: OtpDevApiService,
+    private val remoteConfig: FirebaseRemoteConfig,
     private val userSessionLocalDataSource: UserSessionLocalDataSource,
     private val fcmTokenManager: FcmTokenManager
 ) : AuthRepository {
+    private companion object {
+        const val TAG = "AuthRepositoryImpl"
+        const val USERS_COLLECTION = "users"
+        const val ADDRESSES_COLLECTION = "addresses"
+        const val PAYMENT_METHODS_FIELD = "paymentMethods"
+        const val KEY_OTP_SMS_API_KEY = "API_KEY_OTP_SMS"
+        const val KEY_OTP_CODE_LENGTH = "CODE_LENGTH"
+        const val KEY_OTP_SENDER = "SENDER"
+        const val KEY_OTP_TEMPLATE = "TEMPLATE"
+        const val DEFAULT_OTP_SENDER = "71e8a9ea-7daf-4fcc-b5d2-51d5ba57408a"
+        const val DEFAULT_OTP_TEMPLATE = "027fe998-92a5-4fd6-9b2a-83e4576ce1a9"
+        const val DEFAULT_OTP_CODE_LENGTH = 4
+    }
 
     override suspend fun login(email: String, password: String): Result<Unit> {
         return try {
@@ -54,7 +75,8 @@ class AuthRepositoryImpl @Inject constructor(
         name: String,
         email: String,
         university: String,
-        password: String
+        password: String,
+        phoneNumber: String
     ): Result<Unit> {
         return try {
             val authResult = auth.createUserWithEmailAndPassword(email, password).await()
@@ -79,6 +101,7 @@ class AuthRepositoryImpl @Inject constructor(
                         displayName = name,
                         email = email,
                         avatarUrl = profileUpdates.photoUri?.toString().orEmpty(),
+                        phoneNumber = phoneNumber.trim(),
                         university = university.trim(),
                         studentId = "",
                         boughtCount = 0,
@@ -125,6 +148,143 @@ class AuthRepositoryImpl @Inject constructor(
 
             refreshCurrentUserProfile().map { Unit }
         } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun sendPhoneVerificationCode(phoneNumber: String): Result<Unit> {
+        return try {
+            runCatching { remoteConfig.fetchAndActivate().await() }
+
+            val apiKey = remoteConfig.getString(KEY_OTP_SMS_API_KEY).trim()
+            val sender = remoteConfig.getString(KEY_OTP_SENDER).trim().ifBlank { DEFAULT_OTP_SENDER }
+            val template = remoteConfig.getString(KEY_OTP_TEMPLATE).trim().ifBlank { DEFAULT_OTP_TEMPLATE }
+            val codeLength = remoteConfig.getString(KEY_OTP_CODE_LENGTH).trim().toIntOrNull()
+                ?.coerceIn(4, 10)
+                ?: DEFAULT_OTP_CODE_LENGTH
+            val normalizedPhone = phoneNumber.toOtpDevPhone()
+
+            if (apiKey.isBlank()) {
+                return Result.failure(Exception("OTP API key is missing in Remote Config: $KEY_OTP_SMS_API_KEY"))
+            }
+            Log.d(
+                TAG,
+                "sendPhoneVerificationCode requested for ${normalizedPhone.maskForLog()}"
+            )
+            Log.d(
+                TAG,
+                "sendPhoneVerificationCode request -> endpoint=/v1/verifications, headers={X-OTP-Key=${apiKey.maskSecretForLog()}, accept=application/json, content-type=application/json}, body={data:{channel=sms,sender=$sender,phone=$normalizedPhone,template=$template,code_length=$codeLength}}"
+            )
+            val response = otpDevApiService.sendSmsVerification(
+                apiKey = apiKey,
+                body = OtpDevSendVerificationRequestDto(
+                    data = OtpDevVerificationDataDto(
+                        channel = "sms",
+                        sender = sender,
+                        phone = normalizedPhone,
+                        template = template,
+                        code_length = codeLength
+                    )
+                )
+            )
+            val body = response.body()
+            if (!response.isSuccessful || body == null) {
+                val message = response.otpDevErrorMessage()
+                    ?: "Failed to send verification code"
+                Log.e(
+                    TAG,
+                    "sendPhoneVerificationCode failed: code=${response.code()}, message=$message, rawError=${response.rawErrorBodyForLog()}"
+                )
+                return Result.failure(Exception(message))
+            }
+            Log.d(
+                TAG,
+                "sendPhoneVerificationCode success: messageId=${body.message_id}, to=${body.phone.maskForLog()}, expireDate=${body.expire_date}"
+            )
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "sendPhoneVerificationCode exception", e)
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun verifyPhoneVerificationCode(phoneNumber: String, code: String): Result<Unit> {
+        return try {
+            runCatching { remoteConfig.fetchAndActivate().await() }
+            val apiKey = remoteConfig.getString(KEY_OTP_SMS_API_KEY).trim()
+            if (apiKey.isBlank()) {
+                return Result.failure(Exception("OTP API key is missing in Remote Config: $KEY_OTP_SMS_API_KEY"))
+            }
+            val normalizedPhone = phoneNumber.toOtpDevPhone()
+            val normalizedCode = code.trim()
+            Log.d(
+                TAG,
+                "verifyPhoneVerificationCode requested for ${normalizedPhone.maskForLog()} with codeLength=${normalizedCode.length}"
+            )
+            val response = otpDevApiService.verifySmsCode(
+                apiKey = apiKey,
+                code = normalizedCode,
+                phone = normalizedPhone
+            )
+            val body = response.body()
+            if (!response.isSuccessful || body == null) {
+                val message = response.otpDevErrorMessage()
+                    ?: "Failed to verify code"
+                Log.e(
+                    TAG,
+                    "verifyPhoneVerificationCode failed: code=${response.code()}, message=$message, rawError=${response.rawErrorBodyForLog()}"
+                )
+                return Result.failure(Exception(message))
+            }
+            if (body.data.isNullOrEmpty()) {
+                Log.w(
+                    TAG,
+                    "verifyPhoneVerificationCode rejected: empty data for ${normalizedPhone.maskForLog()}"
+                )
+                return Result.failure(Exception("Invalid or expired verification code"))
+            }
+            val first = body.data.first()
+            Log.d(
+                TAG,
+                "verifyPhoneVerificationCode success: messageId=${first.message_id}, to=${first.phone.maskForLog()}, expireDate=${first.expire_date}"
+            )
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "verifyPhoneVerificationCode exception", e)
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun hasPhoneNumber(): Result<Boolean> {
+        val currentUser = auth.currentUser ?: return Result.failure(Exception("No user logged in"))
+        if (!currentUser.phoneNumber.isNullOrBlank()) return Result.success(true)
+        return try {
+            val snapshot = firestore.collection(USERS_COLLECTION)
+                .document(currentUser.uid)
+                .get()
+                .await()
+            val hasPhone = snapshot.getString("phoneNumber").orEmpty().isNotBlank()
+            Log.d(TAG, "hasPhoneNumber from firestore: $hasPhone")
+            Result.success(hasPhone)
+        } catch (e: Exception) {
+            Log.e(TAG, "hasPhoneNumber failed", e)
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun savePhoneNumber(phoneNumber: String): Result<Unit> {
+        val currentUser = auth.currentUser ?: return Result.failure(Exception("No user logged in"))
+        val normalized = phoneNumber.trim()
+        if (normalized.isBlank()) return Result.failure(Exception("Phone number is required"))
+        return try {
+            Log.d(TAG, "savePhoneNumber for user=${currentUser.uid.take(6)}*** number=${normalized.maskForLog()}")
+            firestore.collection(USERS_COLLECTION)
+                .document(currentUser.uid)
+                .set(mapOf("phoneNumber" to normalized), SetOptions.merge())
+                .await()
+            refreshCurrentUserProfile().map { Unit }
+        } catch (e: Exception) {
+            Log.e(TAG, "savePhoneNumber failed", e)
             Result.failure(e)
         }
     }
@@ -441,6 +601,9 @@ class AuthRepositoryImpl @Inject constructor(
         if (profile.studentId.isNotBlank()) {
             updateMap["studentId"] = profile.studentId
         }
+        if (profile.phoneNumber.isNotBlank()) {
+            updateMap["phoneNumber"] = profile.phoneNumber.trim()
+        }
         if (includeBoughtCount) {
             updateMap["boughtCount"] = profile.boughtCount
         }
@@ -482,13 +645,14 @@ class AuthRepositoryImpl @Inject constructor(
             displayName = displayName,
             email = getString("email").orEmpty().ifBlank { user.email.orEmpty() },
             avatarUrl = avatarUrl,
+            phoneNumber = getString("phoneNumber").orEmpty().ifBlank { user.phoneNumber.orEmpty() },
             university = getString("university").orEmpty(),
             isLock = getBoolean("isLock") ?: false,
             studentId = getString("studentId").orEmpty(),
-            boughtCount = getLong("boughtCount")?.toInt() ?: 0,
-            soldCount = getLong("soldCount")?.toInt() ?: 0,
+            boughtCount = (getLong("boughtCount")?.toInt() ?: 0).coerceAtLeast(0),
+            soldCount = (getLong("soldCount")?.toInt() ?: 0).coerceAtLeast(0),
             averageRating = getDouble("averageRating") ?: 0.0,
-            ratingCount = getLong("ratingCount")?.toInt() ?: 0,
+            ratingCount = (getLong("ratingCount")?.toInt() ?: 0).coerceAtLeast(0),
             walletBalance = getDouble("walletBalance") ?: 0.0,
             paymentMethods = toPaymentMethods()
         )
@@ -574,9 +738,62 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
-    private companion object {
-        const val USERS_COLLECTION = "users"
-        const val ADDRESSES_COLLECTION = "addresses"
-        const val PAYMENT_METHODS_FIELD = "paymentMethods"
+}
+
+private fun Response<*>.errorMessage(): String? {
+    val errorBody = runCatching { errorBody()?.string() }.getOrNull().orEmpty()
+    return when {
+        errorBody.isBlank() -> null
+        "\"error\"" in errorBody ->
+            Regex("\"error\"\\s*:\\s*\"([^\"]+)\"")
+                .find(errorBody)
+                ?.groupValues
+                ?.getOrNull(1)
+        else -> errorBody
+    }?.trim()
+}
+
+private fun Response<*>.rawErrorBodyForLog(): String {
+    return runCatching { errorBody()?.string() }.getOrNull().orEmpty().ifBlank { "<empty>" }
+}
+
+private fun Response<*>.otpDevErrorMessage(): String? {
+    val errorBody = runCatching { errorBody()?.string() }.getOrNull().orEmpty()
+    if (errorBody.isBlank()) return null
+
+    val parsed = runCatching {
+        Gson().fromJson(errorBody, OtpDevErrorResponseDto::class.java)
+    }.getOrNull()
+    val firstError = parsed?.errors?.firstOrNull()
+    val msg = firstError?.message?.trim().orEmpty()
+    val code = firstError?.code?.trim().orEmpty()
+
+    return when {
+        msg.isBlank() -> errorBody.trim()
+        code.isBlank() -> msg
+        else -> "$msg (code: $code)"
     }
+}
+
+private fun String?.maskForLog(): String {
+    val source = this.orEmpty().trim()
+    if (source.isBlank()) return "<empty>"
+    if (source.length <= 6) return "***"
+    return "${source.take(3)}***${source.takeLast(2)}"
+}
+
+private fun String.toOtpDevPhone(): String {
+    return trim()
+        .replace(" ", "")
+        .replace("-", "")
+        .replace("(", "")
+        .replace(")", "")
+        .removePrefix("+")
+}
+
+private fun String.maskSecretForLog(): String {
+    val source = trim()
+    if (source.isBlank()) return "<empty>"
+    if (source.length <= 8) return "***"
+    return "${source.take(4)}***${source.takeLast(4)}"
 }

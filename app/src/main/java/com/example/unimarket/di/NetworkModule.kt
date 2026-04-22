@@ -4,6 +4,7 @@ import com.example.unimarket.BuildConfig
 import com.example.unimarket.data.api.GeminiApiService
 import com.example.unimarket.data.api.ImageApiService
 import com.example.unimarket.data.api.NotificationApiService
+import com.example.unimarket.data.api.OtpDevApiService
 import com.example.unimarket.data.api.SepayApiService
 import dagger.Module
 import dagger.Provides
@@ -79,5 +80,16 @@ object  NetworkModule {
             .client(okHttpClient)
             .build()
             .create(SepayApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideOtpDevApiService(okHttpClient: OkHttpClient): OtpDevApiService {
+        return Retrofit.Builder()
+            .baseUrl(BuildConfig.OTP_DEV_BASE_URL)
+            .addConverterFactory(GsonConverterFactory.create())
+            .client(okHttpClient)
+            .build()
+            .create(OtpDevApiService::class.java)
     }
 }

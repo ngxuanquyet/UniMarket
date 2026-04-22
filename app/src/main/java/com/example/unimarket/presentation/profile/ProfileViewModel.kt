@@ -12,6 +12,7 @@ import com.example.unimarket.domain.usecase.auth.LogoutUseCase
 import com.example.unimarket.domain.usecase.auth.ObserveCachedUserUseCase
 import com.example.unimarket.domain.usecase.auth.RefreshCurrentUserProfileUseCase
 import com.example.unimarket.domain.usecase.auth.UpdateProfileUseCase
+import com.example.unimarket.domain.usecase.auth.UpdateUniversityUseCase
 import com.example.unimarket.domain.usecase.auth.UpdateUserAddressUseCase
 import com.example.unimarket.domain.usecase.image.UploadImageUseCase
 import com.example.unimarket.presentation.util.localizedText
@@ -27,6 +28,7 @@ class ProfileViewModel @Inject constructor(
     observeCachedUserUseCase: ObserveCachedUserUseCase,
     private val refreshCurrentUserProfileUseCase: RefreshCurrentUserProfileUseCase,
     private val updateProfileUseCase: UpdateProfileUseCase,
+    private val updateUniversityUseCase: UpdateUniversityUseCase,
     private val getUserAddressesUseCase: GetUserAddressesUseCase,
     private val addUserAddressUseCase: AddUserAddressUseCase,
     private val updateUserAddressUseCase: UpdateUserAddressUseCase,
@@ -46,6 +48,7 @@ class ProfileViewModel @Inject constructor(
                         displayName = cachedUser.displayName,
                         email = cachedUser.email,
                         avatarUrl = cachedUser.avatarUrl,
+                        university = cachedUser.university,
                         boughtCount = cachedUser.boughtCount,
                         soldCount = cachedUser.soldCount,
                         averageRating = cachedUser.averageRating,
@@ -174,6 +177,42 @@ class ProfileViewModel @Inject constructor(
                     )
                 )
             }
+        }
+    }
+
+    fun updateUniversity(university: String) {
+        val trimmedUniversity = university.trim()
+        if (trimmedUniversity.isBlank()) {
+            _uiState.value = _uiState.value.copy(
+                errorMessage = localizedText(
+                    english = "University cannot be empty",
+                    vietnamese = "Trường đại học không được để trống"
+                )
+            )
+            return
+        }
+
+        _uiState.value = _uiState.value.copy(isUploading = true, errorMessage = null)
+        viewModelScope.launch {
+            updateUniversityUseCase(trimmedUniversity)
+                .onSuccess {
+                    _uiState.value = _uiState.value.copy(
+                        isUploading = false,
+                        successMessage = localizedText(
+                            english = "University updated successfully",
+                            vietnamese = "Cập nhật trường đại học thành công"
+                        )
+                    )
+                }
+                .onFailure { error ->
+                    _uiState.value = _uiState.value.copy(
+                        isUploading = false,
+                        errorMessage = error.message ?: localizedText(
+                            english = "Failed to update university",
+                            vietnamese = "Không thể cập nhật trường đại học"
+                        )
+                    )
+                }
         }
     }
 

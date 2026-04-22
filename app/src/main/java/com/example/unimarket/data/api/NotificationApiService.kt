@@ -7,6 +7,10 @@ import com.example.unimarket.data.api.model.OrderPaymentCheckResponseDto
 import com.example.unimarket.data.api.model.OrdersResponseDto
 import com.example.unimarket.data.api.model.OrderStatusUpdateRequestDto
 import com.example.unimarket.data.api.model.OrderStatusUpdateResponseDto
+import com.example.unimarket.data.api.model.SendOtpRequestDto
+import com.example.unimarket.data.api.model.SendOtpResponseDto
+import com.example.unimarket.data.api.model.VerifyOtpRequestDto
+import com.example.unimarket.data.api.model.VerifyOtpResponseDto
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -15,6 +19,16 @@ import retrofit2.http.POST
 import retrofit2.http.Path
 
 interface NotificationApiService {
+
+    @POST("auth/otp/send")
+    suspend fun sendOtp(
+        @Body body: SendOtpRequestDto
+    ): Response<SendOtpResponseDto>
+
+    @POST("auth/otp/verify")
+    suspend fun verifyOtp(
+        @Body body: VerifyOtpRequestDto
+    ): Response<VerifyOtpResponseDto>
 
     @POST("notifications/chat")
     suspend fun notifyNewChatMessage(

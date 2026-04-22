@@ -11,7 +11,8 @@ interface AuthRepository {
         name: String,
         email: String,
         university: String,
-        password: String
+        password: String,
+        phoneNumber: String
     ): Result<Unit>
 
     suspend fun logout()
@@ -35,4 +36,8 @@ interface AuthRepository {
     suspend fun deleteUserPaymentMethod(methodId: String): Result<Unit>
 
     suspend fun signInWithGoogle(idToken: String): Result<Unit>
+    suspend fun sendPhoneVerificationCode(phoneNumber: String): Result<Unit>
+    suspend fun verifyPhoneVerificationCode(phoneNumber: String, code: String): Result<Unit>
+    suspend fun hasPhoneNumber(): Result<Boolean>
+    suspend fun savePhoneNumber(phoneNumber: String): Result<Unit>
 }

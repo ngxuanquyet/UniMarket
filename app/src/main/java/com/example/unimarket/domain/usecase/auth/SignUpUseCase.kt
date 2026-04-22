@@ -6,7 +6,13 @@ import javax.inject.Inject
 class SignUpUseCase @Inject constructor(
     private val authRepository: AuthRepository
 ) {
-    suspend operator fun invoke(name: String, email: String, university: String, password: String): Result<Unit> {
-        return authRepository.signUp(name, email, university, password)
+    suspend operator fun invoke(
+        name: String,
+        email: String,
+        university: String,
+        password: String,
+        phoneNumber: String
+    ): Result<Unit> {
+        return authRepository.signUp(name, email, university, password, phoneNumber)
     }
 }
