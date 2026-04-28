@@ -15,6 +15,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "238501484818-bfh7kj6lt1vnok9bgaj8fc3s7d3pa5o4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.unimarket",
+            "certificate_hash": "43664d95873bf0cfaa070b255b3c0449cb329cee"
+          }
+        },
+        {
           "client_id": "238501484818-mjrggolqskeebre5fbe57m5fd2sa7kel.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

@@ -43,6 +43,7 @@ class AuthRepositoryImpl @Inject constructor(
     private companion object {
         const val TAG = "AuthRepositoryImpl"
         const val USERS_COLLECTION = "users"
+        const val PHONE_NUMBERS_COLLECTION = "phoneNumbers"
         const val ADDRESSES_COLLECTION = "addresses"
         const val PAYMENT_METHODS_FIELD = "paymentMethods"
         const val KEY_OTP_SMS_API_KEY = "API_KEY_OTP_SMS"
@@ -79,6 +80,9 @@ class AuthRepositoryImpl @Inject constructor(
         phoneNumber: String
     ): Result<Unit> {
         return try {
+            val storedPhoneNumber = phoneNumber.toStoredPhoneNumber()
+            ensurePhoneNumberAvailableForCurrentUser(storedPhoneNumber)
+
             val authResult = auth.createUserWithEmailAndPassword(email, password).await()
             val user = authResult.user
 
@@ -95,25 +99,33 @@ class AuthRepositoryImpl @Inject constructor(
                 }
                 user.updateProfile(profileUpdates).await()
 
-                syncUserDocument(
-                    profile = UserProfile(
-                        id = user.uid,
-                        displayName = name,
-                        email = email,
-                        avatarUrl = profileUpdates.photoUri?.toString().orEmpty(),
-                        phoneNumber = phoneNumber.trim(),
-                        university = university.trim(),
-                        studentId = "",
-                        boughtCount = 0,
-                        soldCount = 0,
-                        averageRating = 0.0,
-                        ratingCount = 0,
-                        walletBalance = 0.0
-                    ),
-                    includeBoughtCount = true,
-                    includeSoldCount = true,
-                    includeWalletBalance = true
+                val userProfile = UserProfile(
+                    id = user.uid,
+                    displayName = name,
+                    email = email,
+                    avatarUrl = profileUpdates.photoUri?.toString().orEmpty(),
+                    phoneNumber = storedPhoneNumber,
+                    university = university.trim(),
+                    studentId = "",
+                    boughtCount = 0,
+                    soldCount = 0,
+                    averageRating = 0.0,
+                    ratingCount = 0,
+                    walletBalance = 0.0
                 )
+
+                try {
+                    syncUserDocumentWithPhoneReservation(
+                        profile = userProfile,
+                        includeBoughtCount = true,
+                        includeSoldCount = true,
+                        includeWalletBalance = true
+                    )
+                } catch (e: Exception) {
+                    runCatching { user.delete().await() }
+                    runCatching { logout() }
+                    throw e
+                }
 
                 user.sendEmailVerification().await()
             }
@@ -163,9 +175,10 @@ class AuthRepositoryImpl @Inject constructor(
                 ?.coerceIn(4, 10)
                 ?: DEFAULT_OTP_CODE_LENGTH
             val normalizedPhone = phoneNumber.toOtpDevPhone()
+            ensurePhoneNumberAvailableForCurrentUser(normalizedPhone.toStoredPhoneNumber())
 
             if (apiKey.isBlank()) {
-                return Result.failure(Exception("OTP API key is missing in Remote Config: $KEY_OTP_SMS_API_KEY"))
+                return Result.failure(Exception("Chưa cấu hình khóa gửi mã OTP"))
             }
             Log.d(
                 TAG,
@@ -189,11 +202,11 @@ class AuthRepositoryImpl @Inject constructor(
             )
             val body = response.body()
             if (!response.isSuccessful || body == null) {
-                val message = response.otpDevErrorMessage()
-                    ?: "Failed to send verification code"
+                val rawMessage = response.otpDevErrorMessage()
+                val message = "Không thể gửi mã xác thực"
                 Log.e(
                     TAG,
-                    "sendPhoneVerificationCode failed: code=${response.code()}, message=$message, rawError=${response.rawErrorBodyForLog()}"
+                    "sendPhoneVerificationCode failed: code=${response.code()}, message=$rawMessage, rawError=${response.rawErrorBodyForLog()}"
                 )
                 return Result.failure(Exception(message))
             }
@@ -213,7 +226,7 @@ class AuthRepositoryImpl @Inject constructor(
             runCatching { remoteConfig.fetchAndActivate().await() }
             val apiKey = remoteConfig.getString(KEY_OTP_SMS_API_KEY).trim()
             if (apiKey.isBlank()) {
-                return Result.failure(Exception("OTP API key is missing in Remote Config: $KEY_OTP_SMS_API_KEY"))
+                return Result.failure(Exception("Chưa cấu hình khóa gửi mã OTP"))
             }
             val normalizedPhone = phoneNumber.toOtpDevPhone()
             val normalizedCode = code.trim()
@@ -228,11 +241,11 @@ class AuthRepositoryImpl @Inject constructor(
             )
             val body = response.body()
             if (!response.isSuccessful || body == null) {
-                val message = response.otpDevErrorMessage()
-                    ?: "Failed to verify code"
+                val rawMessage = response.otpDevErrorMessage()
+                val message = "Mã xác thực không đúng hoặc đã hết hạn"
                 Log.e(
                     TAG,
-                    "verifyPhoneVerificationCode failed: code=${response.code()}, message=$message, rawError=${response.rawErrorBodyForLog()}"
+                    "verifyPhoneVerificationCode failed: code=${response.code()}, message=$rawMessage, rawError=${response.rawErrorBodyForLog()}"
                 )
                 return Result.failure(Exception(message))
             }
@@ -241,7 +254,7 @@ class AuthRepositoryImpl @Inject constructor(
                     TAG,
                     "verifyPhoneVerificationCode rejected: empty data for ${normalizedPhone.maskForLog()}"
                 )
-                return Result.failure(Exception("Invalid or expired verification code"))
+                return Result.failure(Exception("Mã xác thực không đúng hoặc đã hết hạn"))
             }
             val first = body.data.first()
             Log.d(
@@ -256,7 +269,7 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun hasPhoneNumber(): Result<Boolean> {
-        val currentUser = auth.currentUser ?: return Result.failure(Exception("No user logged in"))
+        val currentUser = auth.currentUser ?: return Result.failure(Exception("Vui lòng đăng nhập lại"))
         if (!currentUser.phoneNumber.isNullOrBlank()) return Result.success(true)
         return try {
             val snapshot = firestore.collection(USERS_COLLECTION)
@@ -273,15 +286,16 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun savePhoneNumber(phoneNumber: String): Result<Unit> {
-        val currentUser = auth.currentUser ?: return Result.failure(Exception("No user logged in"))
-        val normalized = phoneNumber.trim()
-        if (normalized.isBlank()) return Result.failure(Exception("Phone number is required"))
+        val currentUser = auth.currentUser ?: return Result.failure(Exception("Vui lòng đăng nhập lại"))
+        val normalized = phoneNumber.toStoredPhoneNumber()
+        if (normalized.isBlank()) return Result.failure(Exception("Vui lòng nhập số điện thoại"))
         return try {
             Log.d(TAG, "savePhoneNumber for user=${currentUser.uid.take(6)}*** number=${normalized.maskForLog()}")
-            firestore.collection(USERS_COLLECTION)
-                .document(currentUser.uid)
-                .set(mapOf("phoneNumber" to normalized), SetOptions.merge())
-                .await()
+            ensurePhoneNumberAvailableForCurrentUser(normalized)
+            savePhoneNumberWithReservation(
+                userId = currentUser.uid,
+                phoneNumber = normalized
+            )
             refreshCurrentUserProfile().map { Unit }
         } catch (e: Exception) {
             Log.e(TAG, "savePhoneNumber failed", e)
@@ -580,12 +594,155 @@ class AuthRepositoryImpl @Inject constructor(
     private fun addressCollection(userId: String) =
         firestore.collection(USERS_COLLECTION).document(userId).collection(ADDRESSES_COLLECTION)
 
+    private suspend fun ensurePhoneNumberAvailableForCurrentUser(phoneNumber: String) {
+        val currentUserId = auth.currentUser?.uid
+        val storedPhoneNumber = phoneNumber.toStoredPhoneNumber()
+        val legacyE164PhoneNumber = storedPhoneNumber.toE164Phone()
+        val snapshot = firestore.collection(PHONE_NUMBERS_COLLECTION)
+            .document(storedPhoneNumber.toPhoneNumberDocumentId())
+            .get()
+            .await()
+        val ownerUid = snapshot.getString("uid")
+        if (snapshot.exists() && (ownerUid.isNullOrBlank() || ownerUid != currentUserId)) {
+            throw PhoneNumberAlreadyUsedException()
+        }
+
+        val storedOwner = findOtherPhoneOwner(
+            phoneNumber = storedPhoneNumber,
+            currentUserId = currentUserId
+        )
+        val legacyOwner = if (storedOwner == null) {
+            findOtherPhoneOwner(
+                phoneNumber = legacyE164PhoneNumber,
+                currentUserId = currentUserId
+            )
+        } else {
+            null
+        }
+
+        if (storedOwner != null || legacyOwner != null) {
+            throw PhoneNumberAlreadyUsedException()
+        }
+    }
+
+    private suspend fun findOtherPhoneOwner(
+        phoneNumber: String,
+        currentUserId: String?
+    ): DocumentSnapshot? {
+        return firestore.collection(USERS_COLLECTION)
+            .whereEqualTo("phoneNumber", phoneNumber)
+            .limit(2)
+            .get()
+            .await()
+            .documents
+            .firstOrNull { it.id != currentUserId }
+    }
+
+    private suspend fun syncUserDocumentWithPhoneReservation(
+        profile: UserProfile,
+        includeBoughtCount: Boolean = false,
+        includeSoldCount: Boolean = false,
+        includeWalletBalance: Boolean = false
+    ) {
+        val normalizedPhoneNumber = profile.phoneNumber.toStoredPhoneNumber()
+        val userRef = firestore.collection(USERS_COLLECTION).document(profile.id)
+        val phoneRef = firestore.collection(PHONE_NUMBERS_COLLECTION)
+            .document(normalizedPhoneNumber.toPhoneNumberDocumentId())
+        val updateMap = buildUserUpdateMap(
+            profile = profile.copy(phoneNumber = normalizedPhoneNumber),
+            includeBoughtCount = includeBoughtCount,
+            includeSoldCount = includeSoldCount,
+            includeWalletBalance = includeWalletBalance
+        )
+
+        firestore.runTransaction { transaction ->
+            val phoneSnapshot = transaction.get(phoneRef)
+            val ownerUid = phoneSnapshot.getString("uid")
+            if (phoneSnapshot.exists() && (ownerUid.isNullOrBlank() || ownerUid != profile.id)) {
+                throw PhoneNumberAlreadyUsedException()
+            }
+
+            transaction.set(
+                phoneRef,
+                buildPhoneNumberReservationMap(
+                    userId = profile.id,
+                    phoneNumber = normalizedPhoneNumber,
+                    exists = phoneSnapshot.exists()
+                ),
+                SetOptions.merge()
+            )
+            transaction.set(userRef, updateMap, SetOptions.merge())
+            null
+        }.await()
+    }
+
+    private suspend fun savePhoneNumberWithReservation(userId: String, phoneNumber: String) {
+        val userRef = firestore.collection(USERS_COLLECTION).document(userId)
+        val phoneRef = firestore.collection(PHONE_NUMBERS_COLLECTION)
+            .document(phoneNumber.toPhoneNumberDocumentId())
+
+        firestore.runTransaction { transaction ->
+            val phoneSnapshot = transaction.get(phoneRef)
+            val ownerUid = phoneSnapshot.getString("uid")
+            if (phoneSnapshot.exists() && (ownerUid.isNullOrBlank() || ownerUid != userId)) {
+                throw PhoneNumberAlreadyUsedException()
+            }
+
+            val userSnapshot = transaction.get(userRef)
+            val previousPhoneNumber = userSnapshot.getString("phoneNumber").orEmpty()
+                .toStoredPhoneNumber()
+            val previousPhoneRef = previousPhoneNumber
+                .takeIf { it.isNotBlank() && it != phoneNumber }
+                ?.let {
+                    firestore.collection(PHONE_NUMBERS_COLLECTION)
+                        .document(it.toPhoneNumberDocumentId())
+                }
+            val previousPhoneSnapshot = previousPhoneRef?.let { transaction.get(it) }
+
+            transaction.set(
+                phoneRef,
+                buildPhoneNumberReservationMap(
+                    userId = userId,
+                    phoneNumber = phoneNumber,
+                    exists = phoneSnapshot.exists()
+                ),
+                SetOptions.merge()
+            )
+            transaction.set(userRef, mapOf("phoneNumber" to phoneNumber), SetOptions.merge())
+
+            if (previousPhoneRef != null && previousPhoneSnapshot?.getString("uid") == userId) {
+                transaction.delete(previousPhoneRef)
+            }
+
+            null
+        }.await()
+    }
+
     private suspend fun syncUserDocument(
         profile: UserProfile,
         includeBoughtCount: Boolean = false,
         includeSoldCount: Boolean = false,
         includeWalletBalance: Boolean = false
     ) {
+        val updateMap = buildUserUpdateMap(
+            profile = profile,
+            includeBoughtCount = includeBoughtCount,
+            includeSoldCount = includeSoldCount,
+            includeWalletBalance = includeWalletBalance
+        )
+
+        firestore.collection(USERS_COLLECTION)
+            .document(profile.id)
+            .set(updateMap, SetOptions.merge())
+            .await()
+    }
+
+    private fun buildUserUpdateMap(
+        profile: UserProfile,
+        includeBoughtCount: Boolean = false,
+        includeSoldCount: Boolean = false,
+        includeWalletBalance: Boolean = false
+    ): MutableMap<String, Any> {
         val updateMap = mutableMapOf<String, Any>(
             "displayName" to profile.displayName,
             "name" to profile.displayName,
@@ -602,7 +759,7 @@ class AuthRepositoryImpl @Inject constructor(
             updateMap["studentId"] = profile.studentId
         }
         if (profile.phoneNumber.isNotBlank()) {
-            updateMap["phoneNumber"] = profile.phoneNumber.trim()
+            updateMap["phoneNumber"] = profile.phoneNumber.toStoredPhoneNumber()
         }
         if (includeBoughtCount) {
             updateMap["boughtCount"] = profile.boughtCount
@@ -614,10 +771,22 @@ class AuthRepositoryImpl @Inject constructor(
             updateMap["walletBalance"] = profile.walletBalance
         }
 
-        firestore.collection(USERS_COLLECTION)
-            .document(profile.id)
-            .set(updateMap, SetOptions.merge())
-            .await()
+        return updateMap
+    }
+
+    private fun buildPhoneNumberReservationMap(
+        userId: String,
+        phoneNumber: String,
+        exists: Boolean
+    ): Map<String, Any> {
+        return buildMap {
+            put("uid", userId)
+            put("phoneNumber", phoneNumber)
+            put("updatedAt", FieldValue.serverTimestamp())
+            if (!exists) {
+                put("createdAt", FieldValue.serverTimestamp())
+            }
+        }
     }
 
     private fun shouldBackfillUserDocument(userDoc: DocumentSnapshot): Boolean {
@@ -707,7 +876,7 @@ class AuthRepositoryImpl @Inject constructor(
             label = label.trim(),
             accountName = accountName.trim(),
             accountNumber = accountNumber.trim(),
-            bankCode = bankCode.trim().lowercase(),
+            bankCode = bankCode.trim(),
             bankName = bankName.trim(),
             phoneNumber = phoneNumber.trim(),
             note = note.trim()
@@ -791,9 +960,24 @@ private fun String.toOtpDevPhone(): String {
         .removePrefix("+")
 }
 
+private fun String.toE164Phone(): String {
+    val digits = trim().removePrefix("+")
+    return if (digits.isBlank()) "" else "+$digits"
+}
+
+private fun String.toStoredPhoneNumber(): String {
+    return toOtpDevPhone()
+}
+
+private fun String.toPhoneNumberDocumentId(): String {
+    return "e164_${toOtpDevPhone()}"
+}
+
 private fun String.maskSecretForLog(): String {
     val source = trim()
     if (source.isBlank()) return "<empty>"
     if (source.length <= 8) return "***"
     return "${source.take(4)}***${source.takeLast(4)}"
 }
+
+private class PhoneNumberAlreadyUsedException : Exception("Số điện thoại này đã được sử dụng")

@@ -6,6 +6,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
@@ -27,9 +28,8 @@ import com.example.unimarket.presentation.auth.AuthViewModel
 import com.example.unimarket.presentation.auth.LoginScreen
 import com.example.unimarket.presentation.auth.PhoneNumberSetupScreen
 import com.example.unimarket.presentation.auth.PhoneVerificationScreen
-import com.example.unimarket.presentation.auth.resolveUniversitySelection
 import com.example.unimarket.presentation.auth.SignUpScreen
-import com.example.unimarket.presentation.auth.UniversitySuggestionField
+import com.example.unimarket.presentation.auth.UniversitySelectionDialog
 import com.example.unimarket.presentation.auth.WelcomeScreen
 import com.example.unimarket.presentation.auth.state.AuthState
 import com.example.unimarket.presentation.auth.state.PhoneVerificationFlow
@@ -47,7 +47,12 @@ fun RootNavGraph(
     val sessionState = sessionViewModel.uiState.collectAsStateWithLifecycle()
     val universityListState = universityListViewModel.uiState.collectAsStateWithLifecycle()
     val currentBackStackEntry = navController.currentBackStackEntryAsState()
+    val isOnPhoneVerificationRoute =
+        currentBackStackEntry.value?.destination?.hierarchy?.any { destination ->
+            Screen.PhoneVerification.matches(destination.route)
+        } == true
     var universityInput by remember { mutableStateOf("") }
+    var holdPhoneVerificationRedirect by rememberSaveable { mutableStateOf(false) }
 
     val startDestination = if (sessionState.value.isAuthenticated && !sessionState.value.isPhoneRequired) {
         Screen.MainGraph.route
@@ -55,12 +60,24 @@ fun RootNavGraph(
         Screen.AuthGraph.route
     }
 
-    LaunchedEffect(sessionState.value.isAuthenticated, currentBackStackEntry.value) {
+    LaunchedEffect(
+        sessionState.value.isAuthenticated,
+        sessionState.value.isPhoneRequired,
+        currentBackStackEntry.value
+    ) {
         val currentDestination = currentBackStackEntry.value?.destination ?: return@LaunchedEffect
         val targetRoute = if (sessionState.value.isAuthenticated && !sessionState.value.isPhoneRequired) {
             Screen.MainGraph.route
         } else {
             Screen.AuthGraph.route
+        }
+        val shouldHoldPhoneVerificationSuccess =
+            sessionState.value.isAuthenticated &&
+                !sessionState.value.isPhoneRequired &&
+                holdPhoneVerificationRedirect
+
+        if (shouldHoldPhoneVerificationSuccess) {
+            return@LaunchedEffect
         }
 
         val isAlreadyOnTarget = currentDestination.hierarchy.any { it.route == targetRoute }
@@ -219,32 +236,66 @@ fun RootNavGraph(
                 val phone = Uri.decode(encodedPhone)
                 val flow = runCatching { PhoneVerificationFlow.valueOf(flowName) }
                     .getOrDefault(PhoneVerificationFlow.SIGN_UP)
+                var showVerificationSuccessDialog by rememberSaveable(encodedPhone, flowName) {
+                    mutableStateOf(false)
+                }
+                var verificationSuccessHandled by rememberSaveable(encodedPhone, flowName) {
+                    mutableStateOf(false)
+                }
+
+                LaunchedEffect(Unit) {
+                    holdPhoneVerificationRedirect = true
+                }
 
                 LaunchedEffect(authState.value) {
-                    val state = authState.value as? AuthState.Success ?: return@LaunchedEffect
-                    if (flow == PhoneVerificationFlow.SIGN_UP) {
-                        if (!state.message.isNullOrBlank()) {
-                            android.widget.Toast.makeText(
-                                context,
-                                state.message,
-                                android.widget.Toast.LENGTH_LONG
-                            ).show()
-                        }
-                        navController.navigate(Screen.Login.route) {
-                            popUpTo(Screen.Welcome.route) { inclusive = false }
-                            launchSingleTop = true
+                    authState.value as? AuthState.Success ?: return@LaunchedEffect
+                    verificationSuccessHandled = false
+                    showVerificationSuccessDialog = true
+                }
+
+                val handleVerificationSuccessContinue = {
+                    if (!verificationSuccessHandled) {
+                        verificationSuccessHandled = true
+                        showVerificationSuccessDialog = false
+                        holdPhoneVerificationRedirect = false
+                        viewModel.resetState()
+
+                        if (flow == PhoneVerificationFlow.SIGN_UP) {
+                            navController.navigate(Screen.Login.route) {
+                                popUpTo(Screen.AuthGraph.route) { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        } else {
+                            navController.navigate(Screen.MainGraph.route) {
+                                popUpTo(0) { inclusive = true }
+                                launchSingleTop = true
+                            }
                         }
                     }
-                    viewModel.resetState()
                 }
 
                 PhoneVerificationScreen(
                     phoneNumber = phone,
                     onVerifyClick = { code -> viewModel.verifyPhoneCode(code) },
                     onResendCodeClick = { viewModel.resendPhoneCode() },
-                    onNavigateBack = { navController.navigateUp() },
+                    onNavigateBack = {
+                        holdPhoneVerificationRedirect = false
+                        navController.navigateUp()
+                    },
                     isLoading = authState.value is AuthState.Loading,
-                    errorMessage = (authState.value as? AuthState.Error)?.message
+                    errorMessage = (authState.value as? AuthState.Error)?.message,
+                    showSuccessDialog = showVerificationSuccessDialog,
+                    successDialogMessage = if (flow == PhoneVerificationFlow.SIGN_UP) {
+                        stringResource(R.string.auth_verification_signup_success_message)
+                    } else {
+                        stringResource(R.string.auth_verification_success_message)
+                    },
+                    successDialogAction = if (flow == PhoneVerificationFlow.SIGN_UP) {
+                        stringResource(R.string.auth_continue_to_login)
+                    } else {
+                        stringResource(R.string.auth_continue_to_home)
+                    },
+                    onSuccessDialogContinue = handleVerificationSuccessContinue
                 )
             }
         }
@@ -271,40 +322,29 @@ fun RootNavGraph(
         )
     }
 
-    if (sessionState.value.isAuthenticated && sessionState.value.isUniversityRequired) {
-        val selectedUniversity = resolveUniversitySelection(
+    if (
+        sessionState.value.isAuthenticated &&
+        !sessionState.value.isPhoneRequired &&
+        !isOnPhoneVerificationRoute &&
+        sessionState.value.isUniversityRequired
+    ) {
+        UniversitySelectionDialog(
+            title = stringResource(R.string.auth_university_dialog_title),
+            value = universityInput,
+            onValueChange = { universityInput = it },
             options = universityListState.value.options,
-            input = universityInput
-        )
-        AlertDialog(
-            onDismissRequest = {},
-            title = { Text(text = stringResource(R.string.auth_university_dialog_title)) },
-            text = {
-                UniversitySuggestionField(
-                    value = universityInput,
-                    onValueChange = { universityInput = it },
-                    options = universityListState.value.options,
-                    enabled = !sessionState.value.isUpdatingUniversity,
-                )
+            enabled = !sessionState.value.isUpdatingUniversity,
+            showDismissButton = false,
+            onInvalidSelection = {
+                android.widget.Toast.makeText(
+                    context,
+                    context.getString(R.string.auth_error_select_university_from_list),
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
             },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        if (selectedUniversity == null) {
-                            android.widget.Toast.makeText(
-                                context,
-                                context.getString(R.string.auth_error_select_university_from_list),
-                                android.widget.Toast.LENGTH_SHORT
-                            ).show()
-                            return@TextButton
-                        }
-                        sessionViewModel.updateUniversity(selectedUniversity.name)
-                        universityInput = ""
-                    },
-                    enabled = selectedUniversity != null && !sessionState.value.isUpdatingUniversity
-                ) {
-                    Text(text = stringResource(R.string.common_save))
-                }
+            onConfirm = { selectedUniversity ->
+                sessionViewModel.updateUniversity(selectedUniversity.name)
+                universityInput = ""
             }
         )
     }

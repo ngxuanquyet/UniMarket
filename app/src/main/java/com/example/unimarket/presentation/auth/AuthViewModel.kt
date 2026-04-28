@@ -98,7 +98,7 @@ class AuthViewModel @Inject constructor(
         val normalizedPhoneNumber = normalizePhoneNumber(phoneNumber)
         if (normalizedPhoneNumber == null) {
             _authState.value =
-                AuthState.Error("Phone number must be in E.164 format, e.g. +84901234567")
+                AuthState.Error("Số điện thoại không hợp lệ. Vui lòng nhập ví dụ: 0901234567 hoặc +84901234567")
             return
         }
 
@@ -129,7 +129,7 @@ class AuthViewModel @Inject constructor(
                 }
                 .onFailure { error ->
                     Log.e(TAG, "signUp failed to send otp: ${error.message}", error)
-                    _authState.value = AuthState.Error(error.message ?: "Failed to send verification code")
+                    _authState.value = AuthState.Error(error.message ?: "Không thể gửi mã xác thực")
                 }
         }
     }
@@ -176,7 +176,7 @@ class AuthViewModel @Inject constructor(
         val normalizedPhoneNumber = normalizePhoneNumber(phoneNumber)
         if (normalizedPhoneNumber == null) {
             _authState.value =
-                AuthState.Error("Phone number must be in E.164 format, e.g. +84901234567")
+                AuthState.Error("Số điện thoại không hợp lệ. Vui lòng nhập ví dụ: 0901234567 hoặc +84901234567")
             return
         }
 
@@ -198,7 +198,7 @@ class AuthViewModel @Inject constructor(
                 .onFailure { error ->
                     Log.e(TAG, "requestGooglePhoneVerification failed: ${error.message}", error)
                     _authState.value =
-                        AuthState.Error(error.message ?: "Failed to send verification code")
+                        AuthState.Error(error.message ?: "Không thể gửi mã xác thực")
                 }
         }
     }
@@ -206,12 +206,12 @@ class AuthViewModel @Inject constructor(
     fun verifyPhoneCode(code: String) {
         val verificationContext = pendingVerificationContext
         if (verificationContext == null) {
-            _authState.value = AuthState.Error("Verification session not found")
+            _authState.value = AuthState.Error("Phiên xác thực không còn hiệu lực. Vui lòng gửi lại mã")
             return
         }
         val normalizedCode = code.trim()
         if (!normalizedCode.matches(Regex("^\\d{4}$"))) {
-            _authState.value = AuthState.Error("Please enter a valid verification code")
+            _authState.value = AuthState.Error("Vui lòng nhập mã xác thực 4 số")
             return
         }
 
@@ -230,7 +230,7 @@ class AuthViewModel @Inject constructor(
                 }
                 .onFailure { error ->
                     Log.e(TAG, "verifyPhoneCode failed: ${error.message}", error)
-                    _authState.value = AuthState.Error(error.message ?: "Verification failed")
+                    _authState.value = AuthState.Error(error.message ?: "Xác thực mã thất bại")
                 }
         }
     }
@@ -238,7 +238,7 @@ class AuthViewModel @Inject constructor(
     fun resendPhoneCode() {
         val verificationContext = pendingVerificationContext
         if (verificationContext == null) {
-            _authState.value = AuthState.Error("Verification session not found")
+            _authState.value = AuthState.Error("Phiên xác thực không còn hiệu lực. Vui lòng gửi lại mã")
             return
         }
 
@@ -259,7 +259,7 @@ class AuthViewModel @Inject constructor(
                 .onFailure { error ->
                     Log.e(TAG, "resendPhoneCode failed: ${error.message}", error)
                     _authState.value =
-                        AuthState.Error(error.message ?: "Failed to resend verification code")
+                        AuthState.Error(error.message ?: "Không thể gửi lại mã xác thực")
                 }
         }
     }
@@ -287,7 +287,7 @@ class AuthViewModel @Inject constructor(
     private suspend fun completeSignUpAfterPhoneVerified() {
         val payload = pendingSignUpPayload
         if (payload == null) {
-            _authState.value = AuthState.Error("Sign up data is missing")
+            _authState.value = AuthState.Error("Thông tin đăng ký không còn hiệu lực. Vui lòng đăng ký lại")
             return
         }
         signUpUseCase(
@@ -301,10 +301,10 @@ class AuthViewModel @Inject constructor(
             pendingVerificationContext = null
             Log.d(TAG, "completeSignUpAfterPhoneVerified success")
             _authState.value =
-                AuthState.Success("Verification link sent. Please check your email before logging in.")
+                AuthState.Success("Đã gửi email xác thực. Vui lòng kiểm tra email trước khi đăng nhập")
         }.onFailure { error ->
             Log.e(TAG, "completeSignUpAfterPhoneVerified failed: ${error.message}", error)
-            _authState.value = AuthState.Error(error.message ?: "Sign up failed")
+            _authState.value = AuthState.Error(error.message ?: "Đăng ký thất bại")
         }
     }
 
@@ -318,7 +318,7 @@ class AuthViewModel @Inject constructor(
             .onFailure { error ->
                 Log.e(TAG, "completeGooglePhoneSetup failed: ${error.message}", error)
                 _authState.value =
-                    AuthState.Error(error.message ?: "Failed to save phone number")
+                    AuthState.Error(error.message ?: "Không thể lưu số điện thoại")
             }
     }
 }
@@ -353,6 +353,8 @@ private fun normalizePhoneNumber(rawInput: String): String? {
                 compact.startsWith("084") -> "+84${compact.drop(3)}"
                 compact.startsWith("0") -> "+84${compact.drop(1)}"
                 compact.startsWith("84") -> "+$compact"
+                compact.length == 9 && compact.first() in VIETNAM_MOBILE_PREFIX_STARTS ->
+                    "+84$compact"
                 compact.length in 10..15 -> "+$compact"
                 else -> return null
             }
@@ -368,6 +370,8 @@ private fun normalizePhoneNumber(rawInput: String): String? {
 
     return "+$digits"
 }
+
+private val VIETNAM_MOBILE_PREFIX_STARTS = setOf('3', '5', '7', '8', '9')
 
 private fun String.maskPhoneForLog(): String {
     if (length <= 6) return "***"

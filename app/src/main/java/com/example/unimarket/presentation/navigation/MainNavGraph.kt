@@ -2,6 +2,7 @@ package com.example.unimarket.presentation.navigation
 
 import android.net.Uri
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -19,6 +20,7 @@ import com.example.unimarket.presentation.mypurchases.MyPurchasesScreen
 import com.example.unimarket.presentation.ordertracking.OrderTrackingScreen
 import com.example.unimarket.presentation.notifications.NotificationsScreen
 import com.example.unimarket.presentation.profile.MyAddressesScreen
+import com.example.unimarket.presentation.profile.PaymentMethodEditorScreen
 import com.example.unimarket.presentation.profile.PaymentMethodsScreen
 import com.example.unimarket.presentation.profile.ProfileScreen
 import com.example.unimarket.presentation.sell.SellScreen
@@ -113,7 +115,35 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
         }
         composable(Screen.PaymentMethods.route) {
             PaymentMethodsScreen(
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                onAddClick = {
+                    navController.navigate(Screen.PaymentMethodEditor.route)
+                },
+                onEditClick = { methodId ->
+                    navController.navigate(Screen.PaymentMethodEditor.route + "?methodId=${Uri.encode(methodId)}")
+                }
+            )
+        }
+        composable(
+            route = Screen.PaymentMethodEditor.route + "?methodId={methodId}",
+            arguments = listOf(
+                androidx.navigation.navArgument("methodId") {
+                    type = androidx.navigation.NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
+            val parentEntry = remember(navController) {
+                navController.getBackStackEntry(Screen.PaymentMethods.route)
+            }
+            val paymentMethodsViewModel: com.example.unimarket.presentation.profile.PaymentMethodsViewModel =
+                hiltViewModel(parentEntry)
+            PaymentMethodEditorScreen(
+                methodId = backStackEntry.arguments?.getString("methodId"),
+                viewModel = paymentMethodsViewModel,
+                onBackClick = { navController.popBackStack() },
+                onSaved = { navController.popBackStack() }
             )
         }
         composable(

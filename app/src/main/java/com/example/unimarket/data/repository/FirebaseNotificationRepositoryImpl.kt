@@ -68,6 +68,34 @@ class FirebaseNotificationRepositoryImpl @Inject constructor(
         return Result.success(merged)
     }
 
+    override suspend fun deleteNotification(notificationId: String): Result<Unit> {
+        val userId = auth.currentUser?.uid ?: return Result.failure(Exception("No user logged in"))
+        if (notificationId.isBlank()) return Result.failure(Exception("Notification id is required"))
+
+        val userScopedResult = runCatching {
+            firestore.collection("users")
+                .document(userId)
+                .collection("notifications")
+                .document(notificationId)
+                .delete()
+                .await()
+        }
+
+        val globalResult = runCatching {
+            firestore.collection("notifications")
+                .document(notificationId)
+                .delete()
+                .await()
+        }
+
+        if (userScopedResult.isSuccess || globalResult.isSuccess) {
+            return Result.success(Unit)
+        }
+
+        val error = userScopedResult.exceptionOrNull() ?: globalResult.exceptionOrNull()
+        return Result.failure(Exception(error?.message ?: "Failed to delete notification"))
+    }
+
     private fun mapNotification(document: DocumentSnapshot): AppNotification? {
         val title = document.getString("title")
             ?.trim()

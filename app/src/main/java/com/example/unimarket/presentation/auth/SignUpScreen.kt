@@ -11,9 +11,6 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -257,47 +254,30 @@ fun SignUpScreen(
     }
 
     if (showUniversityDialog) {
-        val selectedUniversity = resolveUniversitySelection(universityOptions, university)
-        AlertDialog(
-            onDismissRequest = { showUniversityDialog = false },
-            title = { Text(text = stringResource(R.string.auth_university_dialog_title)) },
-            text = {
-                UniversitySuggestionField(
-                    value = university,
-                    onValueChange = { university = it },
-                    options = universityOptions
+        UniversitySelectionDialog(
+            title = stringResource(R.string.auth_university_dialog_title),
+            value = university,
+            onValueChange = { university = it },
+            options = universityOptions,
+            enabled = !isLoading,
+            onDismiss = { showUniversityDialog = false },
+            onInvalidSelection = {
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.auth_error_select_university_from_list),
+                    Toast.LENGTH_SHORT
+                ).show()
+            },
+            onConfirm = { selectedUniversity ->
+                showUniversityDialog = false
+                university = selectedUniversity.name
+                onSignUpClick(
+                    fullName.trim(),
+                    email.trim(),
+                    selectedUniversity.name,
+                    password,
+                    phoneNumber.trim()
                 )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        if (selectedUniversity == null) {
-                            Toast.makeText(
-                                context,
-                                context.getString(R.string.auth_error_select_university_from_list),
-                                Toast.LENGTH_SHORT
-                            ).show()
-                            return@TextButton
-                        }
-                        showUniversityDialog = false
-                        university = selectedUniversity.name
-                        onSignUpClick(
-                            fullName.trim(),
-                            email.trim(),
-                            selectedUniversity.name,
-                            password,
-                            phoneNumber.trim()
-                        )
-                    },
-                    enabled = selectedUniversity != null
-                ) {
-                    Text(text = stringResource(R.string.common_save))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showUniversityDialog = false }) {
-                    Text(text = stringResource(R.string.common_cancel))
-                }
             }
         )
     }

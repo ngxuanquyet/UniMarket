@@ -87,7 +87,7 @@
     <string name="delivery_unknown">Giao nhận</string>
 
     <string name="payment_cash_on_delivery">Thanh toán khi nhận hàng</string>
-    <string name="payment_bank_transfer">Chuyển khoản ngân hàng</string>
+    <string name="payment_bank_transfer">Ngân hàng</string>
     <string name="payment_momo">MoMo</string>
     <string name="payment_wallet">Ví</string>
     <string name="payment_unknown">Thanh toán</string>
@@ -138,11 +138,13 @@
     <string name="payment_methods_bank_name">Tên ngân hàng</string>
     <string name="payment_methods_bank_code">Mã ngân hàng VietQR</string>
     <string name="payment_methods_bank_code_placeholder">Ví dụ: mbbank, acb, bidv</string>
+    <string name="payment_methods_select_bank">Chọn ngân hàng</string>
     <string name="payment_methods_phone_number">Số điện thoại</string>
     <string name="payment_methods_note">Ghi chú</string>
     <string name="payment_methods_set_default">Đặt làm phương thức mặc định</string>
     <string name="payment_methods_error_account_name">Vui lòng nhập tên chủ tài khoản.</string>
     <string name="payment_methods_error_bank_name">Vui lòng nhập tên ngân hàng.</string>
+    <string name="payment_methods_error_bank_select">Vui lòng chọn ngân hàng từ danh sách.</string>
     <string name="payment_methods_error_account_number">Vui lòng nhập số tài khoản.</string>
     <string name="payment_methods_error_phone_number">Vui lòng nhập số điện thoại.</string>
 
@@ -195,6 +197,8 @@
     <string name="explore_notifications">Thông báo</string>
     <string name="notifications_title">Thông báo</string>
     <string name="notifications_empty">Chưa có thông báo</string>
+    <string name="notifications_delete_title">Xóa thông báo?</string>
+    <string name="notifications_delete_message">Thông báo này sẽ bị xóa khỏi danh sách của bạn.</string>
     <string name="explore_search_placeholder">Tìm đồ cũ sinh viên</string>
     <string name="explore_filter_products">Lọc sản phẩm</string>
     <string name="explore_seller_matches">Người bán phù hợp</string>
@@ -295,16 +299,24 @@
     <string name="auth_university_label">Tên trường đại học</string>
     <string name="auth_university_placeholder">Nhập tên trường đại học của bạn</string>
     <string name="auth_toggle_password_visibility">Bật tắt hiển thị mật khẩu</string>
-    <string name="auth_phone_setup_title">Số điện thoại của bạn là gì?</string>
+    <string name="auth_phone_setup_title">Vui lòng xác minh số điện thoại</string>
     <string name="auth_phone_setup_subtitle">Chúng tôi sẽ gửi mã xác thực để bảo vệ tài khoản của bạn.</string>
     <string name="auth_send_verification_code">Gửi mã xác thực</string>
     <string name="auth_verify_number_title">Xác thực số điện thoại</string>
     <string name="auth_verify_number_subtitle">Chúng tôi đã gửi mã xác thực tới %1$s</string>
     <string name="auth_verification_code">Mã xác thực</string>
-    <string name="auth_verification_code_placeholder">Nhập mã 6 số</string>
+    <string name="auth_verification_code_placeholder">Nhập mã 4 số</string>
     <string name="auth_did_not_receive_code">Không nhận được mã?</string>
     <string name="auth_resend_code">Gửi lại</string>
+    <string name="auth_resend_code_countdown">Gửi lại (%1$ds)</string>
     <string name="auth_verify">Xác thực</string>
+    <string name="auth_verification_success_title">Xác thực\nthành công!</string>
+    <string name="auth_verification_success_message">Tài khoản của bạn đã được xác thực. Bạn có thể bắt đầu khám phá chợ sinh viên.</string>
+    <string name="auth_verification_signup_success_message">Số điện thoại của bạn đã được xác thực. Vui lòng kiểm tra email trước khi đăng nhập.</string>
+    <string name="auth_verified_student_account">TÀI KHOẢN SINH VIÊN ĐÃ XÁC THỰC</string>
+    <string name="auth_continue_to_home">Về trang chủ</string>
+    <string name="auth_continue_to_login">Về đăng nhập</string>
+    <string name="auth_redirecting_in_seconds">Tự chuyển sau %1$d giây...</string>
 
     <string name="home_recommended_for_you">Gợi ý cho bạn</string>
     <string name="home_search_placeholder">Tìm ưu đãi trong trường</string>

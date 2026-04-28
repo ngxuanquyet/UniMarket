@@ -16,7 +16,9 @@ import com.example.unimarket.domain.usecase.cart.RemoveFromCartUseCase
 import com.example.unimarket.domain.usecase.checkout.ConfirmBuyNowPurchaseUseCase
 import com.example.unimarket.domain.usecase.explore.GetAllProductsUseCase
 import com.example.unimarket.presentation.util.localizedText
+import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlin.math.roundToLong
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -26,9 +28,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
-private const val PLATFORM_FEE = 1500.0
+private const val DEFAULT_PLATFORM_FEE_PERCENT = 0
 private const val SHIPPING_FEE = 30000.0
 private const val TRANSFER_OPTION_ID = "transfer"
 private const val WALLET_OPTION_ID = "wallet"
@@ -54,7 +57,8 @@ data class CheckoutOrderUiState(
     val selectedSellerAddressId: String? = null,
     val selectedDeliveryMethod: DeliveryMethod? = null,
     val selectedPaymentOptionId: String = CASH_ON_DELIVERY_OPTION_ID,
-    val meetingPoint: String = ""
+    val meetingPoint: String = "",
+    val platformFeePercent: Int = DEFAULT_PLATFORM_FEE_PERCENT
 ) {
     val selectedSellerAddress: UserAddress?
         get() = sellerAddresses.firstOrNull { it.id == selectedSellerAddressId }
@@ -66,7 +70,7 @@ data class CheckoutOrderUiState(
         get() = product.price * quantity
 
     val platformFee: Double
-        get() = PLATFORM_FEE
+        get() = calculatePlatformFee(subtotal, platformFeePercent)
 
     val deliveryFee: Double
         get() = if (selectedDeliveryMethod == DeliveryMethod.SHIPPING) SHIPPING_FEE else 0.0
@@ -108,7 +112,8 @@ class CheckoutViewModel @Inject constructor(
     private val getUserPaymentMethodsUseCase: GetUserPaymentMethodsUseCase,
     private val confirmBuyNowPurchaseUseCase: ConfirmBuyNowPurchaseUseCase,
     private val refreshCurrentUserProfileUseCase: RefreshCurrentUserProfileUseCase,
-    private val removeFromCartUseCase: RemoveFromCartUseCase
+    private val removeFromCartUseCase: RemoveFromCartUseCase,
+    private val remoteConfig: FirebaseRemoteConfig
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CheckoutUiState(isLoading = true))
@@ -216,6 +221,7 @@ class CheckoutViewModel @Inject constructor(
     }
 
     private suspend fun loadCheckoutData(baseOrders: List<CheckoutOrderUiState>) {
+        val platformFeePercent = loadPlatformFeePercent()
         val profileResult = refreshCurrentUserProfileUseCase()
         val buyerResult = getUserAddressesUseCase()
         val buyerAddresses = buyerResult.getOrDefault(emptyList())
@@ -245,6 +251,7 @@ class CheckoutViewModel @Inject constructor(
                 sellerPaymentMap[order.product.userId].orEmpty()
             )
             order.copy(
+                platformFeePercent = platformFeePercent,
                 sellerAddresses = sellerAddresses,
                 availablePaymentOptions = paymentOptions,
                 selectedSellerAddressId = sellerAddresses.firstOrNull { it.isDefault }?.id
@@ -551,6 +558,22 @@ class CheckoutViewModel @Inject constructor(
             _uiEvent.emit(UiEvent.ShowSnackbar(message))
         }
     }
+
+    private suspend fun loadPlatformFeePercent(): Int {
+        runCatching { remoteConfig.fetchAndActivate().await() }
+        return remoteConfig.getLong(KEY_PLATFORM_FEE_PERCENT)
+            .coerceIn(0L, 100L)
+            .toInt()
+    }
+
+    private companion object {
+        const val KEY_PLATFORM_FEE_PERCENT = "PLATFORM_FEE"
+    }
+}
+
+private fun calculatePlatformFee(subtotal: Double, percent: Int): Double {
+    if (subtotal <= 0.0 || percent <= 0) return 0.0
+    return (subtotal * percent / 100.0).roundToLong().toDouble()
 }
 
 private fun buildPaymentOptions(methods: List<SellerPaymentMethod>): List<CheckoutPaymentOption> {

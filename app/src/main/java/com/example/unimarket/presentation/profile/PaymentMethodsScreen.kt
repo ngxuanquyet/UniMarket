@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -24,23 +26,32 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -55,9 +66,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.unimarket.R
@@ -66,19 +80,22 @@ import com.example.unimarket.domain.model.SellerPaymentMethodType
 import com.example.unimarket.presentation.theme.BackgroundLight
 import com.example.unimarket.presentation.theme.BorderLightGray
 import com.example.unimarket.presentation.theme.LightBlueReviewBg
+import com.example.unimarket.presentation.theme.RedDanger
 import com.example.unimarket.presentation.theme.SecondaryBlue
 import com.example.unimarket.presentation.theme.TextDarkBlack
+import com.example.unimarket.presentation.theme.TextGray
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PaymentMethodsScreen(
     onBackClick: () -> Unit,
+    onAddClick: () -> Unit,
+    onEditClick: (String) -> Unit,
     viewModel: PaymentMethodsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    var editingMethod by remember { mutableStateOf<SellerPaymentMethod?>(null) }
-    var showEditor by remember { mutableStateOf(false) }
     var pendingDeleteId by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(uiState.successMessage, uiState.errorMessage) {
@@ -87,21 +104,6 @@ fun PaymentMethodsScreen(
             snackbarHostState.showSnackbar(message)
             viewModel.clearMessages()
         }
-    }
-
-    if (showEditor) {
-        PaymentMethodEditorDialog(
-            initialValue = editingMethod,
-            onDismiss = {
-                showEditor = false
-                editingMethod = null
-            },
-            onSave = { method ->
-                viewModel.saveMethod(method)
-                showEditor = false
-                editingMethod = null
-            }
-        )
     }
 
     pendingDeleteId?.let { methodId ->
@@ -143,12 +145,11 @@ fun PaymentMethodsScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
         },
-        containerColor = Color.White,
+        containerColor = Color(0xFFF8FAFD),
         floatingActionButton = {
             Button(
                 onClick = {
-                    editingMethod = null
-                    showEditor = true
+                    onAddClick()
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = SecondaryBlue),
                 shape = RoundedCornerShape(20.dp)
@@ -174,10 +175,7 @@ fun PaymentMethodsScreen(
 
                 uiState.methods.isEmpty() -> {
                     EmptyPaymentMethodsState(
-                        onAddClick = {
-                            editingMethod = null
-                            showEditor = true
-                        }
+                        onAddClick = onAddClick
                     )
                 }
 
@@ -185,25 +183,25 @@ fun PaymentMethodsScreen(
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                            start = 16.dp,
-                            end = 16.dp,
-                            top = 16.dp,
+                            start = 20.dp,
+                            end = 20.dp,
+                            top = 10.dp,
                             bottom = 96.dp
                         ),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        verticalArrangement = Arrangement.spacedBy(18.dp)
                     ) {
                         item {
                             Text(
                                 text = stringResource(R.string.payment_methods_hint),
-                                color = Color.Gray
+                                color = TextGray,
+                                lineHeight = 24.sp
                             )
                         }
                         items(uiState.methods, key = { it.id.ifBlank { it.displayTitle } }) { method ->
                             PaymentMethodCard(
                                 method = method,
                                 onEdit = {
-                                    editingMethod = method
-                                    showEditor = true
+                                    onEditClick(method.id)
                                 },
                                 onDelete = {
                                     pendingDeleteId = method.id
@@ -266,75 +264,100 @@ private fun PaymentMethodCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
-    Box(
+    var menuExpanded by remember { mutableStateOf(false) }
+
+    Surface(
         modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, BorderLightGray, RoundedCornerShape(24.dp))
-            .background(BackgroundLight, RoundedCornerShape(24.dp))
-            .padding(16.dp)
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = Color.White,
+        shadowElevation = 5.dp
     ) {
-        Column {
+        Column(modifier = Modifier.padding(18.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .background(Color.White, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = when (method.type) {
-                            SellerPaymentMethodType.BANK_TRANSFER -> Icons.Default.AccountBalance
-                            SellerPaymentMethodType.MOMO -> Icons.Default.PhoneAndroid
-                            SellerPaymentMethodType.CASH_ON_DELIVERY -> Icons.Default.CreditCard
-                            SellerPaymentMethodType.WALLET -> Icons.Default.AccountBalance
-                        },
-                        contentDescription = null,
-                        tint = SecondaryBlue
-                    )
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(method.displayTitle, fontWeight = FontWeight.Bold, color = TextDarkBlack)
-                    if (method.shortSubtitle.isNotBlank()) {
-                        Text(method.shortSubtitle, color = Color.Gray)
-                    }
-                }
                 if (method.isDefault) {
-                    Text(
-                        text = stringResource(R.string.common_default),
-                        color = SecondaryBlue,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Box(
+                        modifier = Modifier
+                            .background(SecondaryBlue, RoundedCornerShape(6.dp))
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = stringResource(R.string.common_default),
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                    }
+                } else {
+                    Spacer(modifier = Modifier.height(28.dp))
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                Box {
+                    IconButton(
+                        onClick = { menuExpanded = true },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MoreHoriz,
+                            contentDescription = null,
+                            tint = Color(0xFF9AA3B2),
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.common_edit)) },
+                            leadingIcon = {
+                                Icon(Icons.Default.Edit, contentDescription = null, tint = SecondaryBlue)
+                            },
+                            onClick = {
+                                menuExpanded = false
+                                onEdit()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    stringResource(R.string.common_delete),
+                                    color = RedDanger
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Default.DeleteOutline, contentDescription = null, tint = RedDanger)
+                            },
+                            onClick = {
+                                menuExpanded = false
+                                onDelete()
+                            }
+                        )
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-            HorizontalDivider(color = BorderLightGray)
-            Spacer(modifier = Modifier.height(12.dp))
-
             when (method.type) {
                 SellerPaymentMethodType.BANK_TRANSFER -> {
-                    PaymentDetailRow(
-                        label = stringResource(R.string.payment_methods_bank_name),
-                        value = method.bankName
-                    )
                     PaymentDetailRow(
                         label = stringResource(R.string.payment_methods_account_name),
                         value = method.accountName
                     )
                     PaymentDetailRow(
-                        label = stringResource(R.string.payment_methods_account_number),
-                        value = method.accountNumber
+                        label = stringResource(R.string.payment_methods_bank_name),
+                        value = method.bankName
                     )
-                    if (method.bankCode.isNotBlank()) {
-                        PaymentDetailRow(
-                            label = stringResource(R.string.payment_methods_bank_code),
-                            value = method.bankCode
-                        )
-                    }
+                    PaymentDetailRow(
+                        label = stringResource(R.string.payment_methods_account_number),
+                        value = method.accountNumber,
+                        showDivider = false
+                    )
                 }
 
                 SellerPaymentMethodType.MOMO -> {
@@ -344,54 +367,64 @@ private fun PaymentMethodCard(
                     )
                     PaymentDetailRow(
                         label = stringResource(R.string.payment_methods_phone_number),
-                        value = method.phoneNumber
+                        value = method.phoneNumber,
+                        showDivider = false
                     )
                 }
 
                 SellerPaymentMethodType.CASH_ON_DELIVERY -> Unit
                 SellerPaymentMethodType.WALLET -> Unit
             }
-
-            if (method.note.isNotBlank()) {
-                PaymentDetailRow(
-                    label = stringResource(R.string.payment_methods_note),
-                    value = method.note
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextButton(onClick = onEdit) {
-                    Icon(Icons.Default.Edit, contentDescription = null)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(stringResource(R.string.common_edit))
-                }
-                TextButton(onClick = onDelete) {
-                    Icon(Icons.Default.DeleteOutline, contentDescription = null)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(stringResource(R.string.common_delete))
-                }
-            }
         }
     }
 }
 
 @Composable
-private fun PaymentDetailRow(label: String, value: String) {
+private fun PaymentDetailRow(
+    label: String,
+    value: String,
+    showDivider: Boolean = true
+) {
     if (value.isBlank()) return
-    Spacer(modifier = Modifier.height(6.dp))
-    Text(text = label, color = Color.Gray)
-    Text(text = value, fontWeight = FontWeight.SemiBold, color = TextDarkBlack)
+    Spacer(modifier = Modifier.height(18.dp))
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.weight(1f),
+            color = TextGray,
+            fontSize = 14.sp
+        )
+        Text(
+            text = value,
+            color = TextDarkBlack,
+            fontWeight = FontWeight.Bold,
+            fontSize = 15.sp
+        )
+    }
+    if (showDivider) {
+        Spacer(modifier = Modifier.height(14.dp))
+        HorizontalDivider(color = BorderLightGray)
+    }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun PaymentMethodEditorDialog(
-    initialValue: SellerPaymentMethod?,
-    onDismiss: () -> Unit,
-    onSave: (SellerPaymentMethod) -> Unit
+fun PaymentMethodEditorScreen(
+    methodId: String?,
+    onBackClick: () -> Unit,
+    onSaved: () -> Unit,
+    viewModel: PaymentMethodsViewModel = hiltViewModel()
 ) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val initialValue = methodId?.let { id ->
+        uiState.methods.firstOrNull { it.id == id }
+    }
+    val bankOptions = uiState.bankOptions
     var type by remember(initialValue) {
-        mutableStateOf(initialValue?.type ?: SellerPaymentMethodType.BANK_TRANSFER)
+        mutableStateOf(SellerPaymentMethodType.BANK_TRANSFER)
     }
     var label by remember(initialValue) { mutableStateOf(initialValue?.label.orEmpty()) }
     var accountName by remember(initialValue) { mutableStateOf(initialValue?.accountName.orEmpty()) }
@@ -404,106 +437,179 @@ private fun PaymentMethodEditorDialog(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val accountNameRequiredMessage = stringResource(R.string.payment_methods_error_account_name)
     val bankNameRequiredMessage = stringResource(R.string.payment_methods_error_bank_name)
+    val bankSelectRequiredMessage = stringResource(R.string.payment_methods_error_bank_select)
     val accountNumberRequiredMessage = stringResource(R.string.payment_methods_error_account_number)
     val phoneNumberRequiredMessage = stringResource(R.string.payment_methods_error_phone_number)
+    val scrollState = rememberScrollState()
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                if (initialValue == null) {
-                    stringResource(R.string.payment_methods_add_title)
-                } else {
-                    stringResource(R.string.payment_methods_edit_title)
-                }
+    fun saveDraft() {
+        val matchedBank = bankOptions.find { option ->
+            option.bankCode == bankCode ||
+                option.shortName.equals(bankName, ignoreCase = true) ||
+                option.name.equals(bankName, ignoreCase = true)
+        }
+        val draft = SellerPaymentMethod(
+            id = initialValue?.id.orEmpty(),
+            type = type,
+            label = label,
+            accountName = accountName,
+            accountNumber = accountNumber,
+            bankCode = matchedBank?.bankCode ?: bankCode,
+            bankName = matchedBank?.shortName ?: bankName,
+            phoneNumber = phoneNumber,
+            note = note,
+            isDefault = isDefault
+        )
+
+        errorMessage = when {
+            draft.accountName.isBlank() -> accountNameRequiredMessage
+            draft.type == SellerPaymentMethodType.BANK_TRANSFER && draft.bankName.isBlank() ->
+                bankNameRequiredMessage
+
+            draft.type == SellerPaymentMethodType.BANK_TRANSFER && draft.bankCode.isBlank() ->
+                bankSelectRequiredMessage
+
+            draft.type == SellerPaymentMethodType.BANK_TRANSFER && draft.accountNumber.isBlank() ->
+                accountNumberRequiredMessage
+
+            draft.type == SellerPaymentMethodType.MOMO && draft.phoneNumber.isBlank() ->
+                phoneNumberRequiredMessage
+
+            else -> null
+        }
+        if (errorMessage == null) {
+            viewModel.saveMethod(draft)
+            onSaved()
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = if (initialValue == null) {
+                            stringResource(R.string.payment_methods_add_title)
+                        } else {
+                            stringResource(R.string.payment_methods_edit_title)
+                        },
+                        color = TextDarkBlack,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp,
+                        maxLines = 1
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.common_back),
+                            tint = TextDarkBlack
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
         },
-        text = {
+        containerColor = Color.White
+    ) { paddingValues ->
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .padding(paddingValues)
+                    .padding(horizontal = 16.dp, vertical = 16.dp)
+                    .verticalScroll(scrollState)
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
-                        selected = type == SellerPaymentMethodType.BANK_TRANSFER,
-                        onClick = { type = SellerPaymentMethodType.BANK_TRANSFER },
-                        label = { Text(stringResource(R.string.payment_bank_transfer)) }
-                    )
-                    FilterChip(
-                        selected = type == SellerPaymentMethodType.MOMO,
-                        onClick = { type = SellerPaymentMethodType.MOMO },
-                        label = { Text(stringResource(R.string.payment_momo)) }
-                    )
-                }
-
-                OutlinedTextField(
-                    value = label,
-                    onValueChange = { label = it },
+                PaymentTypeButton(
+                    text = stringResource(R.string.payment_methods_select_bank),
+                    selected = true,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.payment_methods_label)) },
-                    placeholder = { Text(stringResource(R.string.payment_methods_label_placeholder)) },
-                    singleLine = true
+                    onClick = { type = SellerPaymentMethodType.BANK_TRANSFER }
                 )
 
-                OutlinedTextField(
+                Spacer(modifier = Modifier.height(24.dp))
+
+                PaymentEditorField(
+                    value = label,
+                    onValueChange = { label = it },
+                    placeholder = stringResource(R.string.payment_methods_label),
+                    leadingIcon = Icons.Default.CreditCard,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                PaymentEditorField(
                     value = accountName,
                     onValueChange = { accountName = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.payment_methods_account_name)) },
-                    singleLine = true
+                    placeholder = stringResource(R.string.payment_methods_account_name),
+                    leadingIcon = Icons.Default.Person,
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 if (type == SellerPaymentMethodType.BANK_TRANSFER) {
-                    OutlinedTextField(
+                    Spacer(modifier = Modifier.height(14.dp))
+                    BankSuggestionField(
                         value = bankName,
-                        onValueChange = { bankName = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text(stringResource(R.string.payment_methods_bank_name)) },
-                        singleLine = true
+                        bankOptions = bankOptions,
+                        onValueChange = {
+                            bankName = it
+                            bankCode = bankOptions.firstOrNull { option ->
+                                option.shortName.equals(it, ignoreCase = true) ||
+                                    option.name.equals(it, ignoreCase = true)
+                            }?.bankCode.orEmpty()
+                        },
+                        onBankSelected = { option ->
+                            bankName = option.shortName
+                            bankCode = option.bankCode
+                        },
+                        placeholder = stringResource(R.string.payment_methods_bank_name),
+                        leadingIcon = Icons.Default.AccountBalance
                     )
-                    OutlinedTextField(
+                    Spacer(modifier = Modifier.height(14.dp))
+                    PaymentEditorField(
                         value = accountNumber,
                         onValueChange = { accountNumber = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text(stringResource(R.string.payment_methods_account_number)) },
-                        singleLine = true
-                    )
-                    OutlinedTextField(
-                        value = bankCode,
-                        onValueChange = { bankCode = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text(stringResource(R.string.payment_methods_bank_code)) },
-                        placeholder = { Text(stringResource(R.string.payment_methods_bank_code_placeholder)) },
-                        singleLine = true
+                        placeholder = stringResource(R.string.payment_methods_account_number),
+                        leadingIcon = Icons.Default.CreditCard,
+                        modifier = Modifier.fillMaxWidth()
                     )
                 } else {
-                    OutlinedTextField(
+                    Spacer(modifier = Modifier.height(14.dp))
+                    PaymentEditorField(
                         value = phoneNumber,
                         onValueChange = { phoneNumber = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text(stringResource(R.string.payment_methods_phone_number)) },
-                        singleLine = true
+                        placeholder = stringResource(R.string.payment_methods_phone_number),
+                        leadingIcon = Icons.Default.PhoneAndroid,
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
 
-                OutlinedTextField(
+                Spacer(modifier = Modifier.height(14.dp))
+                PaymentEditorField(
                     value = note,
                     onValueChange = { note = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.payment_methods_note)) }
+                    placeholder = stringResource(R.string.payment_methods_note),
+                    leadingIcon = Icons.Default.Description,
+                    modifier = Modifier.fillMaxWidth()
                 )
 
+                Spacer(modifier = Modifier.height(20.dp))
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { isDefault = !isDefault },
+                        .height(48.dp)
+                        .background(Color(0xFFF5F7FC), RoundedCornerShape(10.dp))
+                        .clickable { isDefault = !isDefault }
+                        .padding(horizontal = 16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = stringResource(R.string.payment_methods_set_default),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        color = TextDarkBlack,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 13.sp
                     )
                     Switch(
                         checked = isDefault,
@@ -512,51 +618,230 @@ private fun PaymentMethodEditorDialog(
                 }
 
                 errorMessage?.let {
-                    Text(text = it, color = Color.Red)
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(text = it, color = Color.Red, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onBackClick,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = SecondaryBlue)
+                    ) {
+                        Text(stringResource(R.string.common_cancel), fontWeight = FontWeight.Bold)
+                    }
+                    Button(
+                        onClick = { saveDraft() },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0B72F0))
+                    ) {
+                        Text(stringResource(R.string.common_save), color = Color.White, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    val draft = SellerPaymentMethod(
-                        id = initialValue?.id.orEmpty(),
-                        type = type,
-                        label = label,
-                        accountName = accountName,
-                        accountNumber = accountNumber,
-                        bankCode = bankCode,
-                        bankName = bankName,
-                        phoneNumber = phoneNumber,
-                        note = note,
-                        isDefault = isDefault
-                    )
+    }
+}
 
-                    errorMessage = when {
-                        draft.accountName.isBlank() -> accountNameRequiredMessage
-                        draft.type == SellerPaymentMethodType.BANK_TRANSFER && draft.bankName.isBlank() ->
-                            bankNameRequiredMessage
+@Composable
+private fun PaymentTypeButton(
+    text: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val borderColor = if (selected) Color(0xFF0B72F0) else BorderLightGray
+    val backgroundColor = if (selected) Color.White else Color(0xFFF8FAFD)
+    val contentColor = if (selected) Color(0xFF0B72F0) else Color(0xFF8B95A7)
 
-                        draft.type == SellerPaymentMethodType.BANK_TRANSFER && draft.accountNumber.isBlank() ->
-                            accountNumberRequiredMessage
+    Row(
+        modifier = modifier
+            .height(58.dp)
+            .border(1.dp, borderColor, RoundedCornerShape(8.dp))
+            .background(backgroundColor, RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.AccountBalance,
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = text,
+            modifier = Modifier.weight(1f),
+            color = contentColor,
+            fontWeight = FontWeight.Bold,
+            fontSize = 12.sp
+        )
+        Icon(
+            imageVector = Icons.Default.KeyboardArrowDown,
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier.size(22.dp)
+        )
+    }
+}
 
-                        draft.type == SellerPaymentMethodType.MOMO && draft.phoneNumber.isBlank() ->
-                            phoneNumberRequiredMessage
+@Composable
+private fun BankSuggestionField(
+    value: String,
+    bankOptions: List<BankOption>,
+    onValueChange: (String) -> Unit,
+    onBankSelected: (BankOption) -> Unit,
+    placeholder: String,
+    leadingIcon: ImageVector
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val bringIntoViewRequester = remember { BringIntoViewRequester() }
+    val query = value.trim()
+    val suggestions = remember(query, bankOptions) {
+        if (query.length < MIN_BANK_QUERY_LENGTH) {
+            emptyList()
+        } else {
+            bankOptions.filter { option ->
+                option.shortName.contains(query, ignoreCase = true) ||
+                    option.name.contains(query, ignoreCase = true) ||
+                    option.bankCode.contains(query, ignoreCase = true)
+            }
+        }.take(12)
+    }
+    val showSuggestions = expanded && suggestions.isNotEmpty()
 
-                        else -> null
-                    }
-                    if (errorMessage == null) {
-                        onSave(draft)
-                    }
+    LaunchedEffect(showSuggestions, suggestions.size) {
+        if (showSuggestions) {
+            delay(100)
+            bringIntoViewRequester.bringIntoView()
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .bringIntoViewRequester(bringIntoViewRequester)
+    ) {
+        PaymentEditorField(
+            value = value,
+            onValueChange = {
+                onValueChange(it)
+                expanded = it.trim().length >= MIN_BANK_QUERY_LENGTH
+            },
+            placeholder = placeholder,
+            leadingIcon = leadingIcon,
+            trailingIcon = Icons.Default.KeyboardArrowDown,
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { focusState ->
+                    if (!focusState.isFocused) expanded = false
                 }
+        )
+
+        if (showSuggestions) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                color = Color.White,
+                shadowElevation = 4.dp
             ) {
-                Text(stringResource(R.string.common_save))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.common_cancel))
+                Column {
+                    suggestions.take(5).forEachIndexed { index, option ->
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onBankSelected(option)
+                                    expanded = false
+                                }
+                                .padding(horizontal = 14.dp, vertical = 10.dp)
+                        ) {
+                            Text(
+                                text = option.shortName,
+                                color = TextDarkBlack,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                            if (option.name.isNotBlank()) {
+                                Text(
+                                    text = option.name,
+                                    color = TextGray,
+                                    fontSize = 12.sp,
+                                    lineHeight = 16.sp
+                                )
+                            }
+                        }
+                        if (index < suggestions.take(5).lastIndex) {
+                            HorizontalDivider(color = BorderLightGray)
+                        }
+                    }
+                }
             }
         }
+    }
+}
+
+private const val MIN_BANK_QUERY_LENGTH = 2
+
+@Composable
+private fun PaymentEditorField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    leadingIcon: ImageVector,
+    trailingIcon: ImageVector? = null,
+    modifier: Modifier = Modifier
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier
+            .fillMaxWidth()
+            .height(58.dp),
+        placeholder = {
+            Text(
+                text = placeholder,
+                color = Color(0xFF98A1B2),
+                fontSize = 14.sp
+            )
+        },
+        leadingIcon = {
+            Icon(
+                imageVector = leadingIcon,
+                contentDescription = null,
+                tint = Color(0xFF98A1B2),
+                modifier = Modifier.size(20.dp)
+            )
+        },
+        trailingIcon = trailingIcon?.let { icon ->
+            {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = Color(0xFF98A1B2),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        },
+        singleLine = true,
+        shape = RoundedCornerShape(10.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = Color(0xFF0B72F0),
+            unfocusedBorderColor = BorderLightGray,
+            focusedContainerColor = Color.White,
+            unfocusedContainerColor = Color.White,
+            cursorColor = Color(0xFF0B72F0)
+        )
     )
 }

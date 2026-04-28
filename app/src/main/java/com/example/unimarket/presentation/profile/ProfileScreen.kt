@@ -37,8 +37,7 @@ import coil.request.ImageRequest
 import com.example.unimarket.R
 import com.example.unimarket.localization.LanguageManager
 import com.example.unimarket.localization.LanguageOption
-import com.example.unimarket.presentation.auth.UniversitySuggestionField
-import com.example.unimarket.presentation.auth.resolveUniversitySelection
+import com.example.unimarket.presentation.auth.UniversitySelectionDialog
 import com.example.unimarket.presentation.navigation.UniversityListViewModel
 import com.example.unimarket.presentation.theme.PrimaryYellowDark
 import com.example.unimarket.presentation.theme.RatingStarYellow
@@ -201,41 +200,23 @@ fun ProfileScreen(
             }
 
             if (showEditUniversityDialog) {
-                val selectedUniversity = resolveUniversitySelection(
+                UniversitySelectionDialog(
+                    title = stringResource(R.string.profile_change_university),
+                    value = universityInput,
+                    onValueChange = { universityInput = it },
                     options = universityListState.options,
-                    input = universityInput
-                )
-                AlertDialog(
-                    onDismissRequest = { showEditUniversityDialog = false },
-                    title = { Text(stringResource(R.string.profile_change_university)) },
-                    text = {
-                        UniversitySuggestionField(
-                            value = universityInput,
-                            onValueChange = { universityInput = it },
-                            options = universityListState.options,
-                            enabled = !uiState.isUploading
-                        )
+                    enabled = !uiState.isUploading,
+                    onDismiss = { showEditUniversityDialog = false },
+                    onInvalidSelection = {
+                        android.widget.Toast.makeText(
+                            context,
+                            context.getString(R.string.auth_error_select_university_from_list),
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
                     },
-                    confirmButton = {
-                        TextButton(onClick = {
-                            if (selectedUniversity == null) {
-                                android.widget.Toast.makeText(
-                                    context,
-                                    context.getString(R.string.auth_error_select_university_from_list),
-                                    android.widget.Toast.LENGTH_SHORT
-                                ).show()
-                                return@TextButton
-                            }
-                            viewModel.updateUniversity(selectedUniversity.name)
-                            showEditUniversityDialog = false
-                        }) {
-                            Text(stringResource(R.string.common_save))
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showEditUniversityDialog = false }) {
-                            Text(stringResource(R.string.common_cancel))
-                        }
+                    onConfirm = { selectedUniversity ->
+                        viewModel.updateUniversity(selectedUniversity.name)
+                        showEditUniversityDialog = false
                     }
                 )
             }

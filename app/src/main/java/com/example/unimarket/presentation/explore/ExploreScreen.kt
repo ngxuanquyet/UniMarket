@@ -39,7 +39,6 @@ import androidx.compose.foundation.verticalScroll
 import com.example.unimarket.R
 import com.example.unimarket.presentation.auth.UniversityOption
 import com.example.unimarket.presentation.auth.UniversitySuggestionField
-import com.example.unimarket.domain.model.DeliveryMethod
 import coil.compose.rememberAsyncImagePainter
 import com.example.unimarket.presentation.navigation.UniversityListViewModel
 import com.example.unimarket.presentation.theme.PrimaryYellowDark
@@ -47,7 +46,6 @@ import com.example.unimarket.presentation.theme.SecondaryBlue
 import com.example.unimarket.presentation.util.formatVnd
 import com.example.unimarket.presentation.util.localizedCategoryLabel
 import com.example.unimarket.presentation.util.localizedConditionLabel
-import com.example.unimarket.presentation.util.localizedTitle
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 
@@ -140,9 +138,9 @@ fun ExploreScreen(
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                contentPadding = PaddingValues(start = 4.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     OutlinedTextField(
@@ -542,6 +540,10 @@ fun ExploreProductCard(
     product: com.example.unimarket.domain.model.Product,
     onClick: () -> Unit = {}
 ) {
+    val displayAddress = product.location.takeIf { it.isNotBlank() }
+        ?: product.sellerPickupAddress?.addressLine?.takeIf { it.isNotBlank() }
+        ?: stringResource(R.string.product_default_location)
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -594,7 +596,8 @@ fun ExploreProductCard(
                 text = formatVnd(product.price),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                fontSize = 18.sp
+                fontSize = 18.sp,
+                color = SecondaryBlue
             )
             
             Spacer(modifier = Modifier.height(4.dp))
@@ -617,35 +620,26 @@ fun ExploreProductCard(
                 overflow = TextOverflow.Ellipsis
             )
 
-            if (product.deliveryMethodsAvailable.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                DeliveryMethodSummaryChips(product.deliveryMethodsAvailable)
-            }
-        }
-    }
-}
-
-@Composable
-private fun DeliveryMethodSummaryChips(methods: List<DeliveryMethod>) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        methods.take(2).chunked(2).forEach { rowItems ->
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                rowItems.forEach { method ->
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(10.dp))
-                        .background(MessageBg)
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = method.localizedTitle(),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = SecondaryBlue,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.LocationOn,
+                    contentDescription = null,
+                    tint = Color.Gray,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = displayAddress,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.Gray,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
     }

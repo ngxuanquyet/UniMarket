@@ -3,6 +3,7 @@ package com.example.unimarket.presentation.notifications
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.unimarket.domain.model.AppNotification
+import com.example.unimarket.domain.usecase.notification.DeleteNotificationUseCase
 import com.example.unimarket.domain.usecase.notification.GetNotificationsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -20,7 +21,8 @@ data class NotificationsUiState(
 
 @HiltViewModel
 class NotificationsViewModel @Inject constructor(
-    private val getNotificationsUseCase: GetNotificationsUseCase
+    private val getNotificationsUseCase: GetNotificationsUseCase,
+    private val deleteNotificationUseCase: DeleteNotificationUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(NotificationsUiState())
@@ -40,6 +42,27 @@ class NotificationsViewModel @Inject constructor(
                     notifications = result.getOrDefault(emptyList()),
                     errorMessage = result.exceptionOrNull()?.message
                 )
+            }
+        }
+    }
+
+    fun deleteNotification(notificationId: String) {
+        viewModelScope.launch {
+            val currentNotifications = _uiState.value.notifications
+            _uiState.update {
+                it.copy(
+                    notifications = it.notifications.filterNot { notification -> notification.id == notificationId },
+                    errorMessage = null
+                )
+            }
+
+            deleteNotificationUseCase(notificationId).onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        notifications = currentNotifications,
+                        errorMessage = error.message
+                    )
+                }
             }
         }
     }

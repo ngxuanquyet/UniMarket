@@ -44,7 +44,8 @@ fun PhoneNumberSetupScreen(
     AuthPatternScreen(
         patternResId = R.drawable.signup_parttern,
         headerHeight = 286,
-        topSpacing = 158
+        contentBelowHeader = true,
+        contentTopPadding = 16
     ) {
         Column(
             modifier = Modifier

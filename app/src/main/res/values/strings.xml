@@ -138,11 +138,13 @@
     <string name="payment_methods_bank_name">Bank name</string>
     <string name="payment_methods_bank_code">VietQR bank code</string>
     <string name="payment_methods_bank_code_placeholder">e.g. mbbank, acb, bidv</string>
+    <string name="payment_methods_select_bank">Select bank</string>
     <string name="payment_methods_phone_number">Phone number</string>
     <string name="payment_methods_note">Note</string>
     <string name="payment_methods_set_default">Set as default payment method</string>
     <string name="payment_methods_error_account_name">Account holder is required.</string>
     <string name="payment_methods_error_bank_name">Bank name is required.</string>
+    <string name="payment_methods_error_bank_select">Please select a bank from the list.</string>
     <string name="payment_methods_error_account_number">Account number is required.</string>
     <string name="payment_methods_error_phone_number">Phone number is required.</string>
 
@@ -195,6 +197,8 @@
     <string name="explore_notifications">Notifications</string>
     <string name="notifications_title">Notifications</string>
     <string name="notifications_empty">No notifications yet</string>
+    <string name="notifications_delete_title">Delete notification?</string>
+    <string name="notifications_delete_message">This notification will be removed from your list.</string>
     <string name="explore_search_placeholder">Find second-hand items</string>
     <string name="explore_filter_products">Filter products</string>
     <string name="explore_seller_matches">Seller matches</string>
@@ -304,7 +308,15 @@
     <string name="auth_verification_code_placeholder">Enter 6-digit code</string>
     <string name="auth_did_not_receive_code">Didn\'t receive a code?</string>
     <string name="auth_resend_code">Resend</string>
+    <string name="auth_resend_code_countdown">Resend (%1$ds)</string>
     <string name="auth_verify">Verify</string>
+    <string name="auth_verification_success_title">Verification\nSuccessful!</string>
+    <string name="auth_verification_success_message">Your account has been verified. You can now start exploring the campus marketplace.</string>
+    <string name="auth_verification_signup_success_message">Your phone number has been verified. Please check your email before logging in.</string>
+    <string name="auth_verified_student_account">VERIFIED STUDENT ACCOUNT</string>
+    <string name="auth_continue_to_home">Continue to Home</string>
+    <string name="auth_continue_to_login">Continue to Login</string>
+    <string name="auth_redirecting_in_seconds">Redirecting in %1$d seconds...</string>
 
     <string name="home_recommended_for_you">Recommended for you</string>
     <string name="home_search_placeholder">Search for campus deals</string>
