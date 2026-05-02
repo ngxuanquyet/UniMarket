@@ -241,6 +241,8 @@
     <string name="messages_load_error">Không thể tải tin nhắn</string>
     <string name="messages_empty">Chưa có cuộc trò chuyện nào</string>
     <string name="messages_start_conversation">Bắt đầu cuộc trò chuyện</string>
+    <string name="messages_delete_title">Xóa cuộc trò chuyện?</string>
+    <string name="messages_delete_message">Cuộc trò chuyện và các tin nhắn trong đó sẽ bị xóa.</string>
 
     <string name="chat_title_fallback">Trò chuyện</string>
     <string name="chat_selected_image">Ảnh đã chọn</string>
@@ -377,7 +379,7 @@
     <string name="checkout_no_order_found">Không tìm thấy đơn hàng</string>
     <string name="checkout_order_details">Chi tiết đơn hàng</string>
     <string name="checkout_processing">Đang xử lý...</string>
-    <string name="checkout_confirm_orders">Xác nhận đơn (%1$d)</string>
+    <string name="checkout_confirm_orders">Xác nhận đơn</string>
     <string name="checkout_secure_campus_transaction">Giao dịch an toàn trong khuôn viên trường</string>
     <string name="checkout_order_index">Đơn hàng %1$d</string>
     <string name="checkout_delivery_method">Phương thức giao nhận</string>
@@ -437,6 +439,8 @@
     <string name="checkout_buyer_address_empty">Vui lòng thêm địa chỉ người mua trước.</string>
     <string name="checkout_shipping_address">Địa chỉ nhận hàng</string>
     <string name="checkout_shipping_address_empty">Vui lòng thêm địa chỉ nhận hàng trước.</string>
+    <string name="checkout_default_address">Địa chỉ mặc định</string>
+    <string name="checkout_change_address">Thay đổi</string>
 
     <string name="product_share">Chia sẻ</string>
     <string name="product_cannot_chat_self">Bạn không thể nhắn tin cho tin đăng của chính mình.</string>

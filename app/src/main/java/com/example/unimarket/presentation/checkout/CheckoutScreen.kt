@@ -23,7 +23,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Handshake
 import androidx.compose.material.icons.filled.LocalShipping
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Money
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Place
@@ -40,6 +39,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -50,6 +50,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -63,9 +64,13 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.rememberAsyncImagePainter
 import com.example.unimarket.R
@@ -93,21 +98,33 @@ fun CheckoutScreen(
     productId: String? = null,
     quantity: Int = 1,
     cartItemIds: List<String> = emptyList(),
+    selectedAddressIdFromPicker: String? = null,
+    onAddressSelectionConsumed: () -> Unit = {},
     onBackClick: () -> Unit,
+    onChangeAddressClick: () -> Unit = {},
     onTransferOrdersReady: (List<String>) -> Unit = {},
     onPurchaseCompleted: () -> Unit = {},
     viewModel: CheckoutViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val lifecycleOwner = LocalLifecycleOwner.current
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
     var completedOrderInfo by remember { mutableStateOf<CompletedOrderResult?>(null) }
+    var hasPausedForAddressChange by remember { mutableStateOf(false) }
 
     LaunchedEffect(productId, quantity, cartItemIds) {
         if (cartItemIds.isNotEmpty()) {
             viewModel.loadCartItems(cartItemIds)
         } else if (!productId.isNullOrBlank()) {
             viewModel.loadProduct(productId, quantity)
+        }
+    }
+
+    LaunchedEffect(selectedAddressIdFromPicker) {
+        if (!selectedAddressIdFromPicker.isNullOrBlank()) {
+            viewModel.refreshBuyerAddresses(preferredSelectedAddressId = selectedAddressIdFromPicker)
+            onAddressSelectionConsumed()
         }
     }
 
@@ -129,6 +146,25 @@ fun CheckoutScreen(
                     }
                 }
             }
+        }
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_PAUSE -> hasPausedForAddressChange = true
+                Lifecycle.Event.ON_RESUME -> {
+                    if (hasPausedForAddressChange) {
+                        hasPausedForAddressChange = false
+                        viewModel.refreshBuyerAddresses()
+                    }
+                }
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
 
@@ -196,6 +232,7 @@ fun CheckoutScreen(
                                 viewModel.selectDeliveryMethod(order.id, method)
                             },
                             onSelectBuyerAddress = viewModel::selectBuyerAddress,
+                            onChangeAddressClick = onChangeAddressClick,
                             onSelectSellerAddress = { addressId ->
                                 viewModel.selectSellerAddress(order.id, addressId)
                             },
@@ -237,15 +274,8 @@ fun CheckoutScreen(
                                 color = Color.White
                             )
                         } else {
-                            Icon(
-                                Icons.Default.Lock,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = Color.White
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                stringResource(R.string.checkout_confirm_orders, uiState.orders.size),
+                                stringResource(R.string.checkout_confirm_orders),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp,
                                 color = Color.White
@@ -316,6 +346,7 @@ private fun CheckoutOrderCard(
     selectedBuyerAddressId: String?,
     onSelectDeliveryMethod: (DeliveryMethod) -> Unit,
     onSelectBuyerAddress: (String) -> Unit,
+    onChangeAddressClick: () -> Unit,
     onSelectSellerAddress: (String) -> Unit,
     onMeetingPointChange: (String) -> Unit,
     onSelectPaymentMethod: (String) -> Unit
@@ -371,7 +402,7 @@ private fun CheckoutOrderCard(
                                 selectedBuyerAddressId = selectedBuyerAddressId,
                                 selectedSellerAddressId = order.selectedSellerAddressId,
                                 meetingPoint = order.meetingPoint,
-                                onBuyerAddressClick = onSelectBuyerAddress,
+                                onChangeAddressClick = onChangeAddressClick,
                                 onSellerAddressClick = onSelectSellerAddress,
                                 onMeetingPointChange = onMeetingPointChange
                             )
@@ -538,7 +569,7 @@ private fun DeliveryMethodDetails(
     selectedBuyerAddressId: String?,
     selectedSellerAddressId: String?,
     meetingPoint: String,
-    onBuyerAddressClick: (String) -> Unit,
+    onChangeAddressClick: () -> Unit,
     onSellerAddressClick: (String) -> Unit,
     onMeetingPointChange: (String) -> Unit
 ) {
@@ -570,23 +601,110 @@ private fun DeliveryMethodDetails(
         }
 
         DeliveryMethod.SELLER_TO_BUYER -> {
-            AddressSelector(
-                title = stringResource(R.string.checkout_buyer_address),
+            BuyerDeliveryAddressCard(
                 addresses = buyerAddresses,
                 selectedAddressId = selectedBuyerAddressId,
                 emptyState = stringResource(R.string.checkout_buyer_address_empty),
-                onAddressClick = onBuyerAddressClick
+                onChangeAddressClick = onChangeAddressClick
             )
         }
 
         DeliveryMethod.SHIPPING -> {
-            AddressSelector(
-                title = stringResource(R.string.checkout_shipping_address),
+            BuyerDeliveryAddressCard(
                 addresses = buyerAddresses,
                 selectedAddressId = selectedBuyerAddressId,
                 emptyState = stringResource(R.string.checkout_shipping_address_empty),
-                onAddressClick = onBuyerAddressClick
+                onChangeAddressClick = onChangeAddressClick
             )
+        }
+    }
+}
+
+@Composable
+private fun BuyerDeliveryAddressCard(
+    addresses: List<UserAddress>,
+    selectedAddressId: String?,
+    emptyState: String,
+    onChangeAddressClick: () -> Unit
+) {
+    Spacer(modifier = Modifier.height(12.dp))
+    val selectedAddress = addresses.firstOrNull { it.id == selectedAddressId }
+        ?: addresses.firstOrNull { it.isDefault }
+        ?: addresses.firstOrNull()
+
+    if (selectedAddress == null) {
+        Text(emptyState, color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+        OutlinedButton(
+            onClick = onChangeAddressClick,
+            modifier = Modifier.padding(top = 8.dp),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text(stringResource(R.string.checkout_change_address), fontWeight = FontWeight.Bold)
+        }
+        return
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .border(1.dp, Color.LightGray, RoundedCornerShape(12.dp))
+            .background(Color.White)
+            .padding(14.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = Icons.Default.Place,
+                contentDescription = null,
+                tint = SecondaryBlue,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = if (selectedAddress.isDefault) {
+                        stringResource(R.string.checkout_default_address)
+                    } else {
+                        stringResource(R.string.profile_my_addresses)
+                    },
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp
+                )
+                Text(
+                    text = selectedAddress.recipientName.ifBlank { selectedAddress.shortDisplay() },
+                    color = Color.Gray,
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (selectedAddress.phoneNumber.isNotBlank()) {
+                    Text(
+                        text = selectedAddress.phoneNumber,
+                        color = Color.Gray,
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Text(
+                    text = selectedAddress.shortDisplay(),
+                    color = Color.Gray,
+                    fontSize = 12.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            OutlinedButton(
+                onClick = onChangeAddressClick,
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = SecondaryBlue)
+            ) {
+                Text(
+                    text = stringResource(R.string.checkout_change_address),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
+                )
+            }
         }
     }
 }

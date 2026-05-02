@@ -20,7 +20,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -29,12 +32,19 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,6 +63,7 @@ import com.example.unimarket.domain.model.Conversation
 import com.example.unimarket.presentation.theme.DividerColor
 import com.example.unimarket.presentation.theme.MessageBg
 import com.example.unimarket.presentation.theme.ProfileAvatarBorder
+import com.example.unimarket.presentation.theme.RedDanger
 import com.example.unimarket.presentation.theme.SecondaryBlue
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -67,6 +78,7 @@ fun MessagesScreen(
     viewModel: MessagesViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var pendingDeleteConversation by remember { mutableStateOf<Conversation?>(null) }
 
     Scaffold(
         topBar = {
@@ -151,16 +163,74 @@ fun MessagesScreen(
                         modifier = Modifier.fillMaxSize()
                     ) {
                         items(uiState.filteredConversations, key = { it.id }) { conversation ->
-                            MessageItem(
+                            SwipeableMessageItem(
                                 conversation = conversation,
-                                onClick = { onConversationClick(conversation.id) }
+                                onClick = { onConversationClick(conversation.id) },
+                                onDeleteRequested = { pendingDeleteConversation = conversation }
                             )
                         }
                     }
                 }
             }
         }
+
+        pendingDeleteConversation?.let { conversation ->
+            AlertDialog(
+                onDismissRequest = { pendingDeleteConversation = null },
+                title = { Text(stringResource(R.string.messages_delete_title)) },
+                text = { Text(stringResource(R.string.messages_delete_message)) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            pendingDeleteConversation = null
+                            viewModel.deleteConversation(conversation.id)
+                        },
+                        colors = ButtonDefaults.textButtonColors(contentColor = RedDanger)
+                    ) {
+                        Text(stringResource(R.string.common_delete), fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingDeleteConversation = null }) {
+                        Text(stringResource(R.string.common_cancel))
+                    }
+                }
+            )
+        }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwipeableMessageItem(
+    conversation: Conversation,
+    onClick: () -> Unit,
+    onDeleteRequested: () -> Unit
+) {
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            if (value == SwipeToDismissBoxValue.EndToStart) {
+                onDeleteRequested()
+            }
+            false
+        },
+        positionalThreshold = { distance -> distance * 0.35f }
+    )
+
+    SwipeToDismissBox(
+        state = dismissState,
+        enableDismissFromStartToEnd = false,
+        enableDismissFromEndToStart = true,
+        backgroundContent = {
+            DeleteBackground()
+        },
+        content = {
+            MessageItem(
+                conversation = conversation,
+                onClick = onClick
+            )
+        }
+    )
 }
 
 @Composable
@@ -168,7 +238,7 @@ fun MessageItem(
     conversation: Conversation,
     onClick: () -> Unit
 ) {
-    Column {
+    Column(modifier = Modifier.background(Color.White)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -268,6 +338,34 @@ fun MessageItem(
             color = ProfileAvatarBorder,
             thickness = 1.dp
         )
+    }
+}
+
+@Composable
+private fun DeleteBackground() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(RedDanger)
+            .padding(horizontal = 24.dp),
+        contentAlignment = Alignment.CenterEnd
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Delete,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(22.dp)
+            )
+            Text(
+                text = stringResource(R.string.common_delete),
+                color = Color.White,
+                fontWeight = FontWeight.Bold
+            )
+        }
     }
 }
 

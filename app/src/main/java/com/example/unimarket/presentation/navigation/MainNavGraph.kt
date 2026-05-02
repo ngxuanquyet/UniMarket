@@ -1,9 +1,12 @@
 package com.example.unimarket.presentation.navigation
 
 import android.net.Uri
+import android.util.Log
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -31,6 +34,9 @@ import com.example.unimarket.presentation.sellerreviews.SellerReviewsScreen
 import com.example.unimarket.presentation.wallet.WalletScreen
 import com.example.unimarket.presentation.wallet.WalletTransactionMode
 import com.example.unimarket.presentation.wallet.WalletTopUpScreen
+
+private const val CHECKOUT_SELECTED_ADDRESS_ID_KEY = "checkout_selected_address_id"
+private const val CHECKOUT_ADDRESS_LOG_TAG = "CheckoutAddress"
 
 @Composable
 fun MainNavGraph(navController: NavHostController, rootNavController: NavHostController) {
@@ -108,9 +114,31 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
                 }
             )
         }
-        composable(Screen.MyAddresses.route) {
+        composable(
+            route = Screen.MyAddresses.route + "?${Screen.MyAddresses.SELECT_MODE_ARG}={${Screen.MyAddresses.SELECT_MODE_ARG}}",
+            arguments = listOf(
+                androidx.navigation.navArgument(Screen.MyAddresses.SELECT_MODE_ARG) {
+                    type = androidx.navigation.NavType.BoolType
+                    defaultValue = false
+                }
+            )
+        ) { backStackEntry ->
+            val selectionMode = backStackEntry.arguments
+                ?.getBoolean(Screen.MyAddresses.SELECT_MODE_ARG)
+                ?: false
             MyAddressesScreen(
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                selectionMode = selectionMode,
+                onAddressSelected = { address ->
+                    Log.d(
+                        CHECKOUT_ADDRESS_LOG_TAG,
+                        "MyAddresses selected address: id=${address.id}, previousRoute=${navController.previousBackStackEntry?.destination?.route}"
+                    )
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set(CHECKOUT_SELECTED_ADDRESS_ID_KEY, address.id)
+                    navController.popBackStack()
+                }
             )
         }
         composable(Screen.PaymentMethods.route) {
@@ -448,10 +476,25 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
         ) { backStackEntry ->
             val productId = backStackEntry.arguments?.getString("productId") ?: return@composable
             val quantity = backStackEntry.arguments?.getInt("quantity") ?: 1
+            val selectedAddressId by backStackEntry.savedStateHandle
+                .getStateFlow(CHECKOUT_SELECTED_ADDRESS_ID_KEY, "")
+                .collectAsStateWithLifecycle()
+            Log.d(
+                CHECKOUT_ADDRESS_LOG_TAG,
+                "BuyNow checkout savedState selectedAddressId=$selectedAddressId"
+            )
             CheckoutScreen(
                 productId = productId,
                 quantity = quantity,
+                selectedAddressIdFromPicker = selectedAddressId.ifBlank { null },
+                onAddressSelectionConsumed = {
+                    Log.d(CHECKOUT_ADDRESS_LOG_TAG, "BuyNow checkout consumed selectedAddressId=$selectedAddressId")
+                    backStackEntry.savedStateHandle[CHECKOUT_SELECTED_ADDRESS_ID_KEY] = ""
+                },
                 onBackClick = { navController.popBackStack() },
+                onChangeAddressClick = {
+                    navController.navigate(Screen.MyAddresses.route(selectMode = true))
+                },
                 onTransferOrdersReady = { orderIds ->
                     navController.navigate(
                         Screen.QrTransfer.route + "?orderIds=" + Uri.encode(orderIds.joinToString(",")) + "&topUpAmount=0"
@@ -478,10 +521,25 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
                 .split(",")
                 .map { it.trim() }
                 .filter { it.isNotBlank() }
+            val selectedAddressId by backStackEntry.savedStateHandle
+                .getStateFlow(CHECKOUT_SELECTED_ADDRESS_ID_KEY, "")
+                .collectAsStateWithLifecycle()
+            Log.d(
+                CHECKOUT_ADDRESS_LOG_TAG,
+                "Cart checkout savedState selectedAddressId=$selectedAddressId"
+            )
 
             CheckoutScreen(
                 cartItemIds = cartItemIds,
+                selectedAddressIdFromPicker = selectedAddressId.ifBlank { null },
+                onAddressSelectionConsumed = {
+                    Log.d(CHECKOUT_ADDRESS_LOG_TAG, "Cart checkout consumed selectedAddressId=$selectedAddressId")
+                    backStackEntry.savedStateHandle[CHECKOUT_SELECTED_ADDRESS_ID_KEY] = ""
+                },
                 onBackClick = { navController.popBackStack() },
+                onChangeAddressClick = {
+                    navController.navigate(Screen.MyAddresses.route(selectMode = true))
+                },
                 onTransferOrdersReady = { orderIds ->
                     navController.navigate(
                         Screen.QrTransfer.route + "?orderIds=" + Uri.encode(orderIds.joinToString(",")) + "&topUpAmount=0"

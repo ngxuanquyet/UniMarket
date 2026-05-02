@@ -1,6 +1,8 @@
 package com.example.unimarket.presentation.profile
 
+import android.util.Log
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -76,10 +78,14 @@ import com.example.unimarket.presentation.theme.TextDarkBlack
 import com.example.unimarket.presentation.theme.TextGray
 import kotlinx.coroutines.launch
 
+private const val ADDRESS_PICKER_LOG_TAG = "AddressPicker"
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MyAddressesScreen(
     onBackClick: () -> Unit,
+    selectionMode: Boolean = false,
+    onAddressSelected: (UserAddress) -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -180,7 +186,9 @@ fun MyAddressesScreen(
             onDeleteClick = { address ->
                 pendingDeleteConfirmation = address
             },
-            onSetDefaultClick = viewModel::setDefaultAddress
+            onSetDefaultClick = viewModel::setDefaultAddress,
+            selectionMode = selectionMode,
+            onAddressSelected = onAddressSelected
         )
 
         if (showAddressDialog) {
@@ -256,7 +264,9 @@ private fun AddressesContent(
     onAddClick: () -> Unit,
     onEditClick: (UserAddress) -> Unit,
     onDeleteClick: (UserAddress) -> Unit,
-    onSetDefaultClick: (UserAddress) -> Unit
+    onSetDefaultClick: (UserAddress) -> Unit,
+    selectionMode: Boolean,
+    onAddressSelected: (UserAddress) -> Unit
 ) {
     when {
         isLoading && addresses.isEmpty() -> {
@@ -339,7 +349,15 @@ private fun AddressesContent(
                         address = address,
                         onEditClick = { onEditClick(address) },
                         onDeleteClick = { onDeleteClick(address) },
-                        onSetDefaultClick = { onSetDefaultClick(address) }
+                        onSetDefaultClick = { onSetDefaultClick(address) },
+                        selectionMode = selectionMode,
+                        onClick = {
+                            Log.d(
+                                ADDRESS_PICKER_LOG_TAG,
+                                "Address clicked in selection mode: id=${address.id}, recipient=${address.recipientName}, isDefault=${address.isDefault}"
+                            )
+                            onAddressSelected(address)
+                        }
                     )
                 }
             }
@@ -352,13 +370,23 @@ private fun AddressCard(
     address: UserAddress,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
-    onSetDefaultClick: () -> Unit
+    onSetDefaultClick: () -> Unit,
+    selectionMode: Boolean = false,
+    onClick: () -> Unit = {}
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
         shape = RoundedCornerShape(14.dp),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (selectionMode) {
+                    Modifier.clickable(onClick = onClick)
+                } else {
+                    Modifier
+                }
+            )
     ) {
         Column {
             Row(
@@ -428,8 +456,10 @@ private fun AddressCard(
                     )
                 }
 
-                if (address.isDefault) {
-                    DefaultBadge()
+                if (address.isDefault || selectionMode) {
+                    if (address.isDefault) {
+                        DefaultBadge()
+                    }
                 } else {
                     TextButton(
                         onClick = onSetDefaultClick,
@@ -445,45 +475,47 @@ private fun AddressCard(
                 }
             }
 
-            Spacer(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .padding(horizontal = 16.dp)
-                    .background(BorderLightGray)
-            )
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TextButton(
-                    onClick = onEditClick,
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.textButtonColors(contentColor = BlueReview)
-                ) {
-                    Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.common_edit), fontWeight = FontWeight.Bold)
-                }
-
+            if (!selectionMode) {
                 Spacer(
                     modifier = Modifier
-                        .width(1.dp)
-                        .height(28.dp)
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .padding(horizontal = 16.dp)
                         .background(BorderLightGray)
                 )
 
-                TextButton(
-                    onClick = onDeleteClick,
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.textButtonColors(contentColor = RedDanger)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.common_delete), fontWeight = FontWeight.Bold)
+                    TextButton(
+                        onClick = onEditClick,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.textButtonColors(contentColor = BlueReview)
+                    ) {
+                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(R.string.common_edit), fontWeight = FontWeight.Bold)
+                    }
+
+                    Spacer(
+                        modifier = Modifier
+                            .width(1.dp)
+                            .height(28.dp)
+                            .background(BorderLightGray)
+                    )
+
+                    TextButton(
+                        onClick = onDeleteClick,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.textButtonColors(contentColor = RedDanger)
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(R.string.common_delete), fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }

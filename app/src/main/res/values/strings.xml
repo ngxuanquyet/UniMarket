@@ -241,6 +241,8 @@
     <string name="messages_load_error">Unable to load messages</string>
     <string name="messages_empty">No conversations yet</string>
     <string name="messages_start_conversation">Start a conversation</string>
+    <string name="messages_delete_title">Delete conversation?</string>
+    <string name="messages_delete_message">This conversation and its messages will be deleted.</string>
 
     <string name="chat_title_fallback">Chat</string>
     <string name="chat_selected_image">Selected image</string>
@@ -377,7 +379,7 @@
     <string name="checkout_no_order_found">No order found</string>
     <string name="checkout_order_details">Order details</string>
     <string name="checkout_processing">Processing...</string>
-    <string name="checkout_confirm_orders">Confirm orders (%1$d)</string>
+    <string name="checkout_confirm_orders">Confirm order</string>
     <string name="checkout_secure_campus_transaction">Secure campus transaction</string>
     <string name="checkout_order_index">Order %1$d</string>
     <string name="checkout_delivery_method">Delivery method</string>
@@ -437,6 +439,8 @@
     <string name="checkout_buyer_address_empty">Please add a buyer address first.</string>
     <string name="checkout_shipping_address">Shipping address</string>
     <string name="checkout_shipping_address_empty">Please add a shipping address first.</string>
+    <string name="checkout_default_address">Default address</string>
+    <string name="checkout_change_address">Change</string>
 
     <string name="product_share">Share</string>
     <string name="product_cannot_chat_self">You cannot chat with your own listing.</string>

@@ -16,4 +16,5 @@ interface ChatRepository {
         clientMessageId: String = ""
     ): Result<Unit>
     suspend fun markConversationAsSeen(conversationId: String): Result<Unit>
+    suspend fun deleteConversation(conversationId: String): Result<Unit>
 }

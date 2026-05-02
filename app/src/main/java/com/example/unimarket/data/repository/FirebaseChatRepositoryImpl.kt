@@ -162,6 +162,7 @@ class FirebaseChatRepositoryImpl @Inject constructor(
                 val nextUnreadCount = if (participantId == currentUser.uid) 0 else currentUnreadCount + 1
                 "$UNREAD_COUNT_BY_USER_FIELD.$participantId" to nextUnreadCount
             }
+            val recipientIds = participantIds.filter { it != currentUser.uid }
 
             firestore.runBatch { batch ->
                 batch.set(
@@ -185,6 +186,13 @@ class FirebaseChatRepositoryImpl @Inject constructor(
                         "updatedAt" to FieldValue.serverTimestamp()
                     )
                 )
+                recipientIds.forEach { recipientId ->
+                    batch.update(
+                        conversationRef,
+                        DELETED_FOR_USER_IDS_FIELD,
+                        FieldValue.arrayRemove(recipientId)
+                    )
+                }
                 batch.update(conversationRef, unreadCountUpdates)
             }.await()
 
@@ -211,6 +219,30 @@ class FirebaseChatRepositoryImpl @Inject constructor(
                     )
                 )
                 .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun deleteConversation(conversationId: String): Result<Unit> {
+        return try {
+            val currentUser = auth.currentUser ?: return Result.failure(Exception("Please log in to delete messages"))
+            val conversationRef = firestore.collection(CONVERSATIONS_COLLECTION).document(conversationId)
+            val conversationSnapshot = conversationRef.get().await()
+            val participantIds = (conversationSnapshot.get("participantIds") as? List<*>)
+                ?.mapNotNull { it as? String }
+                .orEmpty()
+            if (!conversationSnapshot.exists() || currentUser.uid !in participantIds) {
+                return Result.failure(Exception("Conversation not found"))
+            }
+
+            conversationRef.update(
+                mapOf(
+                    DELETED_FOR_USER_IDS_FIELD to FieldValue.arrayUnion(currentUser.uid),
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+            ).await()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -256,6 +288,10 @@ class FirebaseChatRepositoryImpl @Inject constructor(
     private suspend fun mapConversation(doc: DocumentSnapshot, currentUserId: String): Conversation? {
         val participantIds = (doc.get("participantIds") as? List<*>)?.mapNotNull { it as? String }.orEmpty()
         if (participantIds.isEmpty()) return null
+        val deletedForUserIds = (doc.get(DELETED_FOR_USER_IDS_FIELD) as? List<*>)
+            ?.mapNotNull { it as? String }
+            .orEmpty()
+        if (currentUserId in deletedForUserIds) return null
 
         val otherUserId = participantIds.firstOrNull { it != currentUserId } ?: return null
         val participants = doc.get("participants") as? Map<*, *>
@@ -322,6 +358,7 @@ class FirebaseChatRepositoryImpl @Inject constructor(
         const val MESSAGES_COLLECTION = "messages"
         const val USERS_COLLECTION = "users"
         const val UNREAD_COUNT_BY_USER_FIELD = "unreadCountByUser"
+        const val DELETED_FOR_USER_IDS_FIELD = "deletedForUserIds"
         const val IMAGE_MESSAGE_PREVIEW = "[Image]"
     }
 }

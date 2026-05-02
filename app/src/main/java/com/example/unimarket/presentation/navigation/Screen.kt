@@ -13,7 +13,13 @@ sealed class Screen(val route: String) {
     object PaymentMethodEditor : Screen("payment_method_editor")
     object Wallet : Screen("wallet")
     object WalletTopUp : Screen("wallet_top_up")
-    object MyAddresses : Screen("my_addresses")
+    object MyAddresses : Screen("my_addresses") {
+        const val SELECT_MODE_ARG = "selectMode"
+
+        fun route(selectMode: Boolean): String {
+            return "$route?$SELECT_MODE_ARG=$selectMode"
+        }
+    }
     object Cart : Screen("cart")
     object Welcome : Screen("welcome")
     object Login : Screen("login")

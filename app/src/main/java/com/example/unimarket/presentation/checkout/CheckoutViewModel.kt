@@ -1,5 +1,6 @@
 package com.example.unimarket.presentation.checkout
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.unimarket.domain.model.DeliveryMethod
@@ -36,6 +37,7 @@ private const val SHIPPING_FEE = 30000.0
 private const val TRANSFER_OPTION_ID = "transfer"
 private const val WALLET_OPTION_ID = "wallet"
 private const val CASH_ON_DELIVERY_OPTION_ID = "cash_on_delivery"
+private const val CHECKOUT_ADDRESS_LOG_TAG = "CheckoutAddress"
 
 data class CheckoutPaymentOption(
     val id: String,
@@ -121,6 +123,8 @@ class CheckoutViewModel @Inject constructor(
 
     private val _uiEvent = MutableSharedFlow<UiEvent>()
     val uiEvent: SharedFlow<UiEvent> = _uiEvent.asSharedFlow()
+
+    private var preferredBuyerAddressId: String? = null
 
     sealed class UiEvent {
         data class ShowSnackbar(val message: String) : UiEvent()
@@ -261,11 +265,18 @@ class CheckoutViewModel @Inject constructor(
             )
         }
 
+        val selectedBuyerAddressId = buyerAddresses.firstOrNull { it.id == preferredBuyerAddressId }?.id
+            ?: buyerAddresses.firstOrNull { it.isDefault }?.id
+            ?: buyerAddresses.firstOrNull()?.id
+        Log.d(
+            CHECKOUT_ADDRESS_LOG_TAG,
+            "loadCheckoutData selected buyer address: preferred=$preferredBuyerAddressId, selected=$selectedBuyerAddressId, addresses=${addressesDebugLabel(buyerAddresses)}"
+        )
+
         _uiState.value = CheckoutUiState(
             orders = ordersWithData,
             buyerAddresses = buyerAddresses,
-            selectedBuyerAddressId = buyerAddresses.firstOrNull { it.isDefault }?.id
-                ?: buyerAddresses.firstOrNull()?.id,
+            selectedBuyerAddressId = selectedBuyerAddressId,
             buyerWalletBalance = walletBalance,
             isLoading = false,
             errorMessage = buyerResult.exceptionOrNull()?.message ?: sellerErrorMessages.firstOrNull()
@@ -287,7 +298,43 @@ class CheckoutViewModel @Inject constructor(
     }
 
     fun selectBuyerAddress(addressId: String) {
+        Log.d(CHECKOUT_ADDRESS_LOG_TAG, "selectBuyerAddress called: addressId=$addressId")
+        preferredBuyerAddressId = addressId
         _uiState.update { it.copy(selectedBuyerAddressId = addressId) }
+    }
+
+    fun refreshBuyerAddresses(preferredSelectedAddressId: String? = null) {
+        preferredSelectedAddressId?.let { preferredBuyerAddressId = it }
+        Log.d(
+            CHECKOUT_ADDRESS_LOG_TAG,
+            "refreshBuyerAddresses start: preferredSelectedAddressId=$preferredSelectedAddressId, storedPreferred=$preferredBuyerAddressId"
+        )
+        viewModelScope.launch {
+            val result = getUserAddressesUseCase()
+            result.onSuccess { addresses ->
+                _uiState.update { state ->
+                    val currentSelection = state.selectedBuyerAddressId
+                    val selectedAddressId = addresses.firstOrNull { it.id == preferredBuyerAddressId }?.id
+                        ?: addresses.firstOrNull { it.id == currentSelection }?.id
+                        ?: addresses.firstOrNull { it.isDefault }?.id
+                        ?: addresses.firstOrNull()?.id
+                    Log.d(
+                        CHECKOUT_ADDRESS_LOG_TAG,
+                        "refreshBuyerAddresses success: preferred=$preferredSelectedAddressId, storedPreferred=$preferredBuyerAddressId, current=$currentSelection, selected=$selectedAddressId, addresses=${addressesDebugLabel(addresses)}"
+                    )
+                    state.copy(
+                        buyerAddresses = addresses,
+                        selectedBuyerAddressId = selectedAddressId,
+                        errorMessage = null
+                    )
+                }
+            }.onFailure { error ->
+                Log.e(CHECKOUT_ADDRESS_LOG_TAG, "refreshBuyerAddresses failed", error)
+                _uiState.update { state ->
+                    state.copy(errorMessage = error.message ?: state.errorMessage)
+                }
+            }
+        }
     }
 
     fun selectSellerAddress(orderId: String, addressId: String) {
@@ -604,4 +651,13 @@ private fun buildPaymentOptions(methods: List<SellerPaymentMethod>): List<Checko
 
 private fun defaultCheckoutPaymentOptions(): List<CheckoutPaymentOption> {
     return buildPaymentOptions(emptyList())
+}
+
+private fun addressesDebugLabel(addresses: List<UserAddress>): String {
+    return addresses.joinToString(
+        prefix = "[",
+        postfix = "]"
+    ) { address ->
+        "${address.id}:${address.recipientName}:default=${address.isDefault}"
+    }
 }

@@ -3,6 +3,7 @@ package com.example.unimarket.presentation.messages
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.unimarket.domain.usecase.auth.GetCurrentUserUseCase
+import com.example.unimarket.domain.usecase.chat.DeleteConversationUseCase
 import com.example.unimarket.domain.usecase.chat.ObserveConversationsUseCase
 import com.example.unimarket.presentation.util.localizedText
 import com.google.firebase.auth.FirebaseUser
@@ -19,7 +20,8 @@ import javax.inject.Inject
 @HiltViewModel
 class MessagesViewModel @Inject constructor(
     private val getCurrentUserUseCase: GetCurrentUserUseCase,
-    private val observeConversationsUseCase: ObserveConversationsUseCase
+    private val observeConversationsUseCase: ObserveConversationsUseCase,
+    private val deleteConversationUseCase: DeleteConversationUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MessagesUiState())
@@ -43,6 +45,22 @@ class MessagesViewModel @Inject constructor(
 
     fun updateSearchQuery(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
+    }
+
+    fun deleteConversation(conversationId: String) {
+        if (conversationId.isBlank()) return
+        viewModelScope.launch {
+            deleteConversationUseCase(conversationId).onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        errorMessage = error.message ?: localizedText(
+                            english = "Failed to delete conversation",
+                            vietnamese = "KhÃ´ng thá»ƒ xÃ³a cuá»™c trÃ² chuyá»‡n"
+                        )
+                    )
+                }
+            }
+        }
     }
 
     private fun observeConversations() {
