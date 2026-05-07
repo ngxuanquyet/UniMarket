@@ -13,6 +13,7 @@ data class Product(
     val location: String,
     val timeAgo: String,
     val postedAt: Long = 0L,
+    val displayOrder: Int = Int.MAX_VALUE,
     val isFavorite: Boolean = false,
     val isNegotiable: Boolean = false,
     val quantityAvailable: Int = 1,

@@ -28,7 +28,7 @@ class FirebaseProductRepositoryImpl @Inject constructor(
             listOf(
                 Category("1", "All Items"),
                 Category("2", "Electronics"),
-                Category("3", "Textbooks"),
+                Category("3", "Books"),
                 Category("4", "Furniture"),
                 Category("5", "Clothing"),
                 Category("6", "Other")
@@ -47,7 +47,7 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                 .get(Source.CACHE)
                 .await()
         }
-        emit(snapshot.documents.mapNotNull(::mapProduct))
+        emit(sortProductsForDisplay(snapshot.documents.mapNotNull(::mapProduct)))
     }
 
     override suspend fun getProductById(productId: String): Result<Product> {
@@ -82,6 +82,7 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                 "location" to product.location,
                 "timeAgo" to product.timeAgo,
                 "postedAt" to product.postedAt,
+                "displayOrder" to product.displayOrder,
                 "isFavorite" to product.isFavorite,
                 "quantityAvailable" to product.quantityAvailable,
                 "userId" to product.userId,
@@ -122,6 +123,7 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                 "location" to product.location,
                 "timeAgo" to product.timeAgo,
                 "postedAt" to product.postedAt,
+                "displayOrder" to product.displayOrder,
                 "isFavorite" to product.isFavorite,
                 "isNegotiable" to product.isNegotiable,
                 "quantityAvailable" to product.quantityAvailable,
@@ -158,6 +160,7 @@ class FirebaseProductRepositoryImpl @Inject constructor(
                 location = doc.getString("location") ?: "",
                 timeAgo = postedAt.toRelativeTimeLabel().ifBlank { doc.getString("timeAgo") ?: "" },
                 postedAt = postedAt,
+                displayOrder = doc.getLong("displayOrder")?.toInt() ?: Int.MAX_VALUE,
                 isFavorite = doc.getBoolean("isFavorite") ?: false,
                 isNegotiable = doc.getBoolean("isNegotiable") ?: false,
                 quantityAvailable = doc.getLong("quantityAvailable")?.toInt()?.coerceAtLeast(0) ?: 0,
@@ -177,6 +180,14 @@ class FirebaseProductRepositoryImpl @Inject constructor(
             Log.w("FirebaseProductRepo", "Failed to map product ${doc.id}", e)
             null
         }
+    }
+
+    private fun sortProductsForDisplay(products: List<Product>): List<Product> {
+        return products.sortedWith(
+            compareBy<Product> { it.displayOrder }
+                .thenByDescending { it.postedAt }
+                .thenBy { it.id }
+        )
     }
 
     private fun mapAddress(value: Any?): UserAddress? {

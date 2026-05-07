@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -37,6 +38,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.VerticalAlignTop
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
@@ -80,9 +82,16 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.LottieConstants
+import com.airbnb.lottie.compose.animateLottieCompositionAsState
+import com.airbnb.lottie.compose.rememberLottieComposition
 import com.example.unimarket.R
 import com.example.unimarket.domain.model.DeliveryMethod
 import com.example.unimarket.domain.model.UserAddress
@@ -138,7 +147,7 @@ fun SellScreen(
         }
     }
 
-    val categories = listOf("Electronics", "Textbooks", "Furniture", "Clothing", "Other")
+    val categories = listOf("Electronics", "Books", "Furniture", "Clothing", "Other")
     var categoryExpanded by remember { mutableStateOf(false) }
     var category by remember(initialProduct) {
         mutableStateOf(
@@ -315,6 +324,7 @@ fun SellScreen(
     }
 
     var showDraftDialog by remember { mutableStateOf(false) }
+    val isAiGenerating = uiState.isGeneratingWithAi || uiState.isGeneratingWithAiFromImage
 
     val hasUnsavedChanges = if (initialProduct != null && viewModel.isEditingDraft) {
         val initialUris = initialProduct.imageUrls
@@ -361,6 +371,7 @@ fun SellScreen(
     }
 
     BackHandler {
+        if (isAiGenerating) return@BackHandler
         handleBackClick()
     }
 
@@ -679,7 +690,11 @@ fun SellScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(18.dp))
+
+            FirstImageAiHint()
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             Button(
                 onClick = {
@@ -1076,48 +1091,48 @@ fun SellScreen(
                         modifier = Modifier.padding(bottom = 8.dp),
                         color = TextDarkBlack
                     )
-                    Button(
-                        onClick = {
-                            viewModel.generateListingSuggestion(
-                                title = title,
-                                description = description,
-                                category = category,
-                                condition = condition,
-                                priceStr = price,
-                                quantityStr = quantity,
-                                isNegotiable = false,
-                                specifications = specifications
-                                    .filter { it.key.isNotBlank() && it.value.isNotBlank() }
-                                    .associate { it.key to it.value },
-                                deliveryMethodsAvailable = selectedDeliveryMethods.toList()
-                            )
-                        },
-                        enabled = !uiState.isGeneratingWithAi && !uiState.isLoading,
-                        shape = RoundedCornerShape(20.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = LightBlueAction)
-                    ) {
-                        if (uiState.isGeneratingWithAi) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                color = Color.White,
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    Icons.Default.AutoAwesome,
-                                    contentDescription = stringResource(R.string.sell_ai_write),
-                                    tint = Color.White
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    stringResource(R.string.sell_ai_write),
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
+//                    Button(
+//                        onClick = {
+//                            viewModel.generateListingSuggestion(
+//                                title = title,
+//                                description = description,
+//                                category = category,
+//                                condition = condition,
+//                                priceStr = price,
+//                                quantityStr = quantity,
+//                                isNegotiable = false,
+//                                specifications = specifications
+//                                    .filter { it.key.isNotBlank() && it.value.isNotBlank() }
+//                                    .associate { it.key to it.value },
+//                                deliveryMethodsAvailable = selectedDeliveryMethods.toList()
+//                            )
+//                        },
+//                        enabled = !uiState.isGeneratingWithAi && !uiState.isLoading,
+//                        shape = RoundedCornerShape(20.dp),
+//                        colors = ButtonDefaults.buttonColors(containerColor = LightBlueAction)
+//                    ) {
+//                        if (uiState.isGeneratingWithAi) {
+//                            CircularProgressIndicator(
+//                                modifier = Modifier.size(18.dp),
+//                                color = Color.White,
+//                                strokeWidth = 2.dp
+//                            )
+//                        } else {
+//                            Row(verticalAlignment = Alignment.CenterVertically) {
+//                                Icon(
+//                                    Icons.Default.AutoAwesome,
+//                                    contentDescription = stringResource(R.string.sell_ai_write),
+//                                    tint = Color.White
+//                                )
+//                                Spacer(modifier = Modifier.width(8.dp))
+//                                Text(
+//                                    stringResource(R.string.sell_ai_write),
+//                                    color = Color.White,
+//                                    fontWeight = FontWeight.Bold
+//                                )
+//                            }
+//                        }
+//                    }
                     Spacer(modifier = Modifier.height(12.dp))
                     OutlinedTextField(
                         value = description,
@@ -1131,7 +1146,7 @@ fun SellScreen(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(160.dp),
+                            .heightIn(min = 160.dp),
                         shape = RoundedCornerShape(24.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             unfocusedBorderColor = BorderLightBlue,
@@ -1139,7 +1154,7 @@ fun SellScreen(
                             unfocusedContainerColor = Color.White,
                             focusedContainerColor = Color.White
                         ),
-                        maxLines = 6
+                        minLines = 6
                     )
 
                     Spacer(modifier = Modifier.height(20.dp))
@@ -1205,6 +1220,43 @@ fun SellScreen(
             Spacer(modifier = Modifier.height(40.dp))
         }
     }
+
+    if (isAiGenerating) {
+        AiGenerationLoadingOverlay()
+    }
+}
+
+@Composable
+private fun AiGenerationLoadingOverlay() {
+    val composition by rememberLottieComposition(
+        LottieCompositionSpec.RawRes(R.raw.ai_loading)
+    )
+    val progress by animateLottieCompositionAsState(
+        composition = composition,
+        iterations = LottieConstants.IterateForever
+    )
+
+    Dialog(
+        onDismissRequest = {},
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = false,
+            dismissOnClickOutside = false
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.42f)),
+            contentAlignment = Alignment.Center
+        ) {
+            LottieAnimation(
+                composition = composition,
+                progress = { progress },
+                modifier = Modifier.size(180.dp)
+            )
+        }
+    }
 }
 
 @Composable
@@ -1239,6 +1291,35 @@ fun CustomTextField(
         singleLine = true,
         textStyle = androidx.compose.ui.text.TextStyle(fontSize = 16.sp, color = TextDarkBlack)
     )
+}
+
+@Composable
+private fun FirstImageAiHint() {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = LightBlueSelection.copy(alpha = 0.55f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderLightBlue)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = null,
+                tint = AppBlue,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = stringResource(R.string.sell_first_image_ai_hint),
+                color = TextGray,
+                fontSize = 13.sp,
+                lineHeight = 18.sp
+            )
+        }
+    }
 }
 
 @Composable
@@ -1283,7 +1364,7 @@ private fun mapSuggestedCategoryToSellCategory(rawCategory: String): String? {
         normalized.contains("electronic") || normalized.contains("smartphone") || normalized.contains("phone") ||
             normalized.contains("laptop") || normalized.contains("tablet") || normalized.contains("headphone") ||
             normalized.contains("camera") -> "Electronics"
-        normalized.contains("textbook") || normalized.contains("book") || normalized.contains("notebook") -> "Textbooks"
+        normalized.contains("textbook") || normalized.contains("book") || normalized.contains("notebook") -> "Books"
         normalized.contains("furniture") || normalized.contains("chair") || normalized.contains("desk") ||
             normalized.contains("table") || normalized.contains("sofa") -> "Furniture"
         normalized.contains("clothing") || normalized.contains("shirt") || normalized.contains("pants") ||

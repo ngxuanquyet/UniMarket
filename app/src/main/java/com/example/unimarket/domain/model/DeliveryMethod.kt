@@ -13,7 +13,7 @@ enum class DeliveryMethod(
         subtitle = "Người mua tự đến lấy hàng tại địa chỉ của người bán"
     ),
     SELLER_TO_BUYER(
-        title = "Người bán giao tận nơi",
+        title = "Người bán giao hàng",
         subtitle = "Người bán mang hàng đến địa chỉ người mua đã chọn"
     ),
     SHIPPING(

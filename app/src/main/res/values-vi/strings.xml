@@ -158,7 +158,8 @@
     <string name="sell_edit_item">Chỉnh sửa sản phẩm</string>
     <string name="sell_sell_item">Đăng bán sản phẩm</string>
     <string name="sell_main_photo">Ảnh chính</string>
-    <string name="sell_ai_autofill_image">AI điền từ ảnh</string>
+    <string name="sell_ai_autofill_image">AI gợi ý thông tin sản phẩm</string>
+    <string name="sell_first_image_ai_hint">AI hoạt động tốt hơn khi ảnh đầu tiên chụp rõ thông tin, nhãn hoặc tổng quan sản phẩm.</string>
     <string name="sell_item_title">Tiêu đề sản phẩm</string>
     <string name="sell_item_title_placeholder">Bạn đang bán gì?</string>
     <string name="sell_category">Danh mục</string>

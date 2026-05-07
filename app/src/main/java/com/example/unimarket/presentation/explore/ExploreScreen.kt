@@ -29,13 +29,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.LottieConstants
+import com.airbnb.lottie.compose.animateLottieCompositionAsState
+import com.airbnb.lottie.compose.rememberLottieComposition
 import com.example.unimarket.R
 import com.example.unimarket.presentation.auth.UniversityOption
 import com.example.unimarket.presentation.auth.UniversitySuggestionField
@@ -48,6 +57,7 @@ import com.example.unimarket.presentation.util.localizedCategoryLabel
 import com.example.unimarket.presentation.util.localizedConditionLabel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import kotlinx.coroutines.delay
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -63,6 +73,7 @@ fun ExploreScreen(
     val uiState by viewModel.uiState.collectAsState()
     val universityListState by universityListViewModel.uiState.collectAsState()
     var showFilterSheet by remember { mutableStateOf(false) }
+    var showSplash by remember { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
     val hasActiveFilters = uiState.selectedPriceFilter != ExplorePriceFilter.ALL ||
         uiState.selectedPriceSort != ExplorePriceSort.RECOMMENDED ||
@@ -84,8 +95,8 @@ fun ExploreScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { 
-                    Text(stringResource(R.string.explore_title), fontWeight = FontWeight.Bold, fontSize = 24.sp)
+                title = {
+                    UniMarketLogoTitle(onClick = { showSplash = true })
                 },
                 actions = {
                     IconButton(
@@ -285,6 +296,106 @@ fun ExploreScreen(
                 onClearFilters = viewModel::clearFilters,
                 onDismiss = { showFilterSheet = false }
             )
+        }
+    }
+
+    if (showSplash) {
+        UniMarketSplashOverlay(
+            onDismiss = { showSplash = false }
+        )
+    }
+}
+
+@Composable
+private fun UniMarketLogoTitle(onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(end = 8.dp, top = 4.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Image(
+            painter = painterResource(R.drawable.icon_unimarket),
+            contentDescription = stringResource(R.string.app_name),
+            modifier = Modifier
+                .size(34.dp)
+                .clip(RoundedCornerShape(8.dp))
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = stringResource(R.string.app_name),
+            fontWeight = FontWeight.Bold,
+            fontSize = 24.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun UniMarketSplashOverlay(onDismiss: () -> Unit) {
+    val composition by rememberLottieComposition(
+        LottieCompositionSpec.RawRes(R.raw.loading_splash)
+    )
+    val progress by animateLottieCompositionAsState(
+        composition = composition,
+        iterations = LottieConstants.IterateForever
+    )
+
+    LaunchedEffect(Unit) {
+        delay(1800)
+        onDismiss()
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false
+        )
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = Color.White
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 32.dp)
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.icon_unimarket),
+                        contentDescription = stringResource(R.string.app_name),
+                        modifier = Modifier
+                            .size(124.dp)
+                            .clip(RoundedCornerShape(28.dp))
+                    )
+                    Spacer(modifier = Modifier.height(18.dp))
+                    Text(
+                        text = stringResource(R.string.app_name),
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = SecondaryBlue,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(22.dp))
+                    LottieAnimation(
+                        composition = composition,
+                        progress = { progress },
+                        modifier = Modifier
+                            .fillMaxWidth(0.68f)
+                            .height(120.dp)
+                    )
+                }
+            }
         }
     }
 }

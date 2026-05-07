@@ -132,7 +132,7 @@ class GeminiAiRepositoryImpl @Inject constructor(
                                 "Use the image first, and use the user's current text only as supporting context. " +
                                 "Do not invent specific specs that are not visually supported unless you clearly mark them as generic in the description. " +
                                 "Respond with valid JSON only using this shape: " +
-                                "{\"title\":\"...\",\"description\":\"...\",\"category\":\"Electronics|Textbooks|Furniture|Clothing|Other\",\"specifications\":{\"key\":\"value\"}}."
+                                "{\"title\":\"...\",\"description\":\"...\",\"category\":\"Electronics|Books|Furniture|Clothing|Other\",\"specifications\":{\"key\":\"value\"}}."
                         )
                     )
                 ),
@@ -277,7 +277,7 @@ class GeminiAiRepositoryImpl @Inject constructor(
             - specifications
 
             Category rules:
-            Choose exactly one of: Electronics, Textbooks, Furniture, Clothing, Other.
+            Choose exactly one of: Electronics, Books, Furniture, Clothing, Other.
 
             Writing rules:
             - Keep the title short and searchable.

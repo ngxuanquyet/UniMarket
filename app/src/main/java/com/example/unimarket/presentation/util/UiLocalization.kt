@@ -11,7 +11,7 @@ fun localizedCategoryLabel(category: String): String {
     return when (category) {
         "All Items" -> stringResource(R.string.category_all_items)
         "Electronics" -> stringResource(R.string.category_electronics)
-        "Textbooks" -> stringResource(R.string.category_textbooks)
+        "Books" -> stringResource(R.string.category_textbooks)
         "Furniture" -> stringResource(R.string.category_furniture)
         "Clothing" -> stringResource(R.string.category_clothing)
         "Other" -> stringResource(R.string.category_other)

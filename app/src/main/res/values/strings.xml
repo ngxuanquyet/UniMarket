@@ -159,6 +159,7 @@
     <string name="sell_sell_item">Sell an Item</string>
     <string name="sell_main_photo">Main photo</string>
     <string name="sell_ai_autofill_image">AI Autofill from Image</string>
+    <string name="sell_first_image_ai_hint">AI works better when the first photo clearly shows the product details, label, or the whole item.</string>
     <string name="sell_item_title">Item Title</string>
     <string name="sell_item_title_placeholder">What are you selling?</string>
     <string name="sell_category">Category</string>
