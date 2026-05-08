@@ -282,16 +282,6 @@ fun CheckoutScreen(
                             )
                         }
                     }
-
-                    Text(
-                        stringResource(R.string.checkout_secure_campus_transaction),
-                        fontSize = 10.sp,
-                        color = Color.Gray,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier
-                            .align(Alignment.CenterHorizontally)
-                            .padding(top = 16.dp, bottom = 32.dp)
-                    )
                 }
             }
         }

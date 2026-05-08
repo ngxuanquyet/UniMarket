@@ -93,6 +93,39 @@ fun UniversitySuggestionField(
 }
 
 @Composable
+fun UniversityProfileSuggestionField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    options: List<UniversityOption>,
+    label: String,
+    placeholder: String,
+    enabled: Boolean = true
+) {
+    val suggestions = remember(value, options) {
+        filterUniversityOptions(options = options, query = value)
+    }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        UniversityDialogInput(
+            value = value,
+            onValueChange = onValueChange,
+            label = label,
+            placeholder = placeholder,
+            enabled = enabled
+        )
+
+        if (suggestions.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(10.dp))
+            UniversityDialogSuggestionList(
+                suggestions = suggestions,
+                enabled = enabled,
+                onValueChange = onValueChange
+            )
+        }
+    }
+}
+
+@Composable
 fun UniversitySelectionDialog(
     title: String,
     value: String,
@@ -143,6 +176,8 @@ fun UniversitySelectionDialog(
                 UniversityDialogInput(
                     value = value,
                     onValueChange = onValueChange,
+                    label = stringResource(R.string.auth_university_label),
+                    placeholder = stringResource(R.string.auth_university_placeholder),
                     enabled = enabled
                 )
 
@@ -213,11 +248,13 @@ private fun UniversityDialogHeader(title: String) {
 private fun UniversityDialogInput(
     value: String,
     onValueChange: (String) -> Unit,
+    label: String,
+    placeholder: String,
     enabled: Boolean
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-            text = stringResource(R.string.auth_university_label),
+            text = label,
             color = UniversityDialogBlue,
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Medium
@@ -235,7 +272,7 @@ private fun UniversityDialogInput(
                 .height(56.dp),
             placeholder = {
                 Text(
-                    text = stringResource(R.string.auth_university_placeholder),
+                    text = placeholder,
                     color = UniversityDialogPlaceholder
                 )
             },

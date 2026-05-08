@@ -325,10 +325,13 @@ private fun WalletTransactionItem(transaction: WalletTransaction) {
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.Top
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.Top
+                ) {
                     Icon(
                         imageVector = if (transaction.isIncoming) {
                             Icons.Default.Payments
@@ -339,11 +342,12 @@ private fun WalletTransactionItem(transaction: WalletTransaction) {
                         tint = if (transaction.isIncoming) Color(0xFF1E8E5A) else Color(0xFFD93025)
                     )
                     Spacer(modifier = Modifier.size(10.dp))
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = title,
                             color = TextDarkBlack,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.SemiBold,
+                            lineHeight = 20.sp
                         )
                         Text(
                             text = transaction.timestamp.formatWalletTime(),

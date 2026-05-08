@@ -17,7 +17,7 @@ data class UniversityOption(
             add(name)
             if (shortName.isNotBlank()) add(shortName)
             addAll(searchKeywords)
-        }.map { it.normalizeSearchText() }
+        }.map { it.normalizeUniversitySearchText() }
 }
 
 fun parseUniversityOptions(raw: String): List<UniversityOption> {
@@ -51,7 +51,7 @@ fun filterUniversityOptions(
     limit: Int = 6
 ): List<UniversityOption> {
     if (options.isEmpty()) return emptyList()
-    val normalizedQuery = query.normalizeSearchText()
+    val normalizedQuery = query.normalizeUniversitySearchText()
     return if (normalizedQuery.isBlank()) {
         options.take(limit)
     } else {
@@ -65,15 +65,15 @@ fun resolveUniversitySelection(
     options: List<UniversityOption>,
     input: String
 ): UniversityOption? {
-    val normalizedInput = input.normalizeSearchText()
+    val normalizedInput = input.normalizeUniversitySearchText()
     if (normalizedInput.isBlank()) return null
     return options.firstOrNull { option ->
-        option.name.normalizeSearchText() == normalizedInput ||
-            option.shortName.normalizeSearchText() == normalizedInput
+        option.name.normalizeUniversitySearchText() == normalizedInput ||
+            option.shortName.normalizeUniversitySearchText() == normalizedInput
     }
 }
 
-private fun String.normalizeSearchText(): String {
+fun String.normalizeUniversitySearchText(): String {
     val noDiacritics = Normalizer.normalize(this, Normalizer.Form.NFD)
         .replace("\\p{Mn}+".toRegex(), "")
     return noDiacritics.lowercase().trim()

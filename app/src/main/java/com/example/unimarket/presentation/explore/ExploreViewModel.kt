@@ -9,6 +9,7 @@ import com.example.unimarket.domain.usecase.auth.GetUserUniversityByIdUseCase
 import com.example.unimarket.domain.usecase.explore.GetAllProductsUseCase
 import com.example.unimarket.domain.usecase.image.GetUserAvatarUrl
 import com.example.unimarket.domain.usecase.product.GetCategoriesUseCase
+import com.example.unimarket.presentation.auth.normalizeUniversitySearchText
 import com.google.firebase.auth.FirebaseUser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -234,7 +235,8 @@ class ExploreViewModel @Inject constructor(
             preloadSellerUniversity(sellerId)
             return false
         }
-        return sellerUniversity.contains(filter, ignoreCase = true)
+        return sellerUniversity.normalizeUniversitySearchText()
+            .contains(filter.normalizeUniversitySearchText())
     }
 
     private fun preloadSellerUniversities(products: List<Product>) {

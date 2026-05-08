@@ -173,7 +173,8 @@ class SellViewModel @Inject constructor(
         quantityStr: String,
         isNegotiable: Boolean,
         specifications: Map<String, String>,
-        deliveryMethodsAvailable: List<DeliveryMethod>
+        deliveryMethodsAvailable: List<DeliveryMethod>,
+        appLanguageTag: String
     ) {
         val hasEnoughContext = title.isNotBlank() ||
             description.isNotBlank() ||
@@ -206,7 +207,8 @@ class SellViewModel @Inject constructor(
                     quantity = quantityStr.trim(),
                     isNegotiable = isNegotiable,
                     specifications = specifications,
-                    deliveryMethodsAvailable = deliveryMethodsAvailable
+                    deliveryMethodsAvailable = deliveryMethodsAvailable,
+                    appLanguageTag = appLanguageTag
                 )
             ).onSuccess { suggestion ->
                 _uiState.value = _uiState.value.copy(
@@ -234,7 +236,8 @@ class SellViewModel @Inject constructor(
         description: String,
         category: String,
         condition: String,
-        specifications: Map<String, String>
+        specifications: Map<String, String>,
+        appLanguageTag: String
     ) {
         val imageUri = _uiState.value.selectedImageUris.firstOrNull()
         if (imageUri == null) {
@@ -260,7 +263,8 @@ class SellViewModel @Inject constructor(
                     description = description.trim(),
                     category = category.takeUnless { it == "Select a category" }.orEmpty(),
                     condition = condition.trim(),
-                    specifications = specifications
+                    specifications = specifications,
+                    appLanguageTag = appLanguageTag
                 )
             ).onSuccess { suggestion ->
                 _uiState.value = _uiState.value.copy(

@@ -95,6 +95,7 @@ import com.airbnb.lottie.compose.rememberLottieComposition
 import com.example.unimarket.R
 import com.example.unimarket.domain.model.DeliveryMethod
 import com.example.unimarket.domain.model.UserAddress
+import com.example.unimarket.localization.LanguageManager
 import com.example.unimarket.presentation.theme.AppBlue
 import com.example.unimarket.presentation.theme.BorderLightBlue
 import com.example.unimarket.presentation.theme.DashColor
@@ -121,6 +122,7 @@ fun SellScreen(
     val scrollState = rememberScrollState()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val appLanguageTag = LanguageManager.getSelectedLanguage(context).languageTag
     LaunchedEffect(productId) {
         viewModel.setEditProductId(productId)
     }
@@ -705,7 +707,8 @@ fun SellScreen(
                         condition = condition,
                         specifications = specifications
                             .filter { it.key.isNotBlank() && it.value.isNotBlank() }
-                            .associate { it.key to it.value }
+                            .associate { it.key to it.value },
+                        appLanguageTag = appLanguageTag
                     )
                 },
                 enabled = uiState.selectedImageUris.isNotEmpty() && !uiState.isGeneratingWithAiFromImage && !uiState.isLoading,
@@ -1104,7 +1107,8 @@ fun SellScreen(
 //                                specifications = specifications
 //                                    .filter { it.key.isNotBlank() && it.value.isNotBlank() }
 //                                    .associate { it.key to it.value },
-//                                deliveryMethodsAvailable = selectedDeliveryMethods.toList()
+//                                deliveryMethodsAvailable = selectedDeliveryMethods.toList(),
+//                                appLanguageTag = appLanguageTag
 //                            )
 //                        },
 //                        enabled = !uiState.isGeneratingWithAi && !uiState.isLoading,

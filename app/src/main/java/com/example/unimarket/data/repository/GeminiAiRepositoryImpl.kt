@@ -193,6 +193,7 @@ class GeminiAiRepositoryImpl @Inject constructor(
     }
 
     private fun buildPrompt(input: AiListingInput): String {
+        val languageInstruction = buildLanguageInstruction(input.appLanguageTag)
         val specificationsText = input.specifications.entries
             .filter { it.key.isNotBlank() && it.value.isNotBlank() }
             .joinToString(separator = "\n") { "- ${it.key}: ${it.value}" }
@@ -205,8 +206,7 @@ class GeminiAiRepositoryImpl @Inject constructor(
         return """
             Create a high-quality product listing for a second-hand marketplace app targeting students.
 
-            Keep the same language as the user's input when possible.
-            If the language is unclear, default to Vietnamese.
+            $languageInstruction
 
             Title:
             Make the title short, clear, and easy to search.
@@ -262,6 +262,7 @@ class GeminiAiRepositoryImpl @Inject constructor(
     }
 
     private fun buildImagePrompt(input: AiImageListingInput): String {
+        val languageInstruction = buildLanguageInstruction(input.appLanguageTag)
         val existingSpecifications = input.specifications.entries
             .filter { it.key.isNotBlank() && it.value.isNotBlank() }
             .joinToString(separator = "\n") { "- ${it.key}: ${it.value}" }
@@ -269,6 +270,8 @@ class GeminiAiRepositoryImpl @Inject constructor(
 
         return """
             Analyze this product photo and create marketplace autofill content.
+
+            $languageInstruction
 
             Return JSON only with these fields:
             - title
@@ -278,6 +281,7 @@ class GeminiAiRepositoryImpl @Inject constructor(
 
             Category rules:
             Choose exactly one of: Electronics, Books, Furniture, Clothing, Other.
+            Keep the category value in English exactly as one of the allowed options above.
 
             Writing rules:
             - Keep the title short and searchable.
@@ -295,6 +299,27 @@ class GeminiAiRepositoryImpl @Inject constructor(
             Specifications:
             $existingSpecifications
         """.trimIndent()
+    }
+
+    private fun buildLanguageInstruction(languageTag: String): String {
+        return when (languageTag.lowercase()) {
+            "vi", "vi-vn" -> """
+                Current app language: Vietnamese (vi).
+                Generate all user-facing listing content in Vietnamese, including title, description, and specification keys/values.
+                Keep JSON field names unchanged.
+            """.trimIndent()
+            "en", "en-us", "en-gb" -> """
+                Current app language: English (en).
+                Generate all user-facing listing content in English, including title, description, and specification keys/values.
+                Keep JSON field names unchanged.
+            """.trimIndent()
+            else -> """
+                Current app language tag: ${languageTag.ifBlank { "unknown" }}.
+                Generate all user-facing listing content in that app language when possible.
+                If the language is unclear, default to Vietnamese.
+                Keep JSON field names unchanged.
+            """.trimIndent()
+        }
     }
 
     private fun buildFinalSpecifications(

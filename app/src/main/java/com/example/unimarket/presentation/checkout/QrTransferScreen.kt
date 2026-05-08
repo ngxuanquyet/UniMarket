@@ -279,21 +279,21 @@ fun QrTransferScreen(
             ) {
                 Column {
                     Text(
-                        text = stringResource(R.string.checkout_qr_recipient_label),
+                        text = stringResource(R.string.checkout_qr_payment_label),
                         color = Color.Gray,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = appTransferAccountName,
+                        text = stringResource(R.string.checkout_qr_scan_to_pay),
                         fontWeight = FontWeight.Bold,
                         fontSize = 24.sp,
                         color = Color(0xFF1C1F39)
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = stringResource(R.string.checkout_qr_verified_seller),
+                        text = stringResource(R.string.checkout_qr_auto_verify_hint),
                         color = Color.Gray,
                         fontSize = 13.sp
                     )
@@ -438,6 +438,44 @@ fun QrTransferScreen(
                                 fontSize = 12.sp
                             )
                         }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Button(
+                            onClick = {
+                                if (isTopUpMode) {
+                                    viewModel.checkTopUpPayment(showPendingMessage = true)
+                                } else {
+                                    viewModel.checkCurrentOrderPayment(showPendingMessage = true)
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(54.dp),
+                            shape = RoundedCornerShape(27.dp),
+                            enabled = !uiState.isCheckingPayment,
+                            colors = ButtonDefaults.buttonColors(containerColor = SecondaryBlue)
+                        ) {
+                            if (uiState.isCheckingPayment) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Color.White
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = stringResource(R.string.checkout_payment_checking),
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            } else {
+                                Text(
+                                    text = stringResource(R.string.checkout_qr_button_done),
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -502,45 +540,7 @@ fun QrTransferScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            if (isPendingPayment) {
-                Button(
-                    onClick = {
-                        if (isTopUpMode) {
-                            viewModel.checkTopUpPayment(showPendingMessage = true)
-                        } else {
-                            viewModel.checkCurrentOrderPayment(showPendingMessage = true)
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(54.dp),
-                    shape = RoundedCornerShape(27.dp),
-                    enabled = !uiState.isCheckingPayment,
-                    colors = ButtonDefaults.buttonColors(containerColor = SecondaryBlue)
-                ) {
-                    if (uiState.isCheckingPayment) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp,
-                            color = Color.White
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = stringResource(R.string.checkout_payment_checking),
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
-                    } else {
-                        Text(
-                            text = stringResource(R.string.checkout_qr_button_done),
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-            } else {
+            if (!isPendingPayment) {
                 Button(
                     onClick = { viewModel.moveToNextOrder() },
                     modifier = Modifier

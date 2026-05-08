@@ -47,7 +47,7 @@ import com.airbnb.lottie.compose.animateLottieCompositionAsState
 import com.airbnb.lottie.compose.rememberLottieComposition
 import com.example.unimarket.R
 import com.example.unimarket.presentation.auth.UniversityOption
-import com.example.unimarket.presentation.auth.UniversitySuggestionField
+import com.example.unimarket.presentation.auth.UniversityProfileSuggestionField
 import coil.compose.rememberAsyncImagePainter
 import com.example.unimarket.presentation.navigation.UniversityListViewModel
 import com.example.unimarket.presentation.theme.PrimaryYellowDark
@@ -629,16 +629,12 @@ private fun ExploreFilterSheet(
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(
-                text = stringResource(R.string.explore_filter_by_university),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
-
-            UniversitySuggestionField(
+            UniversityProfileSuggestionField(
                 value = uiState.selectedUniversityFilter,
                 onValueChange = onUniversityFilterChanged,
-                options = universityOptions
+                options = universityOptions,
+                label = stringResource(R.string.explore_filter_by_university),
+                placeholder = stringResource(R.string.explore_filter_university_placeholder)
             )
         }
 

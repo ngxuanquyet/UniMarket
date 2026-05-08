@@ -13,10 +13,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddCircleOutline
-import androidx.compose.material.icons.filled.CheckCircleOutline
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.outlined.Cancel
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
@@ -55,6 +55,7 @@ fun MyListingsScreen(
     onBackClick: () -> Unit,
     onAddClick: () -> Unit,
     onEditClick: (String) -> Unit,
+    onViewClick: (String) -> Unit,
     viewModel: MyListingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -254,6 +255,7 @@ fun MyListingsScreen(
                                     product = product,
                                     currentTab = uiState.currentTab,
                                     onEditClick = { onEditClick(it) },
+                                    onViewClick = { onViewClick(it) },
                                     onDeleteClick = {
                                         itemToDelete = product
                                         showDeleteDialog = true
@@ -273,6 +275,7 @@ fun ListingCard(
     product: Product,
     currentTab: Int,
     onEditClick: (String) -> Unit,
+    onViewClick: (String) -> Unit,
     onDeleteClick: () -> Unit
 ) {
     Surface(
@@ -413,7 +416,7 @@ fun ListingCard(
                         ActionChip(stringResource(R.string.common_cancel), Icons.Outlined.Cancel, RedDanger, RedDangerBg, Modifier.weight(1f)) { onDeleteClick() }
                     } else {
                         ActionChip(stringResource(R.string.common_edit), Icons.Default.Edit, TextDarkBlack, ActionChipBg, Modifier.weight(1f)) { onEditClick(product.id) }
-                        ActionChip(stringResource(R.string.my_listings_tab_sold), Icons.Default.CheckCircleOutline, AppBlue, LightBlueSelection, Modifier.weight(1f)) { /* TODO */ }
+                        ActionChip(stringResource(R.string.common_view), Icons.Default.Visibility, AppBlue, LightBlueSelection, Modifier.weight(1f)) { onViewClick(product.id) }
                         ActionChip(stringResource(R.string.common_delete), Icons.Default.DeleteOutline, RedDanger, RedDangerBg, Modifier.weight(1f)) { onDeleteClick() }
                     }
                 }

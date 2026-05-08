@@ -21,6 +21,7 @@
     <string name="common_undo">Hoàn tác</string>
     <string name="common_delete">Xóa</string>
     <string name="common_edit">Sửa</string>
+    <string name="common_view">Xem</string>
     <string name="common_processing">Đang xử lý...</string>
     <string name="common_retry">Thử lại</string>
     <string name="common_unknown_product">Sản phẩm không xác định</string>
@@ -381,7 +382,6 @@
     <string name="checkout_order_details">Chi tiết đơn hàng</string>
     <string name="checkout_processing">Đang xử lý...</string>
     <string name="checkout_confirm_orders">Xác nhận đơn</string>
-    <string name="checkout_secure_campus_transaction">Giao dịch an toàn trong khuôn viên trường</string>
     <string name="checkout_order_index">Đơn hàng %1$d</string>
     <string name="checkout_delivery_method">Phương thức giao nhận</string>
     <string name="checkout_seller_no_delivery">Người bán chưa cấu hình phương thức giao nhận nào.</string>
@@ -398,6 +398,9 @@
     <string name="checkout_qr_transfer_empty">Không có hướng dẫn chuyển khoản.</string>
     <string name="checkout_qr_recipient_label">NGƯỜI NHẬN</string>
     <string name="checkout_qr_verified_seller">Người bán sinh viên đã xác minh</string>
+    <string name="checkout_qr_payment_label">THANH TOÁN ĐƠN HÀNG</string>
+    <string name="checkout_qr_scan_to_pay">Quét QR để thanh toán</string>
+    <string name="checkout_qr_auto_verify_hint">Hệ thống sẽ tự kiểm tra và xác nhận giao dịch.</string>
     <string name="checkout_qr_order_label">MÃ ĐƠN</string>
     <string name="checkout_qr_total_amount_label">Tổng số tiền cần thanh toán</string>
     <string name="checkout_qr_expires_in">Hết hạn sau %1$s</string>
@@ -450,7 +453,7 @@
     <string name="product_cannot_add_own">Bạn không thể thêm tin đăng của chính mình vào giỏ hàng.</string>
     <string name="product_add_to_cart">Thêm vào giỏ</string>
     <string name="product_cannot_buy_own">Bạn không thể mua tin đăng của chính mình.</string>
-    <string name="product_buy_now">Mua ngay</string>
+    <string name="product_buy_now">Mua</string>
     <string name="product_not_found">Không tìm thấy sản phẩm</string>
     <string name="product_image_page">Ảnh %2$d của %1$s</string>
     <string name="product_thumbnail">Ảnh thu nhỏ %1$d</string>

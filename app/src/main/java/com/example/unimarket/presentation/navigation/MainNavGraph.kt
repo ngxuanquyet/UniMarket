@@ -313,18 +313,31 @@ fun MainNavGraph(navController: NavHostController, rootNavController: NavHostCon
                 },
                 onEditClick = { productId ->
                     navController.navigate(Screen.Sell.route + "?productId=$productId")
+                },
+                onViewClick = { productId ->
+                    navController.navigate(
+                        Screen.ProductDetail.route + "/${Uri.encode(productId)}?ownerPreview=true"
+                    )
                 }
             )
         }
         composable(
-            route = Screen.ProductDetail.route + "/{productId}",
-            arguments = listOf(androidx.navigation.navArgument("productId") {
-                type = androidx.navigation.NavType.StringType
-            })
+            route = Screen.ProductDetail.route + "/{productId}?ownerPreview={ownerPreview}",
+            arguments = listOf(
+                androidx.navigation.navArgument("productId") {
+                    type = androidx.navigation.NavType.StringType
+                },
+                androidx.navigation.navArgument("ownerPreview") {
+                    type = androidx.navigation.NavType.BoolType
+                    defaultValue = false
+                }
+            )
         ) { backStackEntry ->
             val productId = backStackEntry.arguments?.getString("productId") ?: return@composable
+            val ownerPreview = backStackEntry.arguments?.getBoolean("ownerPreview") ?: false
             com.example.unimarket.presentation.productdetail.ProductDetailScreen(
                 productId = productId,
+                ownerPreview = ownerPreview,
                 onBackClick = { navController.popBackStack() },
                 onConversationOpen = { conversationId ->
                     navController.navigate(Screen.ChatDetail.route + "/$conversationId")

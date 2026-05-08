@@ -21,6 +21,7 @@
     <string name="common_undo">Undo</string>
     <string name="common_delete">Delete</string>
     <string name="common_edit">Edit</string>
+    <string name="common_view">View</string>
     <string name="common_processing">Processing...</string>
     <string name="common_retry">Retry</string>
     <string name="common_unknown_product">Unknown product</string>
@@ -381,7 +382,6 @@
     <string name="checkout_order_details">Order details</string>
     <string name="checkout_processing">Processing...</string>
     <string name="checkout_confirm_orders">Confirm order</string>
-    <string name="checkout_secure_campus_transaction">Secure campus transaction</string>
     <string name="checkout_order_index">Order %1$d</string>
     <string name="checkout_delivery_method">Delivery method</string>
     <string name="checkout_seller_no_delivery">Seller has not configured any delivery method yet.</string>
@@ -398,6 +398,9 @@
     <string name="checkout_qr_transfer_empty">No transfer instructions available.</string>
     <string name="checkout_qr_recipient_label">RECIPIENT</string>
     <string name="checkout_qr_verified_seller">Verified Student Seller</string>
+    <string name="checkout_qr_payment_label">ORDER PAYMENT</string>
+    <string name="checkout_qr_scan_to_pay">Scan QR to pay</string>
+    <string name="checkout_qr_auto_verify_hint">The system will automatically check and confirm the transaction.</string>
     <string name="checkout_qr_order_label">ORDER ID</string>
     <string name="checkout_qr_total_amount_label">Total Amount to Pay</string>
     <string name="checkout_qr_expires_in">Expires in %1$s</string>

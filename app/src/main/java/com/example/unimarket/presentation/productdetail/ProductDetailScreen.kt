@@ -58,6 +58,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun ProductDetailScreen(
     productId: String?,
+    ownerPreview: Boolean = false,
     onBackClick: () -> Unit,
     onConversationOpen: (String) -> Unit = {},
     onSellerClick: (String, String) -> Unit = { _, _ -> },
@@ -70,6 +71,7 @@ fun ProductDetailScreen(
     val auth = FirebaseAuth.getInstance()
     val product = uiState.product
     val isInitialLoading = uiState.isLoading && product == null
+    val purchaseBlocked = product != null && (ownerPreview || auth.uid == product.userId)
 
     LaunchedEffect(productId) {
         if (productId != null) {
@@ -163,8 +165,8 @@ fun ProductDetailScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            .padding(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         OutlinedButton(
@@ -205,17 +207,10 @@ fun ProductDetailScreen(
 
                         OutlinedButton(
                             onClick = {
-                                if (auth.uid != product.userId) {
-                                    selectedQuantity = 1
-                                    purchaseAction = PurchaseAction.AddToCart
-                                } else {
-                                    Toast.makeText(
-                                        context,
-                                        context.getString(R.string.product_cannot_add_own),
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                }
+                                selectedQuantity = 1
+                                purchaseAction = PurchaseAction.AddToCart
                             },
+                            enabled = !purchaseBlocked,
                             modifier = Modifier
                                 .weight(0.5f)
                                 .height(50.dp),
@@ -242,17 +237,10 @@ fun ProductDetailScreen(
 
                         Button(
                             onClick = {
-                                if (auth.uid != product.userId) {
-                                    selectedQuantity = 1
-                                    purchaseAction = PurchaseAction.BuyNow
-                                } else {
-                                    Toast.makeText(
-                                        context,
-                                        context.getString(R.string.product_cannot_buy_own),
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                }
+                                selectedQuantity = 1
+                                purchaseAction = PurchaseAction.BuyNow
                             },
+                            enabled = !purchaseBlocked,
                             modifier = Modifier
                                 .weight(0.5f)
                                 .height(50.dp),

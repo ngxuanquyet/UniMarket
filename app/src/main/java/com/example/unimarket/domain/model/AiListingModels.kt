@@ -11,7 +11,8 @@ data class AiListingInput(
     val quantity: String,
     val isNegotiable: Boolean,
     val specifications: Map<String, String>,
-    val deliveryMethodsAvailable: List<DeliveryMethod>
+    val deliveryMethodsAvailable: List<DeliveryMethod>,
+    val appLanguageTag: String = ""
 )
 
 data class AiListingSuggestion(
@@ -26,7 +27,8 @@ data class AiImageListingInput(
     val description: String,
     val category: String,
     val condition: String,
-    val specifications: Map<String, String>
+    val specifications: Map<String, String>,
+    val appLanguageTag: String = ""
 )
 
 data class AiImageListingSuggestion(
