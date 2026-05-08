@@ -145,12 +145,12 @@ fun WalletScreen(
                                 onWithdrawClick = onWithdrawClick
                             )
                         }
-                        item {
-                            WalletInsightsCard(
-                                earned = uiState.monthlyEarned,
-                                spent = uiState.monthlySpent
-                            )
-                        }
+//                        item {
+//                            WalletInsightsCard(
+//                                earned = uiState.monthlyEarned,
+//                                spent = uiState.monthlySpent
+//                            )
+//                        }
                         item {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
