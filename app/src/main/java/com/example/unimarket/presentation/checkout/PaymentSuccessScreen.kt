@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -62,7 +63,7 @@ fun PaymentSuccessScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Payment Successful!",
+                text = stringResource(R.string.checkout_payment_success_title),
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = SecondaryBlue
@@ -71,7 +72,7 @@ fun PaymentSuccessScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "Your transaction was completed securely and your order is being processed.",
+                text = stringResource(R.string.checkout_payment_success_message),
                 fontSize = 14.sp,
                 color = Color.Gray,
                 textAlign = TextAlign.Center,
@@ -113,7 +114,7 @@ fun PaymentSuccessScreen(
                 colors = ButtonDefaults.buttonColors(containerColor = SecondaryBlue)
             ) {
                 Text(
-                    text = "Track My Order",
+                    text = stringResource(R.string.mypurchases_track_order),
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
@@ -127,7 +128,7 @@ fun PaymentSuccessScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "Back to Marketplace",
+                    text = stringResource(R.string.checkout_back_to_marketplace),
                     color = SecondaryBlue,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 14.sp

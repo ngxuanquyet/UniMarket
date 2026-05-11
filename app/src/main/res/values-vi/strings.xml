@@ -422,6 +422,7 @@
     <string name="checkout_payment_checking">Đang kiểm tra thanh toán...</string>
     <string name="checkout_payment_success_title">Thanh toán thành công</string>
     <string name="checkout_payment_success_message">Chuyển khoản của bạn đã được xác minh. Người bán hiện có thể xử lý đơn hàng này.</string>
+    <string name="checkout_back_to_marketplace">Quay lại chợ</string>
     <string name="checkout_order_total">Tổng đơn</string>
     <string name="checkout_subtotal">Tạm tính</string>
     <string name="checkout_platform_fee">Phí nền tảng</string>
