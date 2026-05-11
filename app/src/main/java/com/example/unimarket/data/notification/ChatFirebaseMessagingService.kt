@@ -1,13 +1,16 @@
 package com.example.unimarket.data.notification
 
+import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import com.example.unimarket.MainActivity
 import com.example.unimarket.R
 import com.google.firebase.messaging.FirebaseMessagingService
@@ -62,6 +65,14 @@ class ChatFirebaseMessagingService : FirebaseMessagingService() {
     ) {
         createNotificationChannel()
 
+        if (!canShowNotifications()) {
+            android.util.Log.w(
+                TAG,
+                "Notification suppressed: notifications are disabled or permission is denied"
+            )
+            return
+        }
+
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             putExtra(MainActivity.EXTRA_CONVERSATION_ID, conversationId)
@@ -84,6 +95,23 @@ class ChatFirebaseMessagingService : FirebaseMessagingService() {
             .build()
 
         NotificationManagerCompat.from(this).notify(conversationId.hashCode(), notification)
+    }
+
+    private fun canShowNotifications(): Boolean {
+        if (!NotificationManagerCompat.from(this).areNotificationsEnabled()) return false
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val hasPostNotificationsPermission = ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+            if (!hasPostNotificationsPermission) return false
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val channel = notificationManager.getNotificationChannel(CHAT_CHANNEL_ID)
+            if (channel?.importance == NotificationManager.IMPORTANCE_NONE) return false
+        }
+        return true
     }
 
     private fun createNotificationChannel() {

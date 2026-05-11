@@ -97,6 +97,8 @@ class FirebaseNotificationRepositoryImpl @Inject constructor(
     }
 
     private fun mapNotification(document: DocumentSnapshot): AppNotification? {
+        if (document.getString("type") == CHAT_MESSAGE_TYPE) return null
+
         val title = document.getString("title")
             ?.trim()
             .orEmpty()
@@ -142,3 +144,5 @@ private fun Any?.toMillis(): Long {
         else -> 0L
     }
 }
+
+private const val CHAT_MESSAGE_TYPE = "chat_message"
